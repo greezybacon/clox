@@ -1,8 +1,9 @@
 #include <ctype.h>
+#include <stdlib.h>
 #include <strings.h>
 
-#include "coroutine.h"
 #include "token.h"
+#include "stream.h"
 
 static Token previous;
 static Token current;
@@ -10,26 +11,19 @@ static Token next;
 
 static char
 peek_char(Tokenizer *self) {
-    if (self->length < self->pos)
+    char c = self->stream->peek(self->stream);
+    if (c == -1)
         return 0;
 
-    return *self->stream;
+    return c;
 }
 
 static char
 next_char(Tokenizer *self) {
-    if (self->length < self->pos)
+    char c = self->stream->next(self->stream);
+    if (c == -1)
         return 0;
 
-    char c = *self->stream++;
-
-    if (c == '\n') {
-        self->line++;
-        self->pos = 0;
-    }
-
-    self->pos++;
-    self->stream_pos++;
     return c;
 }
 
@@ -51,10 +45,10 @@ next_token(Tokenizer *self) {
     while (isspace(c) && c != 0);
 
     Token *token = &next;
+    int start = self->stream->pos;
     *token = (struct token) {
-        .pos = self->pos, 
-        .line = self->line,
-        .text = self->stream - 1,
+        .pos = self->stream->offset, 
+        .line = self->stream->line,
         .type = T_EOF,
     };
 
@@ -164,7 +158,7 @@ next_token(Tokenizer *self) {
         while (isalnum(peek_char(self)))
             next_char(self);
 
-        token->length = self->stream - token->text;
+        token->length = start - self->stream->pos;
         if (token->length == 2
             && strncasecmp(token->text, "if", 2)
         ) {
@@ -225,7 +219,9 @@ next_token(Tokenizer *self) {
         token->type = T_NUMBER;
     }
 
-    token->length = self->stream - token->text;
+    token->length = self->stream->pos - start;
+    token->text = calloc(1, token->length);
+    self->stream->read(self->stream, start, token->text, token->length);
     self->current = token;
     return token;
 }
@@ -239,15 +235,10 @@ peek_token(Tokenizer *self) {
 }
 
 Tokenizer*
-tokenizer_init(const char * stream, int length) {
+tokenizer_init(Stream* stream) {
     Tokenizer * self = calloc(1, sizeof(Tokenizer));
     *self = (Tokenizer) {
-        .stream = (char *) stream,
-        .length = length,
-        .pos = 0,
-        .stream_pos = 0,
-        .line = 0,
-
+        .stream = stream,
         .next = next_token,
         .peek = peek_token,
     };

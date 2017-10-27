@@ -11,10 +11,22 @@ static ASTNode* parse_statement_or_block(Parser*);
 static ASTNode* parse_next(Parser*);
 
 static void
-parse_syntax_error(Parser* self) {
+parser_node_init(ASTNode* node, int type, Token* token) {
+    *node = (ASTNode) {
+        .type = type,
+        .line = token->line,
+        .offset = token->pos,
+        .next = NULL,
+    };
+}
+
+static void
+parse_syntax_error(Parser* self, char* message) {
     Tokenizer* tokens = self->tokens;
-    fprintf(stderr, "SyntaxError: line %d, at %d",
-        tokens->line, tokens->pos);
+    fprintf(stderr, "SyntaxError: line %d, at %d: %s",
+        tokens->stream->line, tokens->stream->pos, message);
+    ((ASTNode*) NULL)->next->type;
+    exit(-1);
 }
 
 static Token*
@@ -23,7 +35,7 @@ parse_expect(Parser* self, enum token_type type) {
     Token* next = T->peek(T);
 
     if (next->type != type)
-        parse_syntax_error(self);
+        parse_syntax_error(self, "Unexpected token");
 
     return next;
 }
@@ -38,6 +50,7 @@ parse_CALL(Parser* self) {
     ASTNode* narg;
 
     ASTCall* call = calloc(1, sizeof(ASTCall));
+    parser_node_init((ASTNode*) call, AST_CALL, func);
     do {
         // Comsume the open paren or the comma
         T->next(T);
@@ -52,22 +65,14 @@ parse_CALL(Parser* self) {
     }
     while (peek->type == T_COMMA);
 
-    result = (ASTNode*) call;
-    *result = (ASTNode) {
-        .type = AST_CALL,
-        .line = func->line,
-        .offset = func->pos,
-    };
-
     parse_expect(self, T_CLOSE_PAREN);
 
-    return result;
+    return (ASTNode*) call;
 }
 
 static ASTNode*
 parse_TERM(Parser* self) {
     Token* next = self->tokens->current;
-    ASTNode *result;
     switch (next->type) {
 
     case T_WORD:
@@ -82,22 +87,16 @@ parse_TERM(Parser* self) {
     case T_NULL: {
         // Do something with the token
         ASTTerm* term = calloc(1, sizeof(ASTTerm));
-        result = (ASTNode*) term;
-        *result = (ASTNode) {
-            .type = AST_TERM,
-            .line = next->line,
-            .offset = next->pos,
-        };
+        parser_node_init((ASTNode*) term, AST_TERM, next);
         term->token_type = next->type;
         term->text = strndup(next->text, next->length);
+        return (ASTNode*) term;
         break;
     }
 
     default:
-        parse_syntax_error(self);
+        parse_syntax_error(self, "Unexpected token type in TERM");
     }
-
-    return result;
 }
 
 static ASTNode*
@@ -133,19 +132,15 @@ parse_expression(Parser* self) {
 
     // peek for OP
     next = T->peek(T);
-    if (next->type >= T_OP_PLUS && next->type <= T_OP_EQUAL) {
+    if (next->type > T__OP_MIN && next->type < T__OP_MAX) {
         // Push current result as LHS of a binary op
-        ASTBinaryOp* result2 = calloc(1, sizeof(ASTBinaryOp));
-        result = (ASTNode*) result2;
-        *result = (ASTNode) {
-            .type = AST_BINARY_OP,
-            .line = next->line,
-            .offset = next->pos,
-        };
-        result2->lhs = result;
-        result2->op = next->type;
+        ASTBinaryOp* binop = calloc(1, sizeof(ASTBinaryOp));
+        parser_node_init((ASTNode*) binop, AST_BINARY_OP, next);
+        binop->lhs = result;
+        binop->op = next->type;
         T->next(T); // Consume the operator token
-        result2->rhs = parse_expression(self);
+        binop->rhs = parse_expression(self);
+        result = (ASTNode*) binop;
     }
 
     return result;
@@ -211,31 +206,23 @@ parse_statement(Parser* self) {
     // Statement
     case T_VAR: {
         ASTVar* astvar = calloc(1, sizeof(ASTVar));
-        result = (ASTNode*) astvar;
-        *result = (ASTNode) {
-            .type = AST_VAR,
-            .line = token->line,
-            .offset = token->pos,
-        };
+        parser_node_init((ASTNode*) astvar, AST_VAR, token);
         token = parse_expect(self, T_WORD);
         astvar->name = strndup(token->text, token->length);
         parse_expect(self, T_OP_ASSIGN);
         astvar->expression = parse_expression(self);
+
+        result = (ASTNode*) astvar;
         break;
     }
     case T_IF: {
         ASTIf* astif = calloc(1, sizeof(ASTIf));
-        result = (ASTNode*) astif;
-        *result = (ASTNode) {
-            .type = AST_IF,
-            .line = token->line,
-            .offset = token->pos,
-        };
+        parser_node_init((ASTNode*) astif, AST_IF, token);
         parse_expect(self, T_OPEN_PAREN);
         astif->condition = parse_expression(self);
         parse_expect(self, T_CLOSE_PAREN);
 
-        result = (void*) astif;
+        result = (ASTNode*) astif;
         break;
     }
     case T_FOR:
@@ -244,18 +231,15 @@ parse_statement(Parser* self) {
 
     case T_FUNCTION: {
         ASTFunction* astfun = calloc(1, sizeof(ASTFunction));
-        result = (ASTNode*) astfun;
-        *result = (ASTNode) {
-            .type = AST_FUNCTION,
-            .line = token->line,
-            .offset = token->pos,
-        };
+        parser_node_init((ASTNode*) astfun , AST_FUNCTION, token);
         token = parse_expect(self, T_WORD);
 
         parse_expect(self, T_OPEN_PAREN);
         astfun->arglist = parse_arg_list(self);
         parse_expect(self, T_CLOSE_PAREN);
         astfun->block = parse_statement_or_block(self);
+
+        result = (ASTNode*) astfun;
         break;
     }
 
@@ -301,8 +285,8 @@ parse_next(Parser* self) {
 }
 
 int
-parser_init(Parser* parser, const char * stream, int length) {
-    Tokenizer *tokens = tokenizer_init(stream, length);
+parser_init(Parser* parser, Stream* stream) {
+    Tokenizer *tokens = tokenizer_init(stream);
     *parser = (Parser) {
         .tokens = tokens,
         .next = parse_next,

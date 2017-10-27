@@ -62,13 +62,6 @@ typedef struct ast_fun {
     struct ast_node     *block;
 } ASTFunction;
 
-typedef struct ast_class {
-    ASTNode             node;
-    char *              name;
-    char *              parent;
-    struct ast_node     *block;
-} ASTClass;
-
 typedef struct ast_if {
     ASTNode             node;
     struct ast_node*    condition;
@@ -95,6 +88,6 @@ typedef struct parser_context {
 } Parser;
 
 
-int parser_init(Parser*, const char *, int);
+int parser_init(Parser*, Stream*);
 
 #endif

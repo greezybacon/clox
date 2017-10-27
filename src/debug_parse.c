@@ -18,7 +18,7 @@ print_term(FILE* output, ASTTerm* node) {
 static void
 print_call(FILE* output, ASTCall* node) {
     fprintf(output, "Call(%s, args=(", node->function_name);
-    print_node(node->args);
+    print_node(output, node->args);
     fprintf(output, ")");
 }
 
@@ -32,16 +32,16 @@ print_binop(FILE* output, ASTBinaryOp* node) {
 static void
 print_var(FILE* output, ASTVar* node) {
     fprintf(output, "Var(%s=", node->name);
-    print_node(node->expression);
+    print_node(output, node->expression);
     fprintf(output, ")");
 }
 
 static void
 print_if(FILE* output, ASTIf* node) {
     fprintf(output, "If(");
-    print_node(node->condition);
+    print_node(output, node->condition);
     fprintf(output, ") {");
-    print_node(node->block);
+    print_node(output, node->block);
     fprintf(output, "}");
 }
 

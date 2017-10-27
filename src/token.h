@@ -1,6 +1,8 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
+#include "stream.h"
+
 enum token_type {
     T_EOF = 0,
     T_WHITESPACE = 1,
@@ -10,6 +12,7 @@ enum token_type {
     T_STRING,
     T_WORD,
     T_NULL,
+    T__OP_MIN,
     T_OP_PLUS,
     T_OP_MINUS,
     T_OP_STAR,
@@ -23,6 +26,7 @@ enum token_type {
     T_BANG,
     T_AND,
     T_OR,
+    T__OP_MAX,
     T_OPEN_PAREN,
     T_CLOSE_PAREN,
     T_VAR,
@@ -48,9 +52,7 @@ typedef struct token {
 } Token;
 
 typedef struct tokenize_context {
-    char *      stream;
-    int         length;
-    int         line, pos, stream_pos;
+    Stream*     stream;
 
     Token*      (*next)(struct tokenize_context*);
     Token*      (*peek)(struct tokenize_context*);
@@ -59,6 +61,6 @@ typedef struct tokenize_context {
 } Tokenizer;
 
 Tokenizer*
-tokenizer_init(const char * stream, int length);
+tokenizer_init(Stream*);
 
 #endif
