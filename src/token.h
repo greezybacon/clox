@@ -47,8 +47,9 @@ typedef struct token {
     enum token_type     type;
     int                 line;
     int                 pos;
-    char*               text;
+    int                 stream_pos;
     int                 length;
+    char*               text;
 } Token;
 
 typedef struct tokenize_context {
@@ -56,7 +57,9 @@ typedef struct tokenize_context {
 
     Token*      (*next)(struct tokenize_context*);
     Token*      (*peek)(struct tokenize_context*);
+    char*       (*fetch_text)(struct tokenize_context*, struct token*);
     Token*      current;
+    Token*      previous;
     Token*      _peek;
 } Tokenizer;
 

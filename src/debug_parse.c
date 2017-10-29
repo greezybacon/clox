@@ -1,23 +1,27 @@
 #include <stdio.h>
 
 #include "debug_parse.h"
+#include "debug_token.h"
 #include "parse.h"
 
 static void
 print_expression(FILE* output, ASTExpression* node) {
-    fprintf(output, "Expression(%d", node->unary_op);
+    fprintf(output, "%s", "Expression(");
+    if (node->unary_op)
+        ;
     print_node(output, node->term);
     fprintf(output, ")");
 }
 
 static void
 print_term(FILE* output, ASTTerm* node) {
-    fprintf(output, "Term(%s)", node->text);
+    fprintf(output, "Term:%s(%.*s)", get_token_type(node->token_type),
+        node->length, node->text);
 }
 
 static void
 print_call(FILE* output, ASTCall* node) {
-    fprintf(output, "Call(%s, args=(", node->function_name);
+    fprintf(output, "Call(%.*s, args=(", node->name_length, node->function_name);
     print_node(output, node->args);
     fprintf(output, ")");
 }
@@ -25,7 +29,7 @@ print_call(FILE* output, ASTCall* node) {
 static void
 print_binop(FILE* output, ASTBinaryOp* node) {
     print_node(output, node->lhs);
-    fprintf(output, "%d", node->op);
+    fprintf(output, " (%s) ", get_operator(node->op));
     print_node(output, node->rhs);
 }
 
@@ -60,26 +64,34 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
     while (current) {
         switch (current->type) {
         case AST_EXPRESSION:
-            return print_expression(output, (ASTExpression*) current);
+            print_expression(output, (ASTExpression*) current);
+            break;
         case AST_STATEMENT:
-            return print_node_list(output, node, "\n");
+            print_node_list(output, node, "\n");
+            break;
         case AST_FUNCTION:
-            return print_function(output, (ASTFunction*) current);
+            print_function(output, (ASTFunction*) current);
+            break;
         case AST_WHILE:
         case AST_FOR:
         case AST_IF:
-            return print_if(output, (ASTIf*) current);
+            print_if(output, (ASTIf*) current);
+            break;
         case AST_VAR:
-            return print_var(output, (ASTVar*) current);
+            print_var(output, (ASTVar*) current);
+            break;
         case AST_BINARY_OP:
-            return print_binop(output, (ASTBinaryOp*) current);
+            print_binop(output, (ASTBinaryOp*) current);
+            break;
         case AST_TERM:
-            return print_term(output, (ASTTerm*) current);
+            print_term(output, (ASTTerm*) current);
+            break;
         case AST_CALL:
-            return print_call(output, (ASTCall*) current);
+            print_call(output, (ASTCall*) current);
+            break;
         }
 
-        current = node->next;
+        current = current->next;
         if (current) {
             fprintf(output, "%s", separator);
         }

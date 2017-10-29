@@ -4,10 +4,9 @@
 
 #include "token.h"
 #include "stream.h"
+#include "debug_token.h"
 
-static Token previous;
-static Token current;
-static Token next;
+static Token next = { 0 };
 
 static char
 peek_char(Tokenizer *self) {
@@ -45,11 +44,13 @@ next_token(Tokenizer *self) {
     while (isspace(c) && c != 0);
 
     Token *token = &next;
-    int start = self->stream->pos;
     *token = (struct token) {
         .pos = self->stream->offset, 
         .line = self->stream->line,
+        .stream_pos = self->stream->pos - 1,
         .type = T_EOF,
+        .length = 0,
+        .text = NULL,
     };
 
     switch (c) {
@@ -65,6 +66,7 @@ next_token(Tokenizer *self) {
         }
         while (c != begin && c != 0);
         token->type = T_STRING;
+        token->text = self->fetch_text(self, token);
         break;
 
     // Operators
@@ -153,58 +155,48 @@ next_token(Tokenizer *self) {
     if (token->type != T_EOF)
         return token;
 
-    // Words
+    // Words (start with a letter or _, allow _ and digits thereafter)
     if (isalpha(c)) {
         while (isalnum(peek_char(self)))
             next_char(self);
 
-        token->length = start - self->stream->pos;
-        if (token->length == 2
-            && strncasecmp(token->text, "if", 2)
-        ) {
-            token->type = T_IF;
+        char* token_text = self->fetch_text(self, token);
+        switch (token->length) {
+        case 2:
+            if (0 == strncmp(token_text, "if", 2))
+                token->type = T_IF;
+            else if (0 == strncasecmp(token_text, "or", 2))
+                token->type = T_OR;
+            break;
+        case 3:
+            if (0 == strncmp(token_text, "for", 3))
+                token->type = T_FOR;
+            else if (0 == strncmp(token_text, "var", 3))
+                token->type = T_VAR;
+            else if (0 == strncasecmp(token_text, "and", 3))
+                token->type = T_AND;
+            break;
+        case 4:
+            if (0 == strncmp(token_text, "else", 4))
+                token->type = T_ELSE;
+            else if (0 == strncmp(token_text, "null", 4))
+                token->type = T_NULL;
+            else if (0 == strncmp(token_text, "true", 4))
+                token->type = T_TRUE;
+            break;
+        case 5:
+            if (0 == strncasecmp(token_text, "false", 5))
+                token->type = T_FALSE;            
+            else if (0 == strncmp(token_text, "while", 5))
+                token->type = T_WHILE;  
+            break;          
+        case 8:
+            if (0 == strncmp(token_text, "function", 8))
+                token->type = T_FUNCTION;
         }
-        else if (token->length == 3
-            && strncasecmp(token->text, "for", 3)
-        ) {
-            token->type = T_FOR;
-        }
-        else if (token->length == 3
-            && strncasecmp(token->text, "var", 3)
-        ) {
-            token->type = T_VAR;
-        }
-        else if (token->length == 4
-            && strncasecmp(token->text, "else", 4)
-        ) {
-            token->type = T_ELSE;
-        }
-        else if (token->length == 4
-            && strncasecmp(token->text, "null", 4)
-        ) {
-            token->type = T_NULL;
-        }
-        else if (token->length == 4
-            && strncasecmp(token->text, "true", 4)
-        ) {
-            token->type = T_TRUE;
-        }
-        else if (token->length == 5
-            && strncasecmp(token->text, "false", 5)
-        ) {
-            token->type = T_FALSE;            
-        }
-        else if (token->length == 5
-            && strncasecmp(token->text, "while", 5)
-        ) {
-            token->type = T_FALSE;            
-        }
-        else if (token->length == 8
-            && strncasecmp(token->text, "function", 8)
-        ) {
-            token->type = T_FUNCTION;
-        }
-        else {
+        
+        // Otherwise its a plain old word
+        if (token->type == T_EOF) {
             token->type = T_WORD;
         }
     }
@@ -212,17 +204,22 @@ next_token(Tokenizer *self) {
     else if (c == '.' || isdigit(c)) {
         for (;;) {
             c = peek_char(self);
-            if (c == 0 || c != '.' || !isdigit(c))
+            if (c == 0 || !(c == '.' || isdigit(c)))
                 break;
             next_char(self);
         }
         token->type = T_NUMBER;
     }
 
-    token->length = self->stream->pos - start;
-    token->text = calloc(1, token->length);
-    self->stream->read(self->stream, start, token->text, token->length);
+    if (!token->length)
+        token->length = self->stream->pos - token->stream_pos;
+    token->text = self->fetch_text(self, token);
+
     self->current = token;
+
+    fprintf(stdout, "TOKEN: %s (%d@%d:%d) '%.*s'\n", get_token_type(token->type), token->length,
+        token->line, token->pos, token->length, token->text);
+
     return token;
 }
 
@@ -234,6 +231,16 @@ peek_token(Tokenizer *self) {
     return self->_peek;
 }
 
+static char*
+read_from_token(Tokenizer *self, Token* token) {
+    if (!token->length)
+        token->length = self->stream->pos - token->stream_pos;
+    // NOTE: read() may return a malloc()d pointer ...
+    if (!token->text)
+        token->text = self->stream->read(self->stream, token->stream_pos, token->length);
+    return token->text;
+}
+
 Tokenizer*
 tokenizer_init(Stream* stream) {
     Tokenizer * self = calloc(1, sizeof(Tokenizer));
@@ -241,6 +248,7 @@ tokenizer_init(Stream* stream) {
         .stream = stream,
         .next = next_token,
         .peek = peek_token,
+        .fetch_text = read_from_token,
     };
     return self;
 }

@@ -57,7 +57,7 @@ file_stream_next(Stream* stream) {
     char current = chunk->buffer[context->chunk_pos++];
     if (current == '\n') {
         stream->line++;
-        stream->offset=1;
+        stream->offset=0;
     }
     stream->offset++;
     stream->pos++;
@@ -78,8 +78,8 @@ file_stream_peek(Stream* stream) {
     return chunk->buffer[context->chunk_pos];
 }
 
-static int
-file_stream_readchunk(Stream* stream, int offset, char* buffer, int length) {
+static char*
+file_stream_readchunk(Stream* stream, int offset, int length) {
     FileStream* context = (FileStream*) stream->context;
     FileBufferChunk* chunk = context->chunks;
 
@@ -92,7 +92,20 @@ file_stream_readchunk(Stream* stream, int offset, char* buffer, int length) {
 
     int chunk_pos = offset - chunk->start;
     int chunk_end = chunk->start + chunk->length;
-    int copied = 0;
+
+    // Try and return a pointer into the existing chunk (rather than 
+    // allocating a new buffer)
+    if (offset + length <= chunk_end) {
+        return chunk->buffer + chunk_pos;
+    }
+
+    // Allocate a buffer to return
+    // TODO: Add a way to manage the pointer and indicate that it should 
+    //       be freed later
+    char* buffer = calloc(1, length);
+
+    int copied = 0, requested = length;
+    char* bstart = buffer;
     while (length--) {
         *buffer++ = chunk->buffer[chunk_pos++];
         if (chunk_pos > chunk_end) {
@@ -100,10 +113,11 @@ file_stream_readchunk(Stream* stream, int offset, char* buffer, int length) {
                 break;
             chunk = chunk->next;
             chunk_end = chunk->start + chunk->length;
+            chunk_pos = 0;
         }
         copied++;
     }
-    return copied;
+    return bstart;
 }
 
 static StreamOps file_stream_ops = {
@@ -122,9 +136,9 @@ stream_next(Stream* stream) {
     return stream->ops->next(stream);
 }
 
-static int
-stream_read(Stream* stream, int offset, char* buffer, int length) {
-    return stream->ops->read(stream, offset, buffer, length);
+static char*
+stream_read(Stream* stream, int offset, int length) {
+    return stream->ops->read(stream, offset, length);
 }
 
 int

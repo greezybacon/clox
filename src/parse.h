@@ -33,11 +33,13 @@ typedef struct ast_term {
     ASTNode             node;
     enum token_type     token_type;
     char                *text;
+    int                 length;
 } ASTTerm;
 
 typedef struct ast_call {
     ASTNode             node;
     char                *function_name;
+    int                 name_length;
     struct ast_node     *args;
 } ASTCall;
 

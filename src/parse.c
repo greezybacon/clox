@@ -1,8 +1,10 @@
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "debug_token.h"
 #include "parse.h"
 
 static ASTNode* parse_expression(Parser*);
@@ -23,7 +25,9 @@ parser_node_init(ASTNode* node, int type, Token* token) {
 static void
 parse_syntax_error(Parser* self, char* message) {
     Tokenizer* tokens = self->tokens;
-    fprintf(stderr, "SyntaxError: line %d, at %d: %s",
+    Token* next = tokens->peek(tokens);
+    
+    fprintf(stderr, "SyntaxError: line %d, at %d: %s\n",
         tokens->stream->line, tokens->stream->pos, message);
     ((ASTNode*) NULL)->next->type;
     exit(-1);
@@ -32,16 +36,20 @@ parse_syntax_error(Parser* self, char* message) {
 static Token*
 parse_expect(Parser* self, enum token_type type) {
     Tokenizer* T = self->tokens;
-    Token* next = T->peek(T);
+    Token* next = T->next(T);
 
-    if (next->type != type)
-        parse_syntax_error(self, "Unexpected token");
+    if (next->type != type) {
+        char buffer[255];
+        snprintf(buffer, sizeof(buffer), "Expected %d, got %.*s", type, next->length,
+            next->text);
+        parse_syntax_error(self, buffer);
+    }
 
     return next;
 }
 
 static ASTNode*
-parse_CALL(Parser* self) {
+parse_CALL(Parser* self, Token* term) {
     Tokenizer* T = self->tokens;
     Token* func = T->current;
     Token* peek = T->peek(T);
@@ -51,9 +59,18 @@ parse_CALL(Parser* self) {
 
     ASTCall* call = calloc(1, sizeof(ASTCall));
     parser_node_init((ASTNode*) call, AST_CALL, func);
+    call->function_name = term->text;
+    call->name_length = term->length;
+    fprintf(stdout, "CALL: %.*s\n", term->length, term->text);
+
     do {
         // Comsume the open paren or the comma
         T->next(T);
+
+        // Arguments are optional ...
+        if (T->peek(T)->type == T_CLOSE_PAREN)
+            break;
+
         narg = parse_expression(self);
         if (args == NULL) {
             call->args = args = narg;
@@ -64,7 +81,6 @@ parse_CALL(Parser* self) {
         peek = T->peek(T);
     }
     while (peek->type == T_COMMA);
-
     parse_expect(self, T_CLOSE_PAREN);
 
     return (ASTNode*) call;
@@ -74,12 +90,13 @@ static ASTNode*
 parse_TERM(Parser* self) {
     Token* next = self->tokens->current;
     switch (next->type) {
-
-    case T_WORD:
+    case T_WORD: {
         // Peek ahead for '(', which would be function call
+        Token previous = *next;
         if (self->tokens->peek(self->tokens)->type == T_OPEN_PAREN)
-            return parse_CALL(self);
+            return parse_CALL(self, &previous);
         // Fall through to below
+    }
     case T_NUMBER:
     case T_STRING:
     case T_TRUE:
@@ -89,14 +106,17 @@ parse_TERM(Parser* self) {
         ASTTerm* term = calloc(1, sizeof(ASTTerm));
         parser_node_init((ASTNode*) term, AST_TERM, next);
         term->token_type = next->type;
-        term->text = strndup(next->text, next->length);
+        term->text = self->tokens->fetch_text(self->tokens, next);
+        term->length = next->length;
         return (ASTNode*) term;
-        break;
     }
 
-    default:
-        parse_syntax_error(self, "Unexpected token type in TERM");
-    }
+    default: {
+        char buffer[255];
+        snprintf(buffer, sizeof(buffer), "Unexpected token type in TERM, got %s", 
+            get_token_type(next->type));
+        parse_syntax_error(self, buffer);
+    }}
 }
 
 static ASTNode*
@@ -104,7 +124,7 @@ parse_expression(Parser* self) {
     /* General expression grammar
      * EXPR = UNARY? ( TERM [ OP EXPR ] )
      * TERM = PAREN | CALL | WORD | NUMBER | STRING | TRUE | FALSE | NULL;
-     * PAREN = ( EXPR )
+     * PAREN = "(" EXPR ")"
      * NUMBER = T_NUMBER
      * STRING = T_STRING
      * OP = T_EQUAL | T_GT | T_GTE | T_LT | T_LTE | T_AND | T_OR
@@ -117,18 +137,28 @@ parse_expression(Parser* self) {
 
     if (next->type == T_BANG || next->type == T_OP_PLUS || next->type == T_OP_MINUS) {
         // Unary operator
-        next = T->next(T);
+        return parse_expression(self);
+        // TODO: Combine parsed expression with unary op here
     }
+    
+    ASTExpression* expr;
 
-    // parse_TERM
-    next = T->peek(T);
+    // parse_TERM -- PARENthensized TERM
     if (next->type == T_OPEN_PAREN) {
-        result = parse_expression(self);
+        if (T->peek(T)->type != T_CLOSE_PAREN) {
+            expr = (ASTExpression*) parse_expression(self);
+            assert(((ASTNode*) expr)->type == AST_EXPRESSION);
+        }
         parse_expect(self, T_CLOSE_PAREN);
+        return (ASTNode*) expr;
     }
-    else {
-        result = parse_TERM(self);
-    }
+    
+    // Otherwise, expect a simple TERM
+    
+    expr = calloc(1, sizeof(ASTExpression));
+    parser_node_init((ASTNode*) expr, AST_EXPRESSION, next);
+
+    expr->term = parse_TERM(self);
 
     // peek for OP
     next = T->peek(T);
@@ -136,14 +166,14 @@ parse_expression(Parser* self) {
         // Push current result as LHS of a binary op
         ASTBinaryOp* binop = calloc(1, sizeof(ASTBinaryOp));
         parser_node_init((ASTNode*) binop, AST_BINARY_OP, next);
-        binop->lhs = result;
+        binop->lhs = expr->term;
         binop->op = next->type;
         T->next(T); // Consume the operator token
         binop->rhs = parse_expression(self);
-        result = (ASTNode*) binop;
+        expr->term = (ASTNode*) binop;
     }
 
-    return result;
+    return (ASTNode*) expr;
 }
 
 static ASTNode*
@@ -208,7 +238,7 @@ parse_statement(Parser* self) {
         ASTVar* astvar = calloc(1, sizeof(ASTVar));
         parser_node_init((ASTNode*) astvar, AST_VAR, token);
         token = parse_expect(self, T_WORD);
-        astvar->name = strndup(token->text, token->length);
+        astvar->name = self->tokens->fetch_text(self->tokens, token);
         parse_expect(self, T_OP_ASSIGN);
         astvar->expression = parse_expression(self);
 
@@ -221,14 +251,26 @@ parse_statement(Parser* self) {
         parse_expect(self, T_OPEN_PAREN);
         astif->condition = parse_expression(self);
         parse_expect(self, T_CLOSE_PAREN);
+        astif->block = parse_statement_or_block(self);
 
         result = (ASTNode*) astif;
         break;
     }
-    case T_FOR:
+    case T_FOR: {
+        ASTFor* astfor = calloc(1, sizeof(ASTFor));
+        parser_node_init((ASTNode*) astfor, AST_FOR, token);
         parse_expect(self, T_OPEN_PAREN);
+        astfor->initializer = parse_expression(self);
+        parse_expect(self, T_SEMICOLON);
+        astfor->condition = parse_expression(self);
+        parse_expect(self, T_SEMICOLON);
+        astfor->post_loop = parse_expression(self);
+        parse_expect(self, T_CLOSE_PAREN);
+        astfor->block = parse_statement_or_block(self);
+        
+        result = (ASTNode*) astfor;
         break;
-
+    }
     case T_FUNCTION: {
         ASTFunction* astfun = calloc(1, sizeof(ASTFunction));
         parser_node_init((ASTNode*) astfun , AST_FUNCTION, token);
@@ -237,7 +279,7 @@ parse_statement(Parser* self) {
         parse_expect(self, T_OPEN_PAREN);
         astfun->arglist = parse_arg_list(self);
         parse_expect(self, T_CLOSE_PAREN);
-        astfun->block = parse_statement_or_block(self);
+        astfun->block = parse_block(self);
 
         result = (ASTNode*) astfun;
         break;
@@ -248,7 +290,11 @@ parse_statement(Parser* self) {
         result = NULL;
     }
 
-    parse_expect(self, T_SEMICOLON);
+    // Chomp semi-colon, if provided
+    Token* peek = self->tokens->peek(self->tokens);
+    if (peek->type == T_SEMICOLON)
+        self->tokens->next(self->tokens);
+
     return result;
 }
 
@@ -260,20 +306,26 @@ parse_statement_or_block(Parser* self) {
     if (token->type == T_OPEN_BRACE)
         return parse_block(self);
     else
-        return parse_statement(self);
+        return parse_next(self);
 }
 
 ASTNode*
 parse_next(Parser* self) {
-    Token* token = self->tokens->next(self->tokens);
+    Token* token = self->tokens->peek(self->tokens);
 
     switch (token->type) {
+    // statement separator
+    case T_SEMICOLON:
+        self->tokens->next(self->tokens);
+        return parse_next(self);
+
     // Statement
     case T_VAR:
     case T_IF:
     case T_FOR:
     case T_FUNCTION:
     case T_WHILE:
+        self->tokens->next(self->tokens);
         return parse_statement(self);
 
     case T_EOF:

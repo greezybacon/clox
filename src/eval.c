@@ -20,6 +20,7 @@ eval_stdin(void) {
     ASTNode* next;
     while ((next = parser.next(&parser)) != NULL) {
         print_node(stdout, next);
+        fprintf(stdout, "\n---\n");
     }
 }
 
