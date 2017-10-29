@@ -29,7 +29,6 @@ parse_syntax_error(Parser* self, char* message) {
     
     fprintf(stderr, "SyntaxError: line %d, at %d: %s\n",
         tokens->stream->line, tokens->stream->pos, message);
-    ((ASTNode*) NULL)->next->type;
     exit(-1);
 }
 
@@ -88,8 +87,19 @@ parse_CALL(Parser* self, Token* term) {
 
 static ASTNode*
 parse_TERM(Parser* self) {
+    Tokenizer* T = self->tokens;
     Token* next = self->tokens->current;
+    ASTTerm* term = NULL;
+
     switch (next->type) {
+    case T_OPEN_PAREN:
+        // parse_TERM -- PARENthensized TERM
+        if (T->peek(T)->type != T_CLOSE_PAREN) {
+            term = (ASTExpressionChain*) parse_expression(self);
+        }
+        parse_expect(self, T_CLOSE_PAREN);
+        break;
+
     case T_WORD: {
         // Peek ahead for '(', which would be function call
         Token previous = *next;
@@ -101,15 +111,14 @@ parse_TERM(Parser* self) {
     case T_STRING:
     case T_TRUE:
     case T_FALSE:
-    case T_NULL: {
+    case T_NULL:
         // Do something with the token
-        ASTTerm* term = calloc(1, sizeof(ASTTerm));
+        term = calloc(1, sizeof(ASTTerm));
         parser_node_init((ASTNode*) term, AST_TERM, next);
         term->token_type = next->type;
         term->text = self->tokens->fetch_text(self->tokens, next);
         term->length = next->length;
-        return (ASTNode*) term;
-    }
+        break;
 
     default: {
         char buffer[255];
@@ -117,13 +126,31 @@ parse_TERM(Parser* self) {
             get_token_type(next->type));
         parse_syntax_error(self, buffer);
     }}
+    
+    if (term && next->type == T_NUMBER) {
+        char* endpos;
+        if (memchr(term->text, '.', next->length) != NULL) {
+            term->token.real = strtold(term->text, &endpos);
+            if (term->token.real == 0.0 && endpos == term->text) {
+                parse_syntax_error(self, "Invalid floating point number");
+            }
+            term->isreal = 1;
+        }
+        else {
+            term->token.integer = strtoll(term->text, &endpos, 10);
+            if (term->token.integer == 0 && endpos == term->text) {
+                parse_syntax_error(self, "Invalid integer number");
+            }
+        }
+    }
+    return (ASTNode*) term;
 }
 
 static ASTNode*
 parse_expression(Parser* self) {
     /* General expression grammar
      * EXPR = UNARY? ( TERM [ OP EXPR ] )
-     * TERM = PAREN | CALL | WORD | NUMBER | STRING | TRUE | FALSE | NULL;
+     * TERM = PAREN | CALL | WORD | NUMBER | STRING | TRUE | FALSE | NULL
      * PAREN = "(" EXPR ")"
      * NUMBER = T_NUMBER
      * STRING = T_STRING
@@ -134,46 +161,40 @@ parse_expression(Parser* self) {
     Tokenizer* T = self->tokens;
     Token* next = T->next(T);
     ASTNode * result;
-
-    if (next->type == T_BANG || next->type == T_OP_PLUS || next->type == T_OP_MINUS) {
-        // Unary operator
-        return parse_expression(self);
-        // TODO: Combine parsed expression with unary op here
-    }
-    
-    ASTExpression* expr;
-
-    // parse_TERM -- PARENthensized TERM
-    if (next->type == T_OPEN_PAREN) {
-        if (T->peek(T)->type != T_CLOSE_PAREN) {
-            expr = (ASTExpression*) parse_expression(self);
-            assert(((ASTNode*) expr)->type == AST_EXPRESSION);
-        }
-        parse_expect(self, T_CLOSE_PAREN);
-        return (ASTNode*) expr;
-    }
+    ASTExpressionChain *expr, *expr_next=NULL;
     
     // Otherwise, expect a simple TERM
     
-    expr = calloc(1, sizeof(ASTExpression));
-    parser_node_init((ASTNode*) expr, AST_EXPRESSION, next);
+    expr = calloc(1, sizeof(ASTExpressionChain));
+    parser_node_init((ASTNode*) expr, AST_EXPRESSION_CHAIN, next);
+    result = (ASTNode*) expr;
+    
+    for (;;) {
+        // Capture unary operator
+        if (next->type == T_BANG || next->type == T_OP_PLUS || next->type == T_OP_MINUS) {
+            expr->unary_op = next->type;
+            T->next(T);
+        }
+        
+        expr->term = parse_TERM(self);
+        //expr->prev = NULL;
 
-    expr->term = parse_TERM(self);
+        // Peek for (binary) operator
+        next = T->peek(T);
+        if (next->type < T__OP_MIN || next->type > T__OP_MAX)
+            break;
 
-    // peek for OP
-    next = T->peek(T);
-    if (next->type > T__OP_MIN && next->type < T__OP_MAX) {
-        // Push current result as LHS of a binary op
-        ASTBinaryOp* binop = calloc(1, sizeof(ASTBinaryOp));
-        parser_node_init((ASTNode*) binop, AST_BINARY_OP, next);
-        binop->lhs = expr->term;
-        binop->op = next->type;
+        expr_next = calloc(1, sizeof(ASTExpressionChain));
+        parser_node_init((ASTNode*) expr_next, AST_EXPRESSION_CHAIN, next);
+
         T->next(T); // Consume the operator token
-        binop->rhs = parse_expression(self);
-        expr->term = (ASTNode*) binop;
+        expr->op = next->type;
+        expr = ((ASTNode*) expr)->next = expr_next;
+        
+        // Continue to the following token
+        next = T->next(T);
     }
-
-    return (ASTNode*) expr;
+    return result;
 }
 
 static ASTNode*

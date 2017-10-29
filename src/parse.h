@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 #include "token.h"
 
 #ifndef PARSE_H
@@ -6,6 +8,7 @@
 enum ast_type {
     AST_STATEMENT = 0,
     AST_EXPRESSION,
+    AST_EXPRESSION_CHAIN,
     AST_FUNCTION,
     AST_WHILE,
     AST_FOR,
@@ -32,8 +35,13 @@ typedef struct ast_expression {
 typedef struct ast_term {
     ASTNode             node;
     enum token_type     token_type;
+    union {
+        long long       integer;
+        long double     real;
+    } token;
     char                *text;
-    int                 length;
+    unsigned            length:16;
+    unsigned            isreal:1;
 } ASTTerm;
 
 typedef struct ast_call {
@@ -49,6 +57,19 @@ typedef struct ast_binary_op {
     enum token_type     op;
     struct ast_node     *rhs;
 } ASTBinaryOp;
+
+typedef struct ast_expression_chain {
+    ASTNode             node;
+    enum token_type     unary_op;
+    enum token_type     op;         // Unary or binary (depends if its the first in the chain)
+    struct ast_node     *term;      // The term -- might be TERM or EXPRESSION_CHAIN
+    
+    // Used in shunting yard compilation algorithm
+    struct ast_expression_chain *prev;
+    int                 precedence;
+
+    // Next points to the next item in the expression chain
+} ASTExpressionChain;
 
 typedef struct ast_class {
     ASTNode             node;

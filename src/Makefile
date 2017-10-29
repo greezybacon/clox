@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-O2 -m64 -mtune=generic -g
 DEPS=
-OBJ=token.o parse.o eval.o stream.o debug_parse.o debug_token.o
+OBJ=token.o parse.o eval.o stream.o compile.o debug_parse.o debug_token.o
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)

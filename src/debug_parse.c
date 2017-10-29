@@ -5,7 +5,18 @@
 #include "parse.h"
 
 static void
+print_expression_chain(FILE* output, ASTExpressionChain* node) {
+    if (node->unary_op)
+        fprintf(output, " (%s) ", get_operator(node->unary_op));
+    fprintf(output, "%s", "Expression(");
+    print_node(output, node->term);
+    if (node->op)
+        fprintf(output, ") (%s)", get_operator(node->op));
+}
+
+static void
 print_expression(FILE* output, ASTExpression* node) {
+    return;
     fprintf(output, "%s", "Expression(");
     if (node->unary_op)
         ;
@@ -65,6 +76,9 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
         switch (current->type) {
         case AST_EXPRESSION:
             print_expression(output, (ASTExpression*) current);
+            break;
+        case AST_EXPRESSION_CHAIN:
+            print_expression_chain(output, (ASTExpressionChain*) current);
             break;
         case AST_STATEMENT:
             print_node_list(output, node, "\n");

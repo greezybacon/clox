@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "parse.h"
+#include "compile.h"
 #include "debug_parse.h"
 
 int
@@ -16,12 +17,19 @@ eval_stdin(void) {
 
     Parser parser;
     parser_init(&parser, &input);
+    
+    Compiler compiler;
+    compiler_init(&compiler);
+    
+    compiler.compile(&compiler, &parser);
 
+    /*
     ASTNode* next;
     while ((next = parser.next(&parser)) != NULL) {
         print_node(stdout, next);
         fprintf(stdout, "\n---\n");
     }
+    */
 }
 
 int

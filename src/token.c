@@ -75,7 +75,8 @@ next_token(Tokenizer *self) {
         break;
 
     case '-':
-        token->type = T_OP_MINUS;
+        if (!isdigit(peek_char(self)))
+            token->type = T_OP_MINUS;
         break;
 
     case '*':
@@ -201,7 +202,7 @@ next_token(Tokenizer *self) {
         }
     }
     // Number
-    else if (c == '.' || isdigit(c)) {
+    else if (c == '-' || c == '.' || isdigit(c)) {
         for (;;) {
             c = peek_char(self);
             if (c == 0 || !(c == '.' || isdigit(c)))
