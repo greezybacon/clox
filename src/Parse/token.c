@@ -84,7 +84,13 @@ next_token(Tokenizer *self) {
         break;
 
     case '/':
-        token->type = T_OP_SLASH;
+        if (peek_char(self) == '/') {
+            // Scan to end of line (comment)
+            while (next_char(self) != '\n');
+        }
+        else {
+            token->type = T_OP_SLASH;
+        }
         break;
 
     case '!':
@@ -157,7 +163,7 @@ next_token(Tokenizer *self) {
         return token;
 
     // Words (start with a letter or _, allow _ and digits thereafter)
-    if (isalpha(c)) {
+    if (isalpha(c) || c == '_') {
         while (isalnum(peek_char(self)))
             next_char(self);
 
@@ -191,6 +197,10 @@ next_token(Tokenizer *self) {
             else if (0 == strncmp(token_text, "while", 5))
                 token->type = T_WHILE;  
             break;          
+        case 6:
+            if (0 == strncmp(token_text, "return", 6))
+                token->type = T_RETURN;
+            break;
         case 8:
             if (0 == strncmp(token_text, "function", 8))
                 token->type = T_FUNCTION;

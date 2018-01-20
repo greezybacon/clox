@@ -41,6 +41,7 @@ enum token_type {
     T_OPEN_BRACE,
     T_CLOSE_BRACE,
     T_COMMA,
+    T_RETURN,
 };
 
 typedef struct token {
