@@ -1,15 +1,21 @@
+.PHONY: clean
+
 CC=gcc
-CFLAGS=-O2 -m64 -mtune=generic -g
+CFLAGS=-O2 -fPIC -m64 -mtune=generic -g
+LDFLAGS=-L./Objects/ -llox
+INC=-I ./
 DEPS=
-OBJ=token.o parse.o eval.o stream.o compile.o debug_parse.o debug_token.o
+SOURCES=$(shell echo Parse/*.c Eval/*.c)
+OBJECTS=$(SOURCES:.c=.o)
+TARGET=lox
 
 %.o: %.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) $(INC) -c -o $@ $< $(CFLAGS)
 
-lox: $(OBJ)
-	gcc -o $@ $^ $(CFLAGS)
-
-all: lox
+all: $(TARGET)
 
 clean:
-	rm *.o
+	rm $(OBJECTS) $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	$(CC) $(CFLAGS) $(OBJECTS) -o $@ $(LDFLAGS)

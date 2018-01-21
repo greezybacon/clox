@@ -73,8 +73,4 @@ typedef struct object {
 void*
 object_new(size_t size, ObjectType*);
 
-#define INCREF(object) ((Object*) object)->refcount++
-#define DECREF(object) do { if (0 == --((Object*) object)->refcount) garbage_collect(object); } while(0)
-// TODO: Trigger garbage collection if refcount==0
-
 #endif
