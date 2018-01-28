@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "object.h"
+#include "boolean.h"
 #include "integer.h"
 #include "string.h"
 
@@ -55,6 +56,23 @@ string_asstring(Object* self) {
     return self;
 }
 
+static Object*
+string_op_eq(Object* self, Object* other) {
+    assert(self->type == &StringType);
+    
+    if (other->type != self->type)
+        return false;
+
+    return strncmp(((StringObject*) self)->characters, ((StringObject*) other)->characters,
+        ((StringObject*) self)->length) == 0
+        ? LoxTRUE : LoxFALSE;
+}
+
+static Object*
+string_op_ne(Object* self, Object* other) {
+    return string_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;;
+}
+
 static void
 string_cleanup(Object* self) {
     assert(self != NULL);
@@ -68,7 +86,19 @@ static struct object_type StringType = (ObjectType) {
     .name = "string",
     .hash = string_hash,
     .len = string_len,
-    .cleanup = string_cleanup,
     
     .as_string = string_asstring,
+
+    .op_eq = string_op_eq,
+    .op_ne = string_op_ne,
+
+    .cleanup = string_cleanup,
 };
+
+bool
+String_isString(Object* value) {
+    if (value->type && value->type == &StringType)
+        return true;
+
+    return false;
+}

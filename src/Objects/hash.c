@@ -8,7 +8,9 @@
 #include <string.h>
 
 #include "hash.h"
+#include "boolean.h"
 #include "object.h"
+#include "garbage.h"
 
 static struct object_type HashType;
 
@@ -33,11 +35,8 @@ HashObject *Hash_newWithSize(size_t size) {
         free(hashtable);
         return NULL;
     }
-
-	*hashtable = (HashObject) {
-        .size = size,
-        .count = 0,
-    };
+    
+    hashtable->size = size;
 
 	return hashtable;	
 }
@@ -50,10 +49,7 @@ HashObject *Hash_new(void) {
 /* Hash a string for a particular hash table. */
 static int 
 ht_hashslot(int size, Object *key) {
-    if (key->type->hash == NULL)
-        // Trigger error
-        ;
-
+    assert(key->type->hash);
 	return key->type->hash(key) % (size - 1);
 }
 
@@ -118,7 +114,7 @@ hash_set(HashObject *self, Object *key, Object *value) {
 
 	entry = self->table + slot;
 	while (entry->key != NULL) {
-        if (entry->key->type->compare(entry->key, key) == 0) {
+        if (LoxTRUE == entry->key->type->op_eq(entry->key, key)) {
 	        // There's something associated with this key. Let's replace it
             DECREF(entry->value);
             INCREF(value);
@@ -137,18 +133,16 @@ hash_set(HashObject *self, Object *key, Object *value) {
 }
 
 static HashEntry*
-hash_lookup(HashObject *self, Object *key) {
-	int slot = 0;
+hash_lookup_fast(HashObject* self, Object* key, int slot) {
 	HashEntry *entry;
 
-	slot = ht_hashslot(self->size, key);
     assert(slot < self->size);
 
     entry = self->table + slot;
     
 	/* Step through the table, looking for our value. */
-	while (entry->key != NULL 
-        && entry->key->type->compare(entry->key, key) != 0
+	while (entry->key != NULL
+        && LoxFALSE == entry->key->type->op_eq(entry->key, key)
     ) {
         slot = (slot + 1) % self->size;
         entry = self->table + slot;
@@ -161,6 +155,11 @@ hash_lookup(HashObject *self, Object *key) {
 	return entry;
 }
 
+static HashEntry*
+hash_lookup(HashObject *self, Object *key) {
+    return hash_lookup_fast(self, key, ht_hashslot(self->size, key));
+}
+
 /* Retrieve a key-value pair from a hash table. */
 static Object*
 hash_get(HashObject *self, Object *key) {
@@ -168,7 +167,7 @@ hash_get(HashObject *self, Object *key) {
     
     if (entry == NULL)
         // TODO: Raise error
-        ;
+        return NULL;
 
     return entry->value;
 }

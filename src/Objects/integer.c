@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "object.h"
+#include "boolean.h"
 #include "integer.h"
 #include "float.h"
 #include "string.h"
@@ -121,6 +122,24 @@ integer_op_divide(Object* self, Object* other) {
     return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value / ((IntegerObject*) other)->value);
 }
 
+static Object*
+integer_op_eq(Object* self, Object* other) {
+    assert(self->type->code == TYPE_INTEGER);
+
+    if (other->type->code != TYPE_INTEGER) {
+        if (other->type->as_int == NULL) {
+            // interpreter_raise('Cannot add (object) to int')
+        }
+        other = other->type->as_int(other);
+    }
+    return ((IntegerObject*) self)->value == ((IntegerObject*) other)->value ? LoxTRUE : LoxFALSE;
+}
+
+static Object*
+integer_op_ne(Object* self, Object* other) {
+    return integer_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;;
+}
+
 static struct object_type IntegerType = (ObjectType) {
     .code = TYPE_INTEGER,
     .name = "int",
@@ -136,4 +155,7 @@ static struct object_type IntegerType = (ObjectType) {
 	.op_minus = integer_op_minus,
 	.op_star = integer_op_multiply,
 	.op_slash = integer_op_divide,
+
+    .op_eq = integer_op_eq,
+    .op_ne = integer_op_ne,
 };

@@ -10,13 +10,14 @@ enum ast_type {
     AST_EXPRESSION,
     AST_EXPRESSION_CHAIN,
     AST_FUNCTION,
+    AST_PARAM,
     AST_WHILE,
     AST_FOR,
     AST_IF,
     AST_VAR,
     AST_BINARY_OP,
     AST_TERM,
-    AST_CALL,
+    AST_INVOKE,
     AST_CLASS,
 };
 
@@ -30,6 +31,7 @@ typedef struct ast_expression {
     ASTNode             node;
     enum token_type     unary_op;
     struct ast_node     *term;
+    unsigned char       isreturn;
 } ASTExpression;
 
 typedef struct ast_term {
@@ -39,17 +41,31 @@ typedef struct ast_term {
         long long       integer;
         long double     real;
     } token;
-    char                *text;
-    unsigned            length:16;
-    unsigned            isreal:1;
+    char                *text;  // Original token text (could be free()d for int/real)
+    unsigned            length; // Length of text
+    unsigned char       isreal; // T_NUMBER could be float or int
 } ASTTerm;
 
-typedef struct ast_call {
+typedef struct ast_invoke {
     ASTNode             node;
-    char                *function_name;
-    int                 name_length;
+    struct ast_node     *callable;
     struct ast_node     *args;
-} ASTCall;
+} ASTInvoke;
+
+typedef struct ast_parameter {
+    ASTNode             node;
+    char *              name;
+    size_t              name_length;
+    struct ast_node     default_value;
+} ASTFuncParam;
+
+typedef struct ast_slice {
+    ASTNode             node;
+    struct ast_node     *object;
+    struct ast_node     *start;
+    struct ast_node     *end;
+    struct ast_node     *step;
+} ASTSlice;
 
 typedef struct ast_binary_op {
     ASTNode             node;
@@ -61,7 +77,7 @@ typedef struct ast_binary_op {
 typedef struct ast_expression_chain {
     ASTNode             node;
     enum token_type     unary_op;
-    enum token_type     op;         // Unary or binary (depends if its the first in the chain)
+    enum token_type     op;         // Binary op (with ->next)
     struct ast_node     *term;      // The term -- might be TERM or EXPRESSION_CHAIN
     
     // Used in shunting yard compilation algorithm
@@ -74,13 +90,14 @@ typedef struct ast_expression_chain {
 typedef struct ast_class {
     ASTNode             node;
     char *              name;
-    char *              extends;
+    struct ast_node*    extends;
     struct ast_node*    body;
 } ASTClass;
 
 typedef struct ast_fun {
     ASTNode             node;
     char *              name;
+    unsigned            name_length;
     struct ast_node     *arglist;
     struct ast_node     *block;
 } ASTFunction;

@@ -1,6 +1,8 @@
 #ifndef STRING_H
 #define STRING_H
 
+#include <stdbool.h>
+
 #include "object.h"
 
 typedef struct string_object {
@@ -13,5 +15,6 @@ typedef struct string_object {
 } StringObject;
 
 StringObject* String_fromCharArrayAndSize(char*, size_t);
+bool String_isString(Object*);
 
 #endif

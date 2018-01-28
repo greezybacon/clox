@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "object.h"
+#include "boolean.h"
 #include "float.h"
 #include "integer.h"
 #include "string.h"
@@ -107,6 +108,24 @@ float_op_slash(Object* self, Object* other) {
     return (Object*) Float_fromLongDouble(((FloatObject*) self)->value / ((FloatObject*) other)->value);
 }
 
+static Object*
+float_op_eq(Object* self, Object* other) {
+    assert(self->type->code == TYPE_FLOAT);
+
+    if (other->type->code != TYPE_FLOAT) {
+        if (other->type->as_float == NULL) {
+            // interpreter_raise('Cannot add (object) to int')
+        }
+        other = other->type->as_float(other);
+    }
+    return ((FloatObject*) self)->value == ((FloatObject*) other)->value ? LoxTRUE : LoxFALSE;
+}
+
+static Object*
+float_op_ne(Object* self, Object* other) {
+    return float_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;
+}
+
 static struct object_type FloatType = (ObjectType) {
     .code = TYPE_FLOAT,
     .name = "float",
@@ -119,4 +138,6 @@ static struct object_type FloatType = (ObjectType) {
     .op_minus = float_op_minus,
     .op_star = float_op_star,
     .op_slash = float_op_slash,
+    .op_eq = float_op_eq,
+    .op_ne = float_op_ne,
 };

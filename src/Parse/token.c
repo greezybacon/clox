@@ -52,6 +52,8 @@ next_token(Tokenizer *self) {
         .length = 0,
         .text = NULL,
     };
+    
+    self->current = token;
 
     switch (c) {
     // Strings
@@ -153,6 +155,14 @@ next_token(Tokenizer *self) {
     case '}':
         token->type = T_CLOSE_BRACE;
         break;
+        
+    case '[':
+        token->type = T_OPEN_BRACKET;
+        break;
+
+    case ']':
+        token->type = T_CLOSE_BRACKET;
+        break;
 
     case ',':
         token->type = T_COMMA;
@@ -225,11 +235,6 @@ next_token(Tokenizer *self) {
     if (!token->length)
         token->length = self->stream->pos - token->stream_pos;
     token->text = self->fetch_text(self, token);
-
-    self->current = token;
-
-    fprintf(stdout, "TOKEN: %s (%d@%d:%d) '%.*s'\n", get_token_type(token->type), token->length,
-        token->line, token->pos, token->length, token->text);
 
     return token;
 }

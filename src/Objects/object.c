@@ -1,6 +1,7 @@
 #include <stdlib.h>
 
 #include "object.h"
+#include "garbage.h"
 
 void*
 object_new(size_t size, ObjectType* type) {

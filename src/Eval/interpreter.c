@@ -2,7 +2,6 @@
 #include <stdio.h>
 
 #include "interpreter.h"
-#include "expression.h"
 #include "Objects/string.h"
 
 // EvalContext ---------------
@@ -31,16 +30,19 @@ eval_node(Interpreter* self, ASTNode* ast) {
     case AST_EXPRESSION_CHAIN:
         return eval_expression(self, (ASTExpressionChain*) ast);
 
-    case AST_FUNCTION:
     case AST_WHILE:
     case AST_FOR:
     case AST_IF:
     case AST_VAR:
-    case AST_BINARY_OP:
+
+    case AST_FUNCTION:
+        return eval_function(self, (ASTFunction*) ast);
     case AST_TERM:
         return eval_term(self, (ASTTerm*) ast);
 
-    case AST_CALL:
+    case AST_INVOKE:
+        return eval_invoke(self, (ASTInvoke*) ast);
+
     case AST_CLASS:
         break;
     }
@@ -51,7 +53,9 @@ eval_init(Interpreter* eval, Parser* parser) {
     *eval = (Interpreter) {
         .parser = parser,
         .eval = eval_eval,
-        //.lookup = eval_lookup,
+        .lookup = eval_lookup,
+        .lookup2 = eval_lookup2,
+        .assign2 = eval_assign2,
         
         .globals = Hash_new(),
         // .stack = StackFrame_new(),

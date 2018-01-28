@@ -39,10 +39,15 @@ TokenDescriptions[] = {
     { T_FUNCTION, "T_FUNCTION" },
     { T_CLASS, "T_CLASS" },
     { T_DOT, "T_DOT" },
+    { T_OPEN_PAREN, "T_OPEN_PAREN" },
+    { T_CLOSE_PAREN, "T_CLOSE_PAREN" },
     { T_SEMICOLON, "T_SEMICOLON" },
     { T_OPEN_BRACE, "T_OPEN_BRACE" },
     { T_CLOSE_BRACE, "T_CLOSE_BRACE" },
+    { T_OPEN_BRACKET, "T_OPEN_BRACKET" },
+    { T_CLOSE_BRACKET, "T_CLOSE_BRACKET" },
     { T_COMMA, "T_COMMA" },
+    { T_RETURN, "T_RETURN" },
 };
 static const int cTokenDescriptions = sizeof(TokenDescriptions) / sizeof(TokenDescriptions[0]);
 
@@ -82,6 +87,12 @@ print_token(FILE* output, Token* token) {
         return;
     }
     fprintf(output, "{%s (%d:%d)}", T->description, token->line, token->pos);
+}
+
+void
+print_token2(FILE* output, Token* token) {
+    print_token(output, token);
+    fprintf(output, ":'%.*s'", token->length, token->text);
 }
 
 char*

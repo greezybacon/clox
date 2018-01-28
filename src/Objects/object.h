@@ -10,6 +10,7 @@ enum base_type {
     TYPE_INTEGER,
     TYPE_FLOAT,
     TYPE_HASH,
+    TYPE_FUNCTION,
 };
 
 typedef struct object Object;
@@ -56,7 +57,7 @@ typedef struct object_type {
     Object* (*compare)(Object*, Object*);
 
     // TODO: Callable
-	Object* (*call)(Object*);
+	Object* (*call)(Object*, void*);
 
     // TODO: Methods (stuff unique to each type)
     ObjectMethod* methods;

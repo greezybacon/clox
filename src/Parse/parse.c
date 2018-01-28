@@ -27,7 +27,7 @@ parse_syntax_error(Parser* self, char* message) {
     Tokenizer* tokens = self->tokens;
     Token* next = tokens->peek(tokens);
     
-    fprintf(stderr, "SyntaxError: line %d, at %d: %s\n",
+    fprintf(stderr, "Parse Error: line %d, at %d: %s\n",
         tokens->stream->line, tokens->stream->pos, message);
     exit(-1);
 }
@@ -39,8 +39,8 @@ parse_expect(Parser* self, enum token_type type) {
 
     if (next->type != type) {
         char buffer[255];
-        snprintf(buffer, sizeof(buffer), "Expected %d, got %.*s", type, next->length,
-            next->text);
+        snprintf(buffer, sizeof(buffer), "Expected %s(%d), got %.*s",
+            get_token_type(type), type, next->length, next->text);
         parse_syntax_error(self, buffer);
     }
 
@@ -48,7 +48,37 @@ parse_expect(Parser* self, enum token_type type) {
 }
 
 static ASTNode*
-parse_CALL(Parser* self, Token* term) {
+parse_block(Parser* self) {
+    Tokenizer* T = self->tokens;
+    Token* peek;
+    ASTNode *result=NULL, *list, *next;
+
+    parse_expect(self, T_OPEN_BRACE);
+    do {
+        next = parse_next(self);
+        if (result == NULL) {
+            result = list = next;
+        }
+        else {
+            list = list->next = next;
+        }
+        peek = T->peek(T);
+    }
+    while (peek->type != T_CLOSE_BRACE);
+    
+    // Console close brace
+    T->next(T);
+
+    return result;
+}
+
+static ASTNode*
+parse_slice(Parser* self, ASTNode* object) {
+    return object;
+}
+
+static ASTNode*
+parse_invoke(Parser* self, ASTNode* callable) {
     Tokenizer* T = self->tokens;
     Token* func = T->current;
     Token* peek = T->peek(T);
@@ -56,11 +86,9 @@ parse_CALL(Parser* self, Token* term) {
     ASTNode* args = NULL;
     ASTNode* narg;
 
-    ASTCall* call = calloc(1, sizeof(ASTCall));
-    parser_node_init((ASTNode*) call, AST_CALL, func);
-    call->function_name = term->text;
-    call->name_length = term->length;
-    fprintf(stdout, "CALL: %.*s\n", term->length, term->text);
+    ASTInvoke* call = calloc(1, sizeof(ASTInvoke));
+    parser_node_init((ASTNode*) call, AST_INVOKE, func);
+    call->callable = callable;
 
     do {
         // Comsume the open paren or the comma
@@ -85,28 +113,65 @@ parse_CALL(Parser* self, Token* term) {
     return (ASTNode*) call;
 }
 
+/**
+ * Collects the names of the arguments defined for a function
+ */
+static ASTNode*
+parse_arg_list(Parser* self) {
+    Tokenizer* T = self->tokens;
+    Token* next;
+    ASTNode *result = NULL, *args = NULL;
+    ASTFuncParam *param;
+
+    parse_expect(self, T_OPEN_PAREN);
+
+    for (;;) {
+        next = T->peek(T);
+        if (next->type == T_CLOSE_PAREN) {
+            break;
+        }
+        else if (next->type == T_COMMA) {
+            next = T->next(T);
+        }
+        next = parse_expect(self, T_WORD);
+
+        param = calloc(1, sizeof(ASTFuncParam));
+        parser_node_init((ASTNode*) param, AST_PARAM, next);
+
+        param->name = next->text;
+        param->name_length = next->length;
+
+        // Chain the results together
+        if (args == NULL) {
+            result = args = (ASTNode*) param;
+        }
+        else {
+            args = args->next = (ASTNode*) param;
+        }
+    }
+    return result;
+}
+
 static ASTNode*
 parse_TERM(Parser* self) {
     Tokenizer* T = self->tokens;
     Token* next = self->tokens->current;
     ASTTerm* term = NULL;
+    ASTNode* result;
 
     switch (next->type) {
     case T_OPEN_PAREN:
+        // XXX: This indicates CALL if it is not the first token in the
+        // expression or if it is not preceeded by an operator
+
         // parse_TERM -- PARENthensized TERM
         if (T->peek(T)->type != T_CLOSE_PAREN) {
-            term = (ASTExpressionChain*) parse_expression(self);
+            result = (ASTExpressionChain*) parse_expression(self);
         }
         parse_expect(self, T_CLOSE_PAREN);
         break;
 
-    case T_WORD: {
-        // Peek ahead for '(', which would be function call
-        Token previous = *next;
-        if (self->tokens->peek(self->tokens)->type == T_OPEN_PAREN)
-            return parse_CALL(self, &previous);
-        // Fall through to below
-    }
+    case T_WORD:
     case T_NUMBER:
     case T_STRING:
     case T_TRUE:
@@ -118,8 +183,28 @@ parse_TERM(Parser* self) {
         term->token_type = next->type;
         term->text = self->tokens->fetch_text(self->tokens, next);
         term->length = next->length;
+        result = term;
         break;
 
+    case T_FUNCTION: {
+        ASTFunction* astfun = calloc(1, sizeof(ASTFunction));
+        parser_node_init((ASTNode*) astfun, AST_FUNCTION, next);
+
+        if ((next = T->peek(T))->type == T_WORD) {
+            T->next(T);
+            astfun->name = strndup(
+                self->tokens->fetch_text(self->tokens, next),
+                next->length
+            );
+        }
+
+        astfun->arglist = parse_arg_list(self);
+        parse_expect(self, T_CLOSE_PAREN);
+        astfun->block = parse_block(self);
+
+        result = (ASTNode*) astfun;
+        break;
+    }
     default: {
         char buffer[255];
         snprintf(buffer, sizeof(buffer), "Unexpected token type in TERM, got %s", 
@@ -143,20 +228,37 @@ parse_TERM(Parser* self) {
             }
         }
     }
-    return (ASTNode*) term;
+
+    // Read ahead for invoke or slice
+    for (;;) {
+        next = T->peek(T);
+        if (next->type == T_OPEN_PAREN) {
+            result = parse_invoke(self, result);
+        }
+        else if (next->type == T_OPEN_BRACKET) {
+            result = parse_slice(self, result);
+        }
+        else {
+            break;
+        }
+    }
+
+    return (ASTNode*) result;
 }
 
 static ASTNode*
 parse_expression(Parser* self) {
     /* General expression grammar
-     * EXPR = UNARY? ( TERM [ OP EXPR ] )
-     * TERM = PAREN | CALL | WORD | NUMBER | STRING | TRUE | FALSE | NULL
+     * EXPR = UNARY? COMPONENT [ OP EXPR ]
+     * COMPONENT = TERM [ CALL ]*
+     * TERM = PAREN | FUNCTION | WORD | NUMBER | STRING | TRUE | FALSE | NULL
+     * CALL = INVOKE | SLICE
      * PAREN = "(" EXPR ")"
-     * NUMBER = T_NUMBER
-     * STRING = T_STRING
      * OP = T_EQUAL | T_GT | T_GTE | T_LT | T_LTE | T_AND | T_OR
      * UNARY = T_BANG | T_PLUS | T_MINUS
-     * CALL = WORD T_OPEN_PAREN [ EXPR ( ',' EXPR )* ] T_CLOSE_PAREN
+     * FUNCTION = "fun" [ WORD ] "(" [ EXPR ( "," EXPR )* ] ")" BLOCK
+     * INVOKE = T_OPEN_PAREN [ EXPR ( ',' EXPR )* ] T_CLOSE_PAREN
+     * SLICE = T_OPEN_BRACKET [ EXPR [ ':' EXPR [ ':' EXPR ] ] ] T_CLOSE_BRACKET
      */
     Tokenizer* T = self->tokens;
     Token* next = T->next(T);
@@ -177,7 +279,6 @@ parse_expression(Parser* self) {
         }
         
         expr->term = parse_TERM(self);
-        //expr->prev = NULL;
 
         // Peek for (binary) operator
         next = T->peek(T);
@@ -194,57 +295,7 @@ parse_expression(Parser* self) {
         // Continue to the following token
         next = T->next(T);
     }
-    return result;
-}
-
-static ASTNode*
-parse_arg_list(Parser* self) {
-    Tokenizer* T = self->tokens;
-    Token* peek;
-    ASTNode *result, *narg;
-    ASTNode *args = NULL;
-
-    parse_expect(self, T_OPEN_PAREN);
-    for (;;) {
-        peek = T->peek(T);
-        if (peek->type == T_CLOSE_PAREN) {
-            break;
-        }
-        else if (peek->type == T_COMMA) {
-            T->next(T);
-        }
-        // XXX: This won't work. Need a reference to the args list, the
-        // current arg, and the previous arg?
-        narg = parse_expression(self);
-        if (args == NULL) {
-            result = args = narg;
-        }
-        else {
-            args = args->next = narg;
-        }
-    }
-    return result;
-}
-
-static ASTNode*
-parse_block(Parser* self) {
-    Tokenizer* T = self->tokens;
-    Token* peek;
-    ASTNode *result=NULL, *list, *next;
-
-    parse_expect(self, T_OPEN_BRACE);
-    do {
-        next = parse_next(self);
-        if (result == NULL) {
-            result = list = next;
-        }
-        else {
-            list = list->next = next;
-        }
-        peek = T->peek(T);
-    }
-    while (peek->type != T_CLOSE_BRACE);
-
+    
     return result;
 }
 
@@ -292,20 +343,13 @@ parse_statement(Parser* self) {
         result = (ASTNode*) astfor;
         break;
     }
-    case T_FUNCTION: {
-        ASTFunction* astfun = calloc(1, sizeof(ASTFunction));
-        parser_node_init((ASTNode*) astfun , AST_FUNCTION, token);
-        token = parse_expect(self, T_WORD);
+    case T_RETURN: {
+        ASTExpression* expr = parse_expression(self);
+        expr->isreturn = 1;
 
-        parse_expect(self, T_OPEN_PAREN);
-        astfun->arglist = parse_arg_list(self);
-        parse_expect(self, T_CLOSE_PAREN);
-        astfun->block = parse_block(self);
-
-        result = (ASTNode*) astfun;
+        result = (ASTNode*) expr;
         break;
     }
-
     default:
         // This shouldn't happen ...
         result = NULL;
@@ -330,8 +374,8 @@ parse_statement_or_block(Parser* self) {
         return parse_next(self);
 }
 
-ASTNode*
-parse_next(Parser* self) {
+static ASTNode*
+parser_parse_next(Parser* self) {
     Token* token = self->tokens->peek(self->tokens);
 
     switch (token->type) {
@@ -344,8 +388,8 @@ parse_next(Parser* self) {
     case T_VAR:
     case T_IF:
     case T_FOR:
-    case T_FUNCTION:
     case T_WHILE:
+    case T_RETURN:
         self->tokens->next(self->tokens);
         return parse_statement(self);
 
@@ -355,6 +399,11 @@ parse_next(Parser* self) {
     default:
         return parse_expression(self);
     }
+}
+
+ASTNode*
+parse_next(Parser* self) {
+    return self->previous = parser_parse_next(self);
 }
 
 int

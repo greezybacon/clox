@@ -2,10 +2,10 @@
 
 CC=gcc
 CFLAGS=-O2 -fPIC -m64 -mtune=generic -g
-LDFLAGS=-L./Objects/ -llox
+LDFLAGS=
 INC=-I ./
 DEPS=
-SOURCES=$(shell echo Parse/*.c Eval/*.c)
+SOURCES=$(shell echo Parse/*.c Eval/*.c Objects/*.c)
 OBJECTS=$(SOURCES:.c=.o)
 TARGET=lox
 

@@ -30,13 +30,13 @@ stack_pop(Stack* self) {
     Object* rv = self->head->object;
     free(self->head);
 
-    self->head = self->head->next;    
+    self->head = self->head->next;
     return rv;
 }
 
 static void
 stack_push(Stack* self, Object* object) {
-    StackEntry* new = calloc(1, sizeof(StackEntry));
+    StackEntry* new = malloc(sizeof(StackEntry));
     if (new == NULL)
         return;
 
@@ -92,33 +92,33 @@ get_precedence(enum token_type op) {
 }
 
 static Object*
-eval_binary_op(Interpreter* self, Object* arg1, Object* arg2, enum token_type op) {
+eval_binary_op(Interpreter* self, Object* arg2, Object* arg1, enum token_type op) {
     Object* rv;
 
     switch (op) {
     case T_OP_PLUS:
-        if (!arg2->type->op_plus)
+        if (!arg1->type->op_plus)
             eval_error(self, "Object does not support `+`");
-        rv = arg2->type->op_plus(arg2, arg1);
+        rv = arg1->type->op_plus(arg1, arg2);
         DECREF(arg2);
         DECREF(arg1);
         return rv;
         break;
 
     case T_OP_MINUS:
-        if (!arg2->type->op_minus)
+        if (!arg1->type->op_minus)
             eval_error(self, "Object does not support `-`");
-        return arg2->type->op_minus(arg2, arg1);
+        return arg1->type->op_minus(arg1, arg2);
 
     case T_OP_STAR:
-        if (!arg2->type->op_star)
+        if (!arg1->type->op_star)
             eval_error(self, "Object does not support `*`");
-        return arg2->type->op_star(arg2, arg1);
+        return arg1->type->op_star(arg1, arg2);
 
     case T_OP_SLASH:
-        if (!arg2->type->op_slash)
+        if (!arg1->type->op_slash)
             eval_error(self, "Object does not support `/`");
-        return arg2->type->op_slash(arg2, arg1);
+        return arg1->type->op_slash(arg1, arg2);
 
     case T_OP_LT:
     case T_OP_LTE:
@@ -139,9 +139,6 @@ eval_expression(Interpreter* self, ASTExpressionChain* expr) {
     // recursion issues.
     ASTExpressionChain *prev = NULL, *current = expr;
 
-    print_node(stderr, (ASTNode*) expr);
-    fprintf(stderr, "\n");
-
     Stack _stack, *stack = &_stack;
     stack_init(stack);
 
@@ -150,9 +147,7 @@ eval_expression(Interpreter* self, ASTExpressionChain* expr) {
         if (current->op) {
             current->precedence = get_precedence(current->op);
             while (prev && prev->precedence > current->precedence) {
-                // Emit previous operator
-                // LHS is PREV
-                // RHS is CURRENT
+                // Emit previous operator with the top two stack items
                 stack->push(stack, eval_binary_op(self, stack->pop(stack), 
                     stack->pop(stack), prev->op));
                 // In the prev chain, bypass this EXPR so that it is not emitted 
@@ -182,6 +177,7 @@ eval_expression(Interpreter* self, ASTExpressionChain* expr) {
 Object*
 eval_term(Interpreter* self, ASTTerm* term) {
     Object* rv;
+
     switch (term->token_type) {
     case T_NUMBER:
         if (term->isreal) {
@@ -208,8 +204,7 @@ eval_term(Interpreter* self, ASTTerm* term) {
     case T_WORD:
         return self->lookup(self, term->text, term->length);
     default:
-    fprintf(stdout, "%s: %d\n%s", "Say what?", term->token_type,
-        (void*) ((ASTNode*) NULL)->next);
+        fprintf(stdout, "Say what?: %d\n", term->token_type);
     }
 
     INCREF(rv);

@@ -10,8 +10,9 @@ print_expression_chain(FILE* output, ASTExpressionChain* node) {
         fprintf(output, " (%s) ", get_operator(node->unary_op));
     fprintf(output, "%s", "Expression(");
     print_node(output, node->term);
+    fprintf(output, ")");
     if (node->op)
-        fprintf(output, ") (%s)", get_operator(node->op));
+        fprintf(output, " (%s)", get_operator(node->op));
 }
 
 static void
@@ -31,8 +32,10 @@ print_term(FILE* output, ASTTerm* node) {
 }
 
 static void
-print_call(FILE* output, ASTCall* node) {
-    fprintf(output, "Call(%.*s, args=(", node->name_length, node->function_name);
+print_invoke(FILE* output, ASTInvoke* node) {
+    fprintf(output, "Invoke(");
+    print_node(output, node->callable);
+    fprintf(output, ", args=(");
     print_node(output, node->args);
     fprintf(output, ")");
 }
@@ -62,7 +65,7 @@ print_if(FILE* output, ASTIf* node) {
 
 static void
 print_function(FILE* output, ASTFunction* node) {
-    fprintf(output, "Function(%s, args=", node->name);
+    fprintf(output, "Function(name=%s, params=", node->name);
     print_node(output, node->arglist);
     fprintf(output, ") {");
     print_node_list(output, node->block, "\n");
@@ -72,7 +75,9 @@ print_function(FILE* output, ASTFunction* node) {
 void
 print_node_list(FILE* output, ASTNode* node, const char * separator) {
     ASTNode* current = node;
-    while (current) {
+    if (!node)
+        fprintf(output, "(null)");
+    else while (current) {
         switch (current->type) {
         case AST_EXPRESSION:
             print_expression(output, (ASTExpression*) current);
@@ -100,8 +105,8 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
         case AST_TERM:
             print_term(output, (ASTTerm*) current);
             break;
-        case AST_CALL:
-            print_call(output, (ASTCall*) current);
+        case AST_INVOKE:
+            print_invoke(output, (ASTInvoke*) current);
             break;
         }
 
