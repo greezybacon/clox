@@ -13,5 +13,8 @@ typedef struct integer_object {
 IntegerObject*
 Integer_fromLongLong(long long value);
 
+long long
+Integer_toInt(Object*);
+
 #endif
 

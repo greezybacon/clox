@@ -9,10 +9,12 @@ print_expression_chain(FILE* output, ASTExpressionChain* node) {
     if (node->unary_op)
         fprintf(output, " (%s) ", get_operator(node->unary_op));
     fprintf(output, "%s", "Expression(");
-    print_node(output, node->term);
+    print_node(output, node->lhs);
     fprintf(output, ")");
     if (node->op)
         fprintf(output, " (%s)", get_operator(node->op));
+    if (node->rhs)
+        print_node(output, node->rhs);
 }
 
 static void

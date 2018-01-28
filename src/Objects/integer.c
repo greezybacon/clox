@@ -17,6 +17,17 @@ Integer_fromLongLong(long long value) {
     return O;
 }
 
+long long
+Integer_toInt(Object* value) {
+    assert(value->type);
+    if (!value->type->as_int) {
+        // TODO: Raise error
+    }
+
+    IntegerObject* I = value->type->as_int(value);
+    return I->value;
+}
+
 static int
 integer_hash(Object* self) {
     assert(self != NULL);
@@ -124,7 +135,7 @@ integer_op_divide(Object* self, Object* other) {
 
 static Object*
 integer_op_eq(Object* self, Object* other) {
-    assert(self->type->code == TYPE_INTEGER);
+    assert(self->type == &IntegerType);
 
     if (other->type->code != TYPE_INTEGER) {
         if (other->type->as_int == NULL) {

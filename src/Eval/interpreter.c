@@ -77,7 +77,10 @@ eval_stdin(void) {
     
     Interpreter ctx;
     eval_init(&ctx, &parser);
-    
+
+    // Start with a root stack frame
+    StackFrame_push(&ctx);
+
     Object* result = ctx.eval(&ctx);
 
     fprintf(stdout, "%p\n", result->type);

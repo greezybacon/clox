@@ -278,7 +278,7 @@ parse_expression(Parser* self) {
             T->next(T);
         }
         
-        expr->term = parse_TERM(self);
+        expr->lhs = parse_TERM(self);
 
         // Peek for (binary) operator
         next = T->peek(T);
@@ -290,7 +290,7 @@ parse_expression(Parser* self) {
 
         T->next(T); // Consume the operator token
         expr->op = next->type;
-        expr = ((ASTNode*) expr)->next = expr_next;
+        expr = expr->rhs = expr_next;
         
         // Continue to the following token
         next = T->next(T);

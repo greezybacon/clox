@@ -9,8 +9,11 @@
 
 #include "hash.h"
 #include "boolean.h"
+#include "integer.h"
 #include "object.h"
 #include "garbage.h"
+#include "string.h"
+#include "tuple.h"
 
 static struct object_type HashType;
 
@@ -20,7 +23,6 @@ static struct object_type HashType;
 /* Create a new hashtable. */
 HashObject *Hash_newWithSize(size_t size) {
 	HashObject *hashtable = NULL;
-	int i;
     // XXX: Check size is a power of 2
 
 	if ( size < 1 )
@@ -35,7 +37,6 @@ HashObject *Hash_newWithSize(size_t size) {
         free(hashtable);
         return NULL;
     }
-    
     hashtable->size = size;
 
 	return hashtable;	
@@ -95,6 +96,8 @@ hash_resize(HashObject* self, size_t newsize) {
 /* Insert a key-value pair into a hash table. */
 static void
 hash_set(HashObject *self, Object *key, Object *value) {
+    assert(((Object*)self)->type == &HashType);
+
 	int slot = 0;
     HashEntry *entry;
 
@@ -162,8 +165,9 @@ hash_lookup(HashObject *self, Object *key) {
 
 /* Retrieve a key-value pair from a hash table. */
 static Object*
-hash_get(HashObject *self, Object *key) {
-	HashEntry *entry = hash_lookup(self, key);
+hash_get(Object *self, Object *key) {
+    assert(self->type == &HashType);
+	HashEntry *entry = hash_lookup((HashObject*) self, key);
     
     if (entry == NULL)
         // TODO: Raise error
@@ -173,8 +177,9 @@ hash_get(HashObject *self, Object *key) {
 }
 
 static void
-hash_remove(HashObject* self, Object* key) {
-	HashEntry *entry = hash_lookup(self, key);
+hash_remove(Object* self, Object* key) {
+    assert(self->type == &HashType);
+	HashEntry *entry = hash_lookup((HashObject*) self, key);
 
     if (entry == NULL)
         // TODO: Raise error
@@ -182,7 +187,7 @@ hash_remove(HashObject* self, Object* key) {
 
     DECREF(entry->value);
     DECREF(entry->key);
-    self->count--;
+    ((HashObject*) self)->count--;
     
     entry->key = NULL;
     entry->value = NULL;
@@ -193,7 +198,78 @@ hash_len(Object* self) {
     assert(self != NULL);
     assert(self->type == &HashType);
 
-    return Integer_fromLongLong(((HashObject*) self)->count);
+    return (Object*) Integer_fromLongLong(((HashObject*) self)->count);
+}
+
+typedef struct _iterator {
+    Object* (*next)(struct _iterator*);
+} Iterator;
+
+typedef struct {
+    Iterator    base;
+    int         pos;
+    HashObject* hash;
+} HashObjectIterator;
+
+static Object*
+hash_entries__next(Iterator* this) {
+    HashObjectIterator *self = (HashObjectIterator*) this;
+    int p;
+    HashEntry* table = self->hash->table;
+    while (self->pos < self->hash->size) {
+        p = self->pos++;
+        if (table[p].key != NULL) {
+            return Tuple_fromArgs(2, table[p].key, table[p].value);
+        }
+    }
+    // Send terminating sentinel
+    return NULL;
+}
+
+static Iterator*
+iter_hash_entries(HashObject* self) {
+    HashObjectIterator* it = malloc(sizeof(HashObjectIterator));
+    
+    *it = (HashObjectIterator) {
+        .base.next = hash_entries__next,
+        .hash = self,
+        .pos = 0,
+    };
+    return (Iterator*) it;
+}
+
+static Object*
+hash_asstring(Object* self) {
+    assert(self->type == &HashType);
+
+    char buffer[1024];  // TODO: Use the + operator of StringObject
+    char* position = buffer;
+    int remaining = sizeof(buffer) - 1, bytes;
+
+    bytes = snprintf(position, remaining, "{");
+    position += bytes, remaining -= bytes;
+
+    Object *next, *key, *value;
+    StringObject *skey, *svalue;
+
+    HashObjectIterator* it = (HashObjectIterator*) iter_hash_entries((HashObject*) self);
+    while ((next = it->base.next((Iterator*) it))) {
+        key = (Object*) Tuple_getItem(next, 0);
+        value = (Object*) Tuple_getItem(next, 1);
+        skey = (StringObject*) key->type->as_string(key);
+        svalue = (StringObject*) value->type->as_string(value);
+        bytes = snprintf(position, remaining, "%.*s: %.*s, ",
+            skey->length, skey->characters, svalue->length, svalue->characters);
+        position += bytes, remaining -= bytes;
+        DECREF(skey);
+        DECREF(svalue);
+        DECREF(next);
+    }
+    position += snprintf(position, remaining, "}");
+
+    free(it);
+
+    return (Object*) String_fromCharArrayAndSize(buffer, position - buffer);
 }
 
 static void
@@ -220,6 +296,8 @@ static struct object_type HashType = (ObjectType) {
     .set_item = hash_set,
     .get_item = hash_get,
     .remove_item = hash_remove,
+    
+    .as_string = hash_asstring,
 
     .cleanup = hash_free,
 };

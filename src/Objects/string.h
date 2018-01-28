@@ -11,7 +11,7 @@ typedef struct string_object {
 
     unsigned length;
     unsigned char_count;
-    char    *characters;
+    char     *characters;
 } StringObject;
 
 StringObject* String_fromCharArrayAndSize(char*, size_t);

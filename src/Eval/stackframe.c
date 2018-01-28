@@ -45,7 +45,6 @@ eval_assign2(Interpreter* self, Object* name, Object* value) {
     if (!locals) {
         // Lazily setup locals dictionary
         locals = self->stack->locals = Hash_new();
-        INCREF(locals);
     }
 
     ((Object*) locals)->type->set_item((Object*) locals, name, value);

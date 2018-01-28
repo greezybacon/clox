@@ -77,8 +77,9 @@ typedef struct ast_binary_op {
 typedef struct ast_expression_chain {
     ASTNode             node;
     enum token_type     unary_op;
-    enum token_type     op;         // Binary op (with ->next)
-    struct ast_node     *term;      // The term -- might be TERM or EXPRESSION_CHAIN
+    enum token_type     op;         // Binary op (with ->rhs)
+    struct ast_expression_chain *rhs;
+    struct ast_node     *lhs;      // The term -- might be TERM or EXPRESSION_CHAIN
     
     // Used in shunting yard compilation algorithm
     struct ast_expression_chain *prev;

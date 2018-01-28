@@ -29,6 +29,7 @@ string_hash(Object* self) {
     while (length--)
         hash = (hash << 4) + hash + *ch++;
 
+    // TODO: Consider caching the hash value
     return hash;
 }
 

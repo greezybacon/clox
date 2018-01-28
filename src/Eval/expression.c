@@ -7,6 +7,7 @@
 #include "Include/Lox.h"
 #include "Parse/parse.h"
 #include "Parse/debug_parse.h"
+#include "Objects/boolean.h"
 
 // Simple stack for shunting yard algorithm style expression interpretation
 
@@ -124,13 +125,28 @@ eval_binary_op(Interpreter* self, Object* arg2, Object* arg1, enum token_type op
     case T_OP_LTE:
     case T_OP_GT:
     case T_OP_GTE:
+
     case T_OP_EQUAL:
+        return arg1->type->op_eq(arg1, arg2);
+
     case T_OP_ASSIGN:
+        // For assignment, the arg2 expression should be assigned to the local
+        // variable represented by arg1
+        assert(String_isString(arg1));
+        self->assign2(self, arg1, arg2);
+        return arg2;
+
     case T_BANG:
     case T_AND:
     case T_OR:
         break;
     }
+}
+
+static Object*
+eval_word2string(ASTTerm* term) {
+    assert(term->token_type == T_WORD);
+    return (Object*) String_fromCharArrayAndSize(term->text, term->length);
 }
 
 Object*
@@ -143,7 +159,10 @@ eval_expression(Interpreter* self, ASTExpressionChain* expr) {
     stack_init(stack);
 
     do {
-        stack->push(stack, eval_node(self, current->term));
+        // For assignment, push the WORD token. For everything else, push
+        // the result of evaluation
+        stack->push(stack, (current->op == T_OP_ASSIGN)
+            ? eval_word2string((ASTTerm*) current->lhs) : eval_node(self, current->lhs));
         if (current->op) {
             current->precedence = get_precedence(current->op);
             while (prev && prev->precedence > current->precedence) {
@@ -157,7 +176,7 @@ eval_expression(Interpreter* self, ASTExpressionChain* expr) {
             current->prev = prev;
             prev = current;
         }
-        current = (ASTExpressionChain*) ((ASTNode*) current)->next;
+        current = current->rhs;
     }
     while (current);
     
@@ -195,12 +214,9 @@ eval_term(Interpreter* self, ASTTerm* term) {
         fprintf(stdout, "%s", "PUSH (null)\n");
         break;
     case T_TRUE:
-    // return LoxTRUE;
-        fprintf(stdout, "%s", "PUSH (true)\n");
-        break;
+        return (Object*) LoxTRUE;
     case T_FALSE:
-    // return LoxFALSE;
-        break;
+        return (Object*) LoxFALSE;
     case T_WORD:
         return self->lookup(self, term->text, term->length);
     default:
