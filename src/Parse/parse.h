@@ -55,8 +55,8 @@ typedef struct ast_invoke {
 typedef struct ast_parameter {
     ASTNode             node;
     char *              name;
-    size_t              name_length;
-    struct ast_node     default_value;
+    unsigned            name_length;
+    struct ast_node     *default_value;
 } ASTFuncParam;
 
 typedef struct ast_slice {
