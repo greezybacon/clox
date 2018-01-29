@@ -125,6 +125,8 @@ typedef struct ast_var {
 
 typedef struct parser_context {
     Tokenizer *     tokens;
+    ASTNode*        previous;
+
     ASTNode*        (*next)(struct parser_context*);
 } Parser;
 

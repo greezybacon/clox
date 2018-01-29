@@ -14,7 +14,7 @@ print_expression_chain(FILE* output, ASTExpressionChain* node) {
     if (node->op)
         fprintf(output, " (%s)", get_operator(node->op));
     if (node->rhs)
-        print_node(output, node->rhs);
+        print_node(output, (ASTNode*) node->rhs);
 }
 
 static void
@@ -67,11 +67,18 @@ print_if(FILE* output, ASTIf* node) {
 
 static void
 print_function(FILE* output, ASTFunction* node) {
-    fprintf(output, "Function(name=%s, params=", node->name);
+    fprintf(output, "Function(name=%s, params={", node->name);
     print_node(output, node->arglist);
-    fprintf(output, ") {");
+    fprintf(output, "}) {");
     print_node_list(output, node->block, "\n");
     fprintf(output, "}");
+}
+
+static void
+print_param(FILE* output, ASTFuncParam* node) {
+    fprintf(output, "<%.*s>", node->name_length, node->name);
+    if (node->default_value)
+        print_node(output, node->default_value);
 }
 
 void
@@ -93,6 +100,9 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
         case AST_FUNCTION:
             print_function(output, (ASTFunction*) current);
             break;
+        case AST_PARAM:
+            print_param(output, (ASTFuncParam*) current);
+            break;
         case AST_WHILE:
         case AST_FOR:
         case AST_IF:
@@ -110,6 +120,8 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
         case AST_INVOKE:
             print_invoke(output, (ASTInvoke*) current);
             break;
+        default:
+            fprintf(output, "Unexpected AST type: %d", current->type);
         }
 
         current = current->next;
