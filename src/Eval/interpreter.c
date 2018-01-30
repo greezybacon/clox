@@ -33,6 +33,8 @@ eval_node(Interpreter* self, ASTNode* ast) {
     case AST_WHILE:
     case AST_FOR:
     case AST_IF:
+        return eval_if(self, (ASTIf*) ast);
+
     case AST_VAR:
 
     case AST_FUNCTION:

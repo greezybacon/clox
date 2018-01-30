@@ -122,9 +122,16 @@ eval_binary_op(Interpreter* self, Object* arg2, Object* arg1, enum token_type op
         return arg1->type->op_slash(arg1, arg2);
 
     case T_OP_LT:
+        return arg1->type->op_lt(arg1, arg2);
+
     case T_OP_LTE:
+        return arg1->type->op_lte(arg1, arg2);
+
     case T_OP_GT:
+        return arg1->type->op_gt(arg1, arg2);
+
     case T_OP_GTE:
+        return arg1->type->op_gte(arg1, arg2);
 
     case T_OP_EQUAL:
         return arg1->type->op_eq(arg1, arg2);
@@ -210,9 +217,7 @@ eval_term(Interpreter* self, ASTTerm* term) {
         rv = (Object*) String_fromCharArrayAndSize(term->text, term->length);
         break;
     case T_NULL:
-    // return LoxNIL;
-        fprintf(stdout, "%s", "PUSH (null)\n");
-        break;
+        return LoxNIL;
     case T_TRUE:
         return (Object*) LoxTRUE;
     case T_FALSE:

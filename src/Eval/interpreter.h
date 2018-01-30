@@ -19,6 +19,10 @@ typedef struct interp_context {
     StackFrame* stack;
 } Interpreter;
 
+// From control.c
+Object*
+eval_if(Interpreter*, ASTIf*);
+
 Object*
 eval_node(Interpreter*, ASTNode*);
 

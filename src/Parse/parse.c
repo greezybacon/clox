@@ -301,7 +301,7 @@ parse_expression(Parser* self) {
 
 static ASTNode*
 parse_statement(Parser* self) {
-    Token* token = self->tokens->current;
+    Token* token = self->tokens->current, *peek;
     ASTNode* result = NULL;
 
     switch (token->type) {
@@ -324,6 +324,12 @@ parse_statement(Parser* self) {
         astif->condition = parse_expression(self);
         parse_expect(self, T_CLOSE_PAREN);
         astif->block = parse_statement_or_block(self);
+
+        peek = self->tokens->peek(self->tokens);
+        if (peek->type == T_ELSE) {
+            parse_expect(self, T_ELSE);
+            astif->otherwise = parse_statement_or_block(self);
+        }
 
         result = (ASTNode*) astif;
         break;
@@ -356,7 +362,7 @@ parse_statement(Parser* self) {
     }
 
     // Chomp semi-colon, if provided
-    Token* peek = self->tokens->peek(self->tokens);
+    peek = self->tokens->peek(self->tokens);
     if (peek->type == T_SEMICOLON)
         self->tokens->next(self->tokens);
 

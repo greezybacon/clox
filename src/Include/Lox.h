@@ -9,6 +9,7 @@
 #include "Objects/garbage.h"
 
 // Basic objects
+#include "Objects/boolean.h"
 #include "Objects/string.h"
 #include "Objects/float.h"
 #include "Objects/integer.h"

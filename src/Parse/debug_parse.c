@@ -63,6 +63,12 @@ print_if(FILE* output, ASTIf* node) {
     fprintf(output, ") {");
     print_node(output, node->block);
     fprintf(output, "}");
+
+    if (node->otherwise) {
+        fprintf(output, ", Else(");
+        print_node(output, node->otherwise);
+        fprintf(output, ")");
+    }
 }
 
 static void

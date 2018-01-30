@@ -105,8 +105,9 @@ typedef struct ast_fun {
 
 typedef struct ast_if {
     ASTNode             node;
-    struct ast_node*    condition;
-    struct ast_node*    block;
+    struct ast_node*    condition;  // Expression
+    struct ast_node*    block;      // Block if condition is true
+    struct ast_node*    otherwise;  // Might be IF, might be block
 } ASTIf;
 
 typedef struct ast_for {

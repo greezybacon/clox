@@ -58,6 +58,14 @@ string_asstring(Object* self) {
 }
 
 static Object*
+string_asbool(Object* self) {
+    assert(self != NULL);
+    assert(self->type == &StringType);
+
+    return ((StringObject*) self)->length == 0 ? LoxFALSE : LoxTRUE;
+}
+
+static Object*
 string_op_eq(Object* self, Object* other) {
     assert(self->type == &StringType);
     
@@ -89,6 +97,7 @@ static struct object_type StringType = (ObjectType) {
     .len = string_len,
     
     .as_string = string_asstring,
+    .as_bool = string_asbool,
 
     .op_eq = string_op_eq,
     .op_ne = string_op_ne,

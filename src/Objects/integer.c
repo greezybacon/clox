@@ -24,7 +24,9 @@ Integer_toInt(Object* value) {
         // TODO: Raise error
     }
 
-    IntegerObject* I = value->type->as_int(value);
+    IntegerObject* I = (IntegerObject*) value->type->as_int(value);
+    assert(I->base.type == &IntegerType);
+
     return I->value;
 }
 
@@ -61,6 +63,25 @@ integer_asstring(Object* self) {
     return (Object*) String_fromCharArrayAndSize(buffer, sizeof(buffer));
 }
 
+static Object*
+integer_asbool(Object* self) {
+    assert(self != NULL);
+    assert(self->type == &IntegerType);
+
+    return ((IntegerObject*) self)->value == 0 ? LoxFALSE : LoxTRUE;
+}
+
+static inline Object*
+coerce_integer(Object* value) {
+    if (value->type != &IntegerType) {
+       if (value->type->as_int == NULL) {
+           eval_error('Value cannot be coerced to int');
+       }
+       value = value->type->as_int(value);
+   }
+   return value;
+}
+
 static struct object*
 integer_op_plus(Object* self, Object* other) {
     assert(self->type == &IntegerType);
@@ -70,12 +91,8 @@ integer_op_plus(Object* self, Object* other) {
         return other->type->op_plus(other, self);
     }
     // Else coerce to integer
-    else if (other->type != &IntegerType) {
-        if (other->type->as_int == NULL) {
-            // interpreter_raise('Cannot add (object) to int')
-        }
-        other = other->type->as_int(other);
-    }
+    else other = coerce_integer(other);
+
     return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value + ((IntegerObject*) other)->value);
 }
 
@@ -88,12 +105,7 @@ integer_op_minus(Object* self, Object* other) {
         return other->type->op_minus(other, self);
     }
     // Else coerce to integer
-    else if (other->type != &IntegerType) {
-        if (other->type->as_int == NULL) {
-            // interpreter_raise('Cannot add (object) to int')
-        }
-        other = other->type->as_int(other);
-    }
+    else other = coerce_integer(other);
     return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value - ((IntegerObject*) other)->value);
 }
 
@@ -106,12 +118,7 @@ integer_op_multiply(Object* self, Object* other) {
         return other->type->op_star(other, self);
     }
     // Else coerce to integer
-    else if (other->type->code != TYPE_INTEGER) {
-        if (other->type->as_int == NULL) {
-            // interpreter_raise('Cannot add (object) to int')
-        }
-        other = other->type->as_int(other);
-    }
+    else other = coerce_integer(other);
     return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value * ((IntegerObject*) other)->value);
 }
 
@@ -124,12 +131,7 @@ integer_op_divide(Object* self, Object* other) {
         return other->type->op_slash(other, self);
     }
     // Else coerce to integer
-    else if (other->type->code != TYPE_INTEGER) {
-        if (other->type->as_int == NULL) {
-            // interpreter_raise('Cannot add (object) to int')
-        }
-        other = other->type->as_int(other);
-    }
+    else other = coerce_integer(other);
     return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value / ((IntegerObject*) other)->value);
 }
 
@@ -137,18 +139,45 @@ static Object*
 integer_op_eq(Object* self, Object* other) {
     assert(self->type == &IntegerType);
 
-    if (other->type->code != TYPE_INTEGER) {
-        if (other->type->as_int == NULL) {
-            // interpreter_raise('Cannot add (object) to int')
-        }
-        other = other->type->as_int(other);
-    }
+    other = coerce_integer(other);
     return ((IntegerObject*) self)->value == ((IntegerObject*) other)->value ? LoxTRUE : LoxFALSE;
 }
 
 static Object*
 integer_op_ne(Object* self, Object* other) {
     return integer_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;;
+}
+
+static Object*
+integer_op_lt(Object* self, Object* other) {
+    assert(self->type == &IntegerType);
+    IntegerObject* rhs = coerce_integer(other);
+    return ((IntegerObject*)self)->value < rhs->value
+        ? LoxTRUE : LoxFALSE;
+}
+
+static Object*
+integer_op_lte(Object* self, Object* other) {
+    assert(self->type == &IntegerType);
+    IntegerObject* rhs = coerce_integer(other);
+    return ((IntegerObject*)self)->value <= rhs->value
+        ? LoxTRUE : LoxFALSE;
+}
+
+static Object*
+integer_op_gt(Object* self, Object* other) {
+    assert(self->type == &IntegerType);
+    IntegerObject* rhs = coerce_integer(other);
+    return ((IntegerObject*)self)->value > rhs->value
+        ? LoxTRUE : LoxFALSE;
+}
+
+static Object*
+integer_op_gte(Object* self, Object* other) {
+    assert(self->type == &IntegerType);
+    IntegerObject* rhs = coerce_integer(other);
+    return ((IntegerObject*)self)->value >= rhs->value
+        ? LoxTRUE : LoxFALSE;
 }
 
 static struct object_type IntegerType = (ObjectType) {
@@ -160,12 +189,18 @@ static struct object_type IntegerType = (ObjectType) {
     .as_int = integer_asint,
     .as_float = integer_asfloat,
     .as_string = integer_asstring,
+    .as_bool = integer_asbool,
 
     // math operations
     .op_plus = integer_op_plus,
 	.op_minus = integer_op_minus,
 	.op_star = integer_op_multiply,
 	.op_slash = integer_op_divide,
+
+    .op_lt = integer_op_lt,
+    .op_lte = integer_op_lte,
+    .op_gt = integer_op_gt,
+    .op_gte = integer_op_gte,
 
     .op_eq = integer_op_eq,
     .op_ne = integer_op_ne,

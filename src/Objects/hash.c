@@ -201,6 +201,14 @@ hash_len(Object* self) {
     return (Object*) Integer_fromLongLong(((HashObject*) self)->count);
 }
 
+static Object*
+hash_asbool(Object* self) {
+    assert(self != NULL);
+    assert(self->type == &HashType);
+
+    return ((HashObject*) self)->count == 0 ? LoxFALSE : LoxTRUE;
+}
+
 typedef struct _iterator {
     Object* (*next)(struct _iterator*);
 } Iterator;
@@ -298,6 +306,7 @@ static struct object_type HashType = (ObjectType) {
     .remove_item = hash_remove,
     
     .as_string = hash_asstring,
+    .as_bool = hash_asbool,
 
     .cleanup = hash_free,
 };

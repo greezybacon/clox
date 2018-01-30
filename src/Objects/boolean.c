@@ -13,6 +13,25 @@ Bool_fromBool(bool value) {
     return (Object*) (value ? LoxTRUE : LoxFALSE);
 }
 
+Object*
+Bool_fromObject(Object* value) {
+    if (value->type == &BooleanType)
+        return value;
+    else if (value->type->as_bool)
+        return value->type->as_bool(value);
+    // TODO: NULL should be false
+    else
+        eval_error('Cannot represent value as Boolean');
+}
+
+bool
+Bool_isBool(Object* value) {
+    if (!value)
+        return false;
+
+    return value->type == &BooleanType;
+}
+
 static Object*
 bool_self(Object* self) {
     return self;
@@ -68,3 +87,35 @@ static BoolObject _LoxFALSE = (BoolObject) {
     .value = false,
 };
 BoolObject *LoxFALSE = &_LoxFALSE;
+
+
+
+
+static Object*
+null_asbool(Object* self) {
+    return LoxFALSE;
+}
+
+static Object*
+null_asint(Object* self) {
+    return Integer_fromLongLong(0);
+}
+
+static Object*
+null_asstring(Object* self) {
+    return String_fromCharArrayAndSize("null", 4);
+}
+
+static struct object_type NilType = (ObjectType) {
+    .code = TYPE_NIL,
+    .name = "nil",
+
+    .as_bool = null_asbool,
+    .as_int = bool_asint,
+    .as_string = bool_asstring,
+};
+
+static Object _LoxNIL = (Object) {
+    .type = &NilType,
+};
+Object *LoxNIL = &_LoxNIL;
