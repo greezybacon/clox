@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "debug_token.h"
+#include "Eval/interpreter.h"
 #include "parse.h"
 
 static ASTNode* parse_expression(Parser*);
@@ -158,6 +159,7 @@ parse_TERM(Parser* self) {
     Token* next = self->tokens->current;
     ASTTerm* term = NULL;
     ASTNode* result;
+    bool is_literal = false;
 
     switch (next->type) {
     case T_OPEN_PAREN:
@@ -166,24 +168,50 @@ parse_TERM(Parser* self) {
 
         // parse_TERM -- PARENthensized TERM
         if (T->peek(T)->type != T_CLOSE_PAREN) {
-            result = (ASTExpressionChain*) parse_expression(self);
+            result = (ASTNode*) parse_expression(self);
         }
         parse_expect(self, T_CLOSE_PAREN);
         break;
 
-    case T_WORD:
     case T_NUMBER:
     case T_STRING:
     case T_TRUE:
     case T_FALSE:
     case T_NULL:
+        is_literal = true;
+    case T_WORD:
         // Do something with the token
         term = calloc(1, sizeof(ASTTerm));
         parser_node_init((ASTNode*) term, AST_TERM, next);
         term->token_type = next->type;
         term->text = self->tokens->fetch_text(self->tokens, next);
         term->length = next->length;
-        result = term;
+        result = (ASTNode*) term;
+
+        if (next->type == T_NUMBER) {
+            char* endpos;
+            if (memchr(term->text, '.', next->length) != NULL) {
+                term->token.real = strtold(term->text, &endpos);
+                if (term->token.real == 0.0 && endpos == term->text) {
+                    parse_syntax_error(self, "Invalid floating point number");
+                }
+                term->isreal = 1;
+            }
+            else {
+                term->token.integer = strtoll(term->text, &endpos, 10);
+                if (term->token.integer == 0 && endpos == term->text) {
+                    parse_syntax_error(self, "Invalid integer number");
+                }
+            }
+        }
+
+        if (is_literal) {
+            Object *literal = eval_term(NULL, term);
+            free(term);
+            result = calloc(1, sizeof(ASTLiteral));
+            parser_node_init((ASTNode*) result, AST_LITERAL, next);
+            ((ASTLiteral*) result)->literal = literal;
+        }
         break;
 
     case T_FUNCTION: {
@@ -211,23 +239,6 @@ parse_TERM(Parser* self) {
             get_token_type(next->type));
         parse_syntax_error(self, buffer);
     }}
-    
-    if (term && next->type == T_NUMBER) {
-        char* endpos;
-        if (memchr(term->text, '.', next->length) != NULL) {
-            term->token.real = strtold(term->text, &endpos);
-            if (term->token.real == 0.0 && endpos == term->text) {
-                parse_syntax_error(self, "Invalid floating point number");
-            }
-            term->isreal = 1;
-        }
-        else {
-            term->token.integer = strtoll(term->text, &endpos, 10);
-            if (term->token.integer == 0 && endpos == term->text) {
-                parse_syntax_error(self, "Invalid integer number");
-            }
-        }
-    }
 
     // Read ahead for invoke or slice
     for (;;) {
@@ -332,6 +343,17 @@ parse_statement(Parser* self) {
         }
 
         result = (ASTNode*) astif;
+        break;
+    }
+    case T_WHILE: {
+        ASTWhile* astwhile = calloc(1, sizeof(ASTWhile));
+        parser_node_init((ASTNode*) astwhile, AST_WHILE, token);
+        parse_expect(self, T_OPEN_PAREN);
+        astwhile->condition = parse_expression(self);
+        parse_expect(self, T_CLOSE_PAREN);
+        astwhile->block = parse_statement_or_block(self);
+
+        result = (ASTNode*) astwhile;
         break;
     }
     case T_FOR: {

@@ -1,6 +1,7 @@
 #include <stdbool.h>
 
 #include "token.h"
+#include "Objects/object.h"
 
 #ifndef PARSE_H
 #define PARSE_H
@@ -17,6 +18,7 @@ enum ast_type {
     AST_VAR,
     AST_BINARY_OP,
     AST_TERM,
+    AST_LITERAL,
     AST_INVOKE,
     AST_CLASS,
 };
@@ -45,6 +47,11 @@ typedef struct ast_term {
     unsigned            length; // Length of text
     unsigned char       isreal; // T_NUMBER could be float or int
 } ASTTerm;
+
+typedef struct ast_literal {
+    ASTNode             node;
+    Object*             literal;
+} ASTLiteral;
 
 typedef struct ast_invoke {
     ASTNode             node;
@@ -109,6 +116,12 @@ typedef struct ast_if {
     struct ast_node*    block;      // Block if condition is true
     struct ast_node*    otherwise;  // Might be IF, might be block
 } ASTIf;
+
+typedef struct ast_while {
+    ASTNode             node;
+    struct ast_node*    condition;
+    struct ast_node*    block;
+} ASTWhile;
 
 typedef struct ast_for {
     ASTNode             node;

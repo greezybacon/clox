@@ -31,6 +31,7 @@ eval_node(Interpreter* self, ASTNode* ast) {
         return eval_expression(self, (ASTExpressionChain*) ast);
 
     case AST_WHILE:
+        return eval_while(self, (ASTWhile*) ast);
     case AST_FOR:
     case AST_IF:
         return eval_if(self, (ASTIf*) ast);
@@ -41,6 +42,8 @@ eval_node(Interpreter* self, ASTNode* ast) {
         return eval_function(self, (ASTFunction*) ast);
     case AST_TERM:
         return eval_term(self, (ASTTerm*) ast);
+    case AST_LITERAL:
+        return ((ASTLiteral*) ast)->literal;
 
     case AST_INVOKE:
         return eval_invoke(self, (ASTInvoke*) ast);

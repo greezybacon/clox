@@ -100,11 +100,7 @@ eval_binary_op(Interpreter* self, Object* arg2, Object* arg1, enum token_type op
     case T_OP_PLUS:
         if (!arg1->type->op_plus)
             eval_error(self, "Object does not support `+`");
-        rv = arg1->type->op_plus(arg1, arg2);
-        DECREF(arg2);
-        DECREF(arg1);
-        return rv;
-        break;
+        return arg1->type->op_plus(arg1, arg2);
 
     case T_OP_MINUS:
         if (!arg1->type->op_minus)

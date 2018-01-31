@@ -16,7 +16,7 @@ eval_if(Interpreter *self, ASTIf *node) {
         DECREF(condition);
         condition = T;
     }
-    
+
     if (condition == (Object*) LoxTRUE) {
         // Execute the associated block
         return eval_node(self, node->block);
@@ -30,5 +30,24 @@ eval_if(Interpreter *self, ASTIf *node) {
 
 Object*
 eval_while(Interpreter *self, ASTWhile* node) {
+    assert(node->node.type == AST_WHILE);
+
+    Object *condition;
+
+    for (;;) {
+        condition = eval_node(self, node->condition);
+        if (!Bool_isBool(condition)) {
+            Object* T = Bool_fromObject(condition);
+            DECREF(condition);
+            condition = T;
+        }
+
+        if (condition != (Object*) LoxTRUE)
+            break;
     
+        // Execute the associated block
+        eval_node(self, node->block);
+    }
+
+    return LoxNIL;
 }

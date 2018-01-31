@@ -4,6 +4,9 @@
 #include "debug_token.h"
 #include "parse.h"
 
+#include "Objects/string.h"
+#include "Objects/garbage.h"
+
 static void
 print_expression_chain(FILE* output, ASTExpressionChain* node) {
     if (node->unary_op)
@@ -31,6 +34,13 @@ static void
 print_term(FILE* output, ASTTerm* node) {
     fprintf(output, "Term:%s(%.*s)", get_token_type(node->token_type),
         node->length, node->text);
+}
+
+static void
+print_literal(FILE* output, ASTLiteral* node) {
+    StringObject* S = (StringObject*) node->literal->type->as_string(node->literal);
+    fprintf(output, "(%.*s)", S->length, S->characters);
+    DECREF((Object*) S);
 }
 
 static void
@@ -72,6 +82,15 @@ print_if(FILE* output, ASTIf* node) {
 }
 
 static void
+print_while(FILE* output, ASTWhile* node) {
+    fprintf(output, "While(");
+    print_node(output, node->condition);
+    fprintf(output, ") {");
+    print_node(output, node->block);
+    fprintf(output, "}");
+}
+
+static void
 print_function(FILE* output, ASTFunction* node) {
     fprintf(output, "Function(name=%s, params={", node->name);
     print_node(output, node->arglist);
@@ -110,6 +129,8 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
             print_param(output, (ASTFuncParam*) current);
             break;
         case AST_WHILE:
+            print_while(output, (ASTWhile*) current);
+            break;
         case AST_FOR:
         case AST_IF:
             print_if(output, (ASTIf*) current);
@@ -122,6 +143,9 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
             break;
         case AST_TERM:
             print_term(output, (ASTTerm*) current);
+            break;
+        case AST_LITERAL:
+            print_literal(output, (ASTLiteral*) current);
             break;
         case AST_INVOKE:
             print_invoke(output, (ASTInvoke*) current);
