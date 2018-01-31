@@ -26,8 +26,12 @@ print_expression(FILE* output, ASTExpression* node) {
     fprintf(output, "%s", "Expression(");
     if (node->unary_op)
         ;
-    print_node(output, node->term);
+    print_node(output, node->lhs);
     fprintf(output, ")");
+    if (node->binary_op)
+        fprintf(output, " (%s) ", get_operator(node->binary_op));
+    if (node->rhs)
+        print_node(output, (ASTNode*) node->rhs);
 }
 
 static void

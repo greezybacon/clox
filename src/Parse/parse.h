@@ -32,8 +32,12 @@ typedef struct ast_node {
 typedef struct ast_expression {
     ASTNode             node;
     enum token_type     unary_op;
-    struct ast_node     *term;
-    unsigned char       isreturn;
+    enum token_type     binary_op;
+    struct ast_node     *lhs;
+    struct ast_node     *rhs;
+    // Used in shunting yard compilation algorithm
+    struct ast_expression *prev;
+    int                 precedence;
 } ASTExpression;
 
 typedef struct ast_term {
@@ -87,7 +91,7 @@ typedef struct ast_expression_chain {
     enum token_type     op;         // Binary op (with ->rhs)
     struct ast_expression_chain *rhs;
     struct ast_node     *lhs;      // The term -- might be TERM or EXPRESSION_CHAIN
-    
+
     // Used in shunting yard compilation algorithm
     struct ast_expression_chain *prev;
     int                 precedence;

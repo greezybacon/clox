@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "debug_token.h"
+#include "debug_parse.h"
 #include "Eval/interpreter.h"
 #include "parse.h"
 
@@ -258,7 +259,7 @@ parse_TERM(Parser* self) {
 }
 
 static ASTNode*
-parse_expression(Parser* self) {
+__parse_expression(Parser* self) {
     /* General expression grammar
      * EXPR = UNARY? COMPONENT [ OP EXPR ]
      * COMPONENT = TERM [ CALL ]*
@@ -275,20 +276,20 @@ parse_expression(Parser* self) {
     Token* next = T->next(T);
     ASTNode * result;
     ASTExpressionChain *expr, *expr_next=NULL;
-    
+
     // Otherwise, expect a simple TERM
-    
+
     expr = calloc(1, sizeof(ASTExpressionChain));
     parser_node_init((ASTNode*) expr, AST_EXPRESSION_CHAIN, next);
     result = (ASTNode*) expr;
-    
+
     for (;;) {
         // Capture unary operator
         if (next->type == T_BANG || next->type == T_OP_PLUS || next->type == T_OP_MINUS) {
             expr->unary_op = next->type;
             T->next(T);
         }
-        
+
         expr->lhs = parse_TERM(self);
 
         // Peek for (binary) operator
@@ -302,11 +303,182 @@ parse_expression(Parser* self) {
         T->next(T); // Consume the operator token
         expr->op = next->type;
         expr = expr->rhs = expr_next;
-        
+
         // Continue to the following token
         next = T->next(T);
     }
-    
+
+    return result;
+}
+
+typedef struct stack_entry {
+    struct stack_entry * next;
+    void* object;
+} StackEntry;
+
+typedef struct stack_thingy {
+    struct stack_entry * head;
+} Stack;
+
+static void*
+stack_pop(Stack* self) {
+        fprintf(stderr, "[%p]", self->head);
+    assert(self->head != NULL);
+
+    fprintf(stderr, "[POP]");
+
+    void* rv = self->head->object;
+    free(self->head);
+
+    self->head = self->head->next;
+    return rv;
+}
+
+static void*
+stack_peek(Stack* self) {
+    //assert(self->head != NULL);
+    return self->head->object;
+}
+
+static void
+stack_push(Stack* self, void* object) {
+    assert(object != NULL);
+
+    StackEntry* new = malloc(sizeof(StackEntry));
+    if (new == NULL)
+        return;
+
+    fprintf(stderr, "[PUSH]");
+
+    *new = (StackEntry) {
+        .next = self->head,
+        .object = object,
+    };
+
+    self->head = new;
+    fprintf(stderr, "[%p]", self->head);
+}
+
+static void
+stack_init(Stack* stack) {
+    *stack = (Stack) {
+        .head = NULL,
+    };
+}
+
+// Operator precedence listing (XXX: Maybe place in a header?)
+
+static struct operator_precedence {
+    enum token_type operator;
+    int             precedence;
+} OperatorPrecedence[] = {
+    { T_OP_ASSIGN, 10 },
+    { T_OP_GT, 20 },
+    { T_OP_GTE, 20 },
+    { T_OP_LT, 20 },
+    { T_OP_LTE, 20 },
+    { T_BANG, 30 },
+    { T_AND, 30 },
+    { T_OR, 30 },
+    { T_OP_EQUAL, 40 },
+    { T_OP_PLUS, 50 },
+    { T_OP_MINUS, 50 },
+    { T_OP_STAR, 60 },
+    { T_OP_SLASH, 60 },
+    { 0, 0 },
+};
+
+static inline int
+get_precedence(enum token_type op) {
+    struct operator_precedence *P = OperatorPrecedence,
+        *Pl = NULL;
+    for (; P->operator != 0; P++) {
+        if (P->operator == op)
+            return P->precedence;
+    }
+    fprintf(stdout, "Huh %d\n", op);
+    return 0;
+}
+
+static ASTNode*
+parse_expression(Parser* self) {
+    /* General expression grammar
+     * EXPR = UNARY? COMPONENT [ OP EXPR ]
+     * COMPONENT = TERM [ CALL ]*
+     * TERM = PAREN | FUNCTION | WORD | NUMBER | STRING | TRUE | FALSE | NULL
+     * CALL = INVOKE | SLICE
+     * PAREN = "(" EXPR ")"
+     * OP = T_EQUAL | T_GT | T_GTE | T_LT | T_LTE | T_AND | T_OR
+     * UNARY = T_BANG | T_PLUS | T_MINUS
+     * FUNCTION = "fun" [ WORD ] "(" [ EXPR ( "," EXPR )* ] ")" BLOCK
+     * INVOKE = T_OPEN_PAREN [ EXPR ( ',' EXPR )* ] T_CLOSE_PAREN
+     * SLICE = T_OPEN_BRACKET [ EXPR [ ':' EXPR [ ':' EXPR ] ] ] T_CLOSE_BRACKET
+     */
+    Tokenizer* T = self->tokens;
+    Token* next = T->next(T), *prev;
+    int precedence;
+    ASTNode * result;
+    ASTExpression *expr;
+
+    Stack _values, *values = &_values;
+    stack_init(values);
+    Stack _operators, *operators = &_operators;
+    stack_init(operators);
+
+    for(;;) {
+        // Capture unary operator
+        if (next->type == T_BANG || next->type == T_OP_PLUS || next->type == T_OP_MINUS) {
+            expr->unary_op = next->type;
+            T->next(T);
+        }
+
+        stack_push(values, parse_TERM(self));
+
+        // Peek for (binary) operator
+        next = T->peek(T);
+        if (next->type < T__OP_MIN || next->type > T__OP_MAX)
+            break;
+
+        precedence = get_precedence(next->type);
+        for(;;) {
+            prev = (Token*) stack_peek(operators);
+            if (!prev || get_precedence(prev->type) < precedence)
+                break;
+
+            stack_pop(operators);
+
+            expr = calloc(1, sizeof(ASTExpression));
+            parser_node_init((ASTNode*) expr, AST_EXPRESSION, prev);
+            expr->rhs = stack_pop(values);
+            expr->lhs = stack_pop(values);
+            expr->binary_op = prev->type;
+            stack_push(values, expr);
+        }
+
+        T->next(T); // Consume the operator token
+        stack_push(operators, next);
+
+        // Continue to the following token
+        next = T->next(T);
+    }
+
+    // Empty the operator stack
+    while (stack_peek(operators) != NULL) {
+        expr = calloc(1, sizeof(ASTExpression));
+        parser_node_init((ASTNode*) expr, AST_EXPRESSION, prev);
+        expr->rhs = (ASTNode*) stack_pop(values);
+        expr->lhs = (ASTNode*) stack_pop(values);
+        prev = (Token*) stack_pop(operators);
+        expr->binary_op = prev->type;
+        stack_push(values, expr);
+    }
+
+    result = (ASTNode*) stack_pop(values);
+    assert(values->head == NULL);
+    assert(operators->head == NULL);
+
+    print_node(stderr, result);
+
     return result;
 }
 
@@ -367,13 +539,13 @@ parse_statement(Parser* self) {
         astfor->post_loop = parse_expression(self);
         parse_expect(self, T_CLOSE_PAREN);
         astfor->block = parse_statement_or_block(self);
-        
+
         result = (ASTNode*) astfor;
         break;
     }
     case T_RETURN: {
         ASTExpression* expr = parse_expression(self);
-        expr->isreturn = 1;
+        // expr->isreturn = 1;
 
         result = (ASTNode*) expr;
         break;
