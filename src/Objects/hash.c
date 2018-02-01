@@ -269,8 +269,8 @@ hash_asstring(Object* self) {
         bytes = snprintf(position, remaining, "%.*s: %.*s, ",
             skey->length, skey->characters, svalue->length, svalue->characters);
         position += bytes, remaining -= bytes;
-        DECREF(skey);
-        DECREF(svalue);
+        DECREF((Object*) skey);
+        DECREF((Object*) svalue);
         DECREF(next);
     }
     position += snprintf(position, remaining, "}");

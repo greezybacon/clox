@@ -146,54 +146,29 @@ eval_binary_op(Interpreter* self, Object* arg2, Object* arg1, enum token_type op
     }
 }
 
-static Object*
-eval_word2string(ASTTerm* term) {
-    assert(term->token_type == T_WORD);
-    return (Object*) String_fromCharArrayAndSize(term->text, term->length);
+Object*
+eval_expression(Interpreter* self, ASTExpression* expr) {
+    Object* lhs = eval_node(self, expr->lhs);
+    
+    if (expr->unary_op) {
+        switch (expr->unary_op) {
+        case T_OP_MINUS:
+            ;
+        }
+    }
+    
+    if (expr->binary_op) {
+        lhs = eval_binary_op(self, lhs, eval_node(self, expr->rhs),
+            expr->binary_op);
+    }
+    
+    return lhs;
 }
 
 Object*
-eval_expression(Interpreter* self, ASTExpressionChain* expr) {
-    // This uses the shunting yard algorithm here and in parsing to avoid
-    // recursion issues.
-    ASTExpressionChain *prev = NULL, *current = expr;
-
-    Stack _stack, *stack = &_stack;
-    stack_init(stack);
-
-    do {
-        // For assignment, push the WORD token. For everything else, push
-        // the result of evaluation
-        stack->push(stack, (current->op == T_OP_ASSIGN)
-            ? eval_word2string((ASTTerm*) current->lhs) : eval_node(self, current->lhs));
-        if (current->op) {
-            current->precedence = get_precedence(current->op);
-            while (prev && prev->precedence > current->precedence) {
-                // Emit previous operator with the top two stack items
-                stack->push(stack, eval_binary_op(self, stack->pop(stack), 
-                    stack->pop(stack), prev->op));
-                // In the prev chain, bypass this EXPR so that it is not emitted 
-                // again below
-                prev = prev->prev;
-            }
-            current->prev = prev;
-            prev = current;
-        }
-        current = current->rhs;
-    }
-    while (current);
-    
-    while (prev) {
-        if (prev->op)
-            stack->push(stack, eval_binary_op(self, stack->pop(stack),
-                stack->pop(stack), prev->op));
-        prev = prev->prev;
-    }
-    
-    Object* rv = stack->pop(stack);
-    assert(stack->head == NULL);
-
-    return rv;
+eval_assignment(Interpreter* self, ASTAssignment* assign) {
+    assert(String_isString(assign->name));
+    self->assign2(self, assign->name, eval_node(self, assign->expression));
 }
 
 Object*

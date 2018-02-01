@@ -9,6 +9,7 @@
 enum ast_type {
     AST_STATEMENT = 0,
     AST_EXPRESSION,
+    AST_ASSIGNMENT,
     AST_EXPRESSION_CHAIN,
     AST_FUNCTION,
     AST_PARAM,
@@ -35,10 +36,13 @@ typedef struct ast_expression {
     enum token_type     binary_op;
     struct ast_node     *lhs;
     struct ast_node     *rhs;
-    // Used in shunting yard compilation algorithm
-    struct ast_expression *prev;
-    int                 precedence;
 } ASTExpression;
+
+typedef struct ast_assignment {
+    ASTNode             node;
+    Object              *name;
+    ASTNode             *expression;
+} ASTAssignment;
 
 typedef struct ast_term {
     ASTNode             node;

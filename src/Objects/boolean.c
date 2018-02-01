@@ -6,6 +6,8 @@
 #include "integer.h"
 #include "string.h"
 
+#include "Eval/error.h"
+
 static struct object_type BooleanType;
 
 Object*
@@ -21,7 +23,8 @@ Bool_fromObject(Object* value) {
         return value->type->as_bool(value);
     // TODO: NULL should be false
     else
-        eval_error('Cannot represent value as Boolean');
+        // XXX: FIXME
+        eval_error(NULL, "Cannot represent value as Boolean");
 }
 
 bool
@@ -64,7 +67,7 @@ bool_op_eq(Object* self, Object* other) {
 
 static Object*
 bool_op_ne(Object* self, Object* other) {
-    return bool_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;
+    return bool_op_eq(self, other) == (Object*) LoxTRUE ? LoxFALSE : LoxTRUE;
 }
 
 static struct object_type BooleanType = (ObjectType) {
@@ -93,17 +96,17 @@ BoolObject *LoxFALSE = &_LoxFALSE;
 
 static Object*
 null_asbool(Object* self) {
-    return LoxFALSE;
+    return (Object*) LoxFALSE;
 }
 
 static Object*
 null_asint(Object* self) {
-    return Integer_fromLongLong(0);
+    return (Object*) Integer_fromLongLong(0);
 }
 
 static Object*
 null_asstring(Object* self) {
-    return String_fromCharArrayAndSize("null", 4);
+    return (Object*) String_fromCharArrayAndSize("null", 4);
 }
 
 static struct object_type NilType = (ObjectType) {

@@ -75,7 +75,7 @@ static inline Object*
 coerce_integer(Object* value) {
     if (value->type != &IntegerType) {
        if (value->type->as_int == NULL) {
-           eval_error('Value cannot be coerced to int');
+           eval_error("Value cannot be coerced to int");
        }
        value = value->type->as_int(value);
    }

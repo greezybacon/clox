@@ -3,6 +3,9 @@
 
 #include "interpreter.h"
 #include "Objects/string.h"
+#include "Objects/boolean.h"
+
+#include "Parse/debug_parse.h"
 
 // EvalContext ---------------
 
@@ -10,7 +13,7 @@ static Object*
 eval_eval(Interpreter* self) {
     ASTNode* ast;
     Parser* parser = self->parser;
-    Object* last;
+    Object* last = LoxNIL;
     
     if (!parser)
         return NULL;
@@ -26,6 +29,8 @@ Object*
 eval_node(Interpreter* self, ASTNode* ast) {
     switch (ast->type) {
     case AST_STATEMENT:
+    case AST_ASSIGNMENT:
+        return eval_assignment(self, (ASTAssignment*) ast);
     case AST_EXPRESSION:
     case AST_EXPRESSION_CHAIN:
         return eval_expression(self, (ASTExpressionChain*) ast);

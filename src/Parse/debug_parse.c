@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 
 #include "debug_parse.h"
@@ -22,16 +23,24 @@ print_expression_chain(FILE* output, ASTExpressionChain* node) {
 
 static void
 print_expression(FILE* output, ASTExpression* node) {
-    return;
     fprintf(output, "%s", "Expression(");
     if (node->unary_op)
         ;
     print_node(output, node->lhs);
-    fprintf(output, ")");
     if (node->binary_op)
         fprintf(output, " (%s) ", get_operator(node->binary_op));
     if (node->rhs)
         print_node(output, (ASTNode*) node->rhs);
+    fprintf(output, ")");
+}
+
+static void
+print_assignment(FILE* output, ASTAssignment* node) {
+    assert(String_isString(node->name));
+    StringObject* S = (StringObject*) node->name;
+    fprintf(output, "(%.*s := ", S->length, S->characters);
+    print_expression(output, node->expression);
+    fprintf(output, ")");
 }
 
 static void
@@ -117,6 +126,9 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
         fprintf(output, "(null)");
     else while (current) {
         switch (current->type) {
+        case AST_ASSIGNMENT:
+            print_assignment(output, (ASTAssignment*) current);
+            break;
         case AST_EXPRESSION:
             print_expression(output, (ASTExpression*) current);
             break;

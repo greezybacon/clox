@@ -8,6 +8,7 @@
 #include "debug_parse.h"
 #include "Eval/interpreter.h"
 #include "parse.h"
+#include "Objects/string.h"
 
 static ASTNode* parse_expression(Parser*);
 static ASTNode* parse_statement(Parser*);
@@ -258,111 +259,43 @@ parse_TERM(Parser* self) {
     return (ASTNode*) result;
 }
 
-static ASTNode*
-__parse_expression(Parser* self) {
-    /* General expression grammar
-     * EXPR = UNARY? COMPONENT [ OP EXPR ]
-     * COMPONENT = TERM [ CALL ]*
-     * TERM = PAREN | FUNCTION | WORD | NUMBER | STRING | TRUE | FALSE | NULL
-     * CALL = INVOKE | SLICE
-     * PAREN = "(" EXPR ")"
-     * OP = T_EQUAL | T_GT | T_GTE | T_LT | T_LTE | T_AND | T_OR
-     * UNARY = T_BANG | T_PLUS | T_MINUS
-     * FUNCTION = "fun" [ WORD ] "(" [ EXPR ( "," EXPR )* ] ")" BLOCK
-     * INVOKE = T_OPEN_PAREN [ EXPR ( ',' EXPR )* ] T_CLOSE_PAREN
-     * SLICE = T_OPEN_BRACKET [ EXPR [ ':' EXPR [ ':' EXPR ] ] ] T_CLOSE_BRACKET
-     */
-    Tokenizer* T = self->tokens;
-    Token* next = T->next(T);
-    ASTNode * result;
-    ASTExpressionChain *expr, *expr_next=NULL;
-
-    // Otherwise, expect a simple TERM
-
-    expr = calloc(1, sizeof(ASTExpressionChain));
-    parser_node_init((ASTNode*) expr, AST_EXPRESSION_CHAIN, next);
-    result = (ASTNode*) expr;
-
-    for (;;) {
-        // Capture unary operator
-        if (next->type == T_BANG || next->type == T_OP_PLUS || next->type == T_OP_MINUS) {
-            expr->unary_op = next->type;
-            T->next(T);
-        }
-
-        expr->lhs = parse_TERM(self);
-
-        // Peek for (binary) operator
-        next = T->peek(T);
-        if (next->type < T__OP_MIN || next->type > T__OP_MAX)
-            break;
-
-        expr_next = calloc(1, sizeof(ASTExpressionChain));
-        parser_node_init((ASTNode*) expr_next, AST_EXPRESSION_CHAIN, next);
-
-        T->next(T); // Consume the operator token
-        expr->op = next->type;
-        expr = expr->rhs = expr_next;
-
-        // Continue to the following token
-        next = T->next(T);
-    }
-
-    return result;
-}
-
-typedef struct stack_entry {
-    struct stack_entry * next;
-    void* object;
-} StackEntry;
-
 typedef struct stack_thingy {
-    struct stack_entry * head;
+    unsigned            index;
+    void**              head[16];
 } Stack;
 
 static void*
 stack_pop(Stack* self) {
-        fprintf(stderr, "[%p]", self->head);
-    assert(self->head != NULL);
-
-    fprintf(stderr, "[POP]");
-
-    void* rv = self->head->object;
-    free(self->head);
-
-    self->head = self->head->next;
-    return rv;
+    assert(self->index > 0);
+    return *(self->head + --self->index);
 }
 
 static void*
 stack_peek(Stack* self) {
-    //assert(self->head != NULL);
-    return self->head->object;
+    if (self->index == 0)
+        return NULL;
+
+    return *(self->head + self->index - 1);
 }
 
 static void
 stack_push(Stack* self, void* object) {
-    assert(object != NULL);
+    assert(self->index < 15);
+    
+    // TODO: Resize stack on items larger than 15
+    
+    *(self->head + self->index++) = object;
+}
 
-    StackEntry* new = malloc(sizeof(StackEntry));
-    if (new == NULL)
-        return;
-
-    fprintf(stderr, "[PUSH]");
-
-    *new = (StackEntry) {
-        .next = self->head,
-        .object = object,
-    };
-
-    self->head = new;
-    fprintf(stderr, "[%p]", self->head);
+static unsigned
+stack_depth(Stack* self) {
+    return self->index;
 }
 
 static void
 stack_init(Stack* stack) {
     *stack = (Stack) {
-        .head = NULL,
+        .index = 0,
     };
 }
 
@@ -396,8 +329,34 @@ get_precedence(enum token_type op) {
         if (P->operator == op)
             return P->precedence;
     }
-    fprintf(stdout, "Huh %d\n", op);
+    fprintf(stdout, ">Huh %d\n", op);
     return 0;
+}
+
+static Object*
+parse_word2string(ASTTerm* term) {
+    assert(term->token_type == T_WORD);
+    Object* rv = (Object*) String_fromCharArrayAndSize(term->text, term->length);
+    printf("%p\n", rv);
+    return rv;
+}
+
+static inline ASTNode*
+parse_expression_binop(Token* token, Stack* stack, int binop) {
+    if (binop == T_OP_ASSIGN) {
+        ASTAssignment* assign = calloc(1, sizeof(ASTAssignment));
+        parser_node_init((ASTNode*) assign, AST_ASSIGNMENT, token);
+        assign->expression = (ASTNode*) stack_pop(stack);
+        assign->name = parse_word2string(stack_pop(stack));
+        return (ASTNode*) assign;
+    }
+
+    ASTExpression* expr = calloc(1, sizeof(ASTExpression));
+    parser_node_init((ASTNode*) expr, AST_EXPRESSION, token);
+    expr->rhs = (ASTNode*) stack_pop(stack);
+    expr->lhs = (ASTNode*) stack_pop(stack);
+    expr->binary_op = binop;
+    return (ASTNode*) expr;
 }
 
 static ASTNode*
@@ -422,10 +381,10 @@ parse_expression(Parser* self) {
 
     Stack _values, *values = &_values;
     stack_init(values);
-    Stack _operators, *operators = &_operators;
-    stack_init(operators);
+    enum token_type operators[16], binop, *prevop = operators;
+    operators[0] = 0;
 
-    for(;;) {
+    for (;;) {
         // Capture unary operator
         if (next->type == T_BANG || next->type == T_OP_PLUS || next->type == T_OP_MINUS) {
             expr->unary_op = next->type;
@@ -440,44 +399,28 @@ parse_expression(Parser* self) {
             break;
 
         precedence = get_precedence(next->type);
-        for(;;) {
-            prev = (Token*) stack_peek(operators);
-            if (!prev || get_precedence(prev->type) < precedence)
+        for (;;) {
+            binop = *prevop;
+            if (!binop || get_precedence(binop) < precedence)
                 break;
 
-            stack_pop(operators);
-
-            expr = calloc(1, sizeof(ASTExpression));
-            parser_node_init((ASTNode*) expr, AST_EXPRESSION, prev);
-            expr->rhs = stack_pop(values);
-            expr->lhs = stack_pop(values);
-            expr->binary_op = prev->type;
-            stack_push(values, expr);
+            stack_push(values, parse_expression_binop(next, values, *prevop--));
         }
 
+        *++prevop = next->type;
         T->next(T); // Consume the operator token
-        stack_push(operators, next);
 
         // Continue to the following token
         next = T->next(T);
     }
 
     // Empty the operator stack
-    while (stack_peek(operators) != NULL) {
-        expr = calloc(1, sizeof(ASTExpression));
-        parser_node_init((ASTNode*) expr, AST_EXPRESSION, prev);
-        expr->rhs = (ASTNode*) stack_pop(values);
-        expr->lhs = (ASTNode*) stack_pop(values);
-        prev = (Token*) stack_pop(operators);
-        expr->binary_op = prev->type;
-        stack_push(values, expr);
+    while (*prevop > 0) {
+        stack_push(values, parse_expression_binop(next, values, *prevop--));
     }
 
     result = (ASTNode*) stack_pop(values);
-    assert(values->head == NULL);
-    assert(operators->head == NULL);
-
-    print_node(stderr, result);
+    assert(values->index == 0);
 
     return result;
 }

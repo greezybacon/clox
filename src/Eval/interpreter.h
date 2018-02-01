@@ -24,12 +24,18 @@ Object*
 eval_if(Interpreter*, ASTIf*);
 
 Object*
+eval_while(Interpreter*, ASTWhile*);
+
+Object*
 eval_node(Interpreter*, ASTNode*);
 
 // From expression.c
 
 Object*
-eval_expression(Interpreter*, ASTExpressionChain*);
+eval_expression(Interpreter*, ASTExpression*);
+
+Object*
+eval_assignment(Interpreter*, ASTAssignment*);
 
 Object*
 eval_term(Interpreter*, ASTTerm*);
