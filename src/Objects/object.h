@@ -41,12 +41,15 @@ typedef struct object_type {
     Object* (*contains)(Object*, Object*);
     Object* (*len)(Object*);
 
-    // TODO: Math operators (plus, etc.)
+    // TODO: Binary operators (plus, etc.)
     Object* (*op_plus)(Object*, Object*);
     Object* (*op_minus)(Object*, Object*);
     Object* (*op_star)(Object*, Object*);
     Object* (*op_slash)(Object*, Object*);
-    
+
+    // TODO: Unary operators
+    Object* (*op_neg)(Object*);
+
     // TODO: Comparison
     Object* (*op_lt)(Object*, Object*);
     Object* (*op_lte)(Object*, Object*);
@@ -61,7 +64,7 @@ typedef struct object_type {
 
     // TODO: Methods (stuff unique to each type)
     ObjectMethod* methods;
-    
+
     // TODO: Garbage collection cooperation
     void (*cleanup)(Object*);
 } ObjectType;

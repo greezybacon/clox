@@ -139,29 +139,42 @@ eval_binary_op(Interpreter* self, Object* arg2, Object* arg1, enum token_type op
         self->assign2(self, arg1, arg2);
         return arg2;
 
-    case T_BANG:
     case T_AND:
     case T_OR:
         break;
     }
 }
 
+static inline Object*
+eval_unary_op(Interpreter *self, enum token_type unary_op, Object* value) {
+    Object *rv;
+
+    switch (unary_op) {
+        // Bitwise NOT?
+        case T_BANG:
+            rv = value->type->as_bool(value);
+            DECREF(value);
+            return (rv == (Object*) LoxFALSE) ? LoxTRUE : LoxFALSE;
+        case T_OP_MINUS:
+        case T_OP_PLUS:
+            // This is really a noop
+            break;
+    }
+}
+
 Object*
 eval_expression(Interpreter* self, ASTExpression* expr) {
     Object* lhs = eval_node(self, expr->lhs);
-    
+
     if (expr->unary_op) {
-        switch (expr->unary_op) {
-        case T_OP_MINUS:
-            ;
-        }
+        lhs = eval_unary_op(self, expr->unary_op, lhs);
     }
-    
+
     if (expr->binary_op) {
         lhs = eval_binary_op(self, lhs, eval_node(self, expr->rhs),
             expr->binary_op);
     }
-    
+
     return lhs;
 }
 

@@ -114,8 +114,8 @@ static struct object_type NilType = (ObjectType) {
     .name = "nil",
 
     .as_bool = null_asbool,
-    .as_int = bool_asint,
-    .as_string = bool_asstring,
+    .as_int = null_asint,
+    .as_string = null_asstring,
 };
 
 static Object _LoxNIL = (Object) {

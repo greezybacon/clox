@@ -16,7 +16,7 @@ print_expression_chain(FILE* output, ASTExpressionChain* node) {
     print_node(output, node->lhs);
     fprintf(output, ")");
     if (node->op)
-        fprintf(output, " (%s)", get_operator(node->op));
+        fprintf(output, " (%s) ", get_operator(node->op));
     if (node->rhs)
         print_node(output, (ASTNode*) node->rhs);
 }

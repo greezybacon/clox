@@ -29,7 +29,7 @@ static void
 parse_syntax_error(Parser* self, char* message) {
     Tokenizer* tokens = self->tokens;
     Token* next = tokens->peek(tokens);
-    
+
     fprintf(stderr, "Parse Error: line %d, at %d: %s\n",
         tokens->stream->line, tokens->stream->pos, message);
     exit(-1);
@@ -68,7 +68,7 @@ parse_block(Parser* self) {
         peek = T->peek(T);
     }
     while (peek->type != T_CLOSE_BRACE);
-    
+
     // Console close brace
     T->next(T);
 
@@ -237,7 +237,7 @@ parse_TERM(Parser* self) {
     }
     default: {
         char buffer[255];
-        snprintf(buffer, sizeof(buffer), "Unexpected token type in TERM, got %s", 
+        snprintf(buffer, sizeof(buffer), "Unexpected token type in TERM, got %s",
             get_token_type(next->type));
         parse_syntax_error(self, buffer);
     }}
