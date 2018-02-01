@@ -159,9 +159,7 @@ static ASTNode*
 parse_TERM(Parser* self) {
     Tokenizer* T = self->tokens;
     Token* next = self->tokens->current;
-    ASTTerm* term = NULL;
     ASTNode* result;
-    bool is_literal = false;
 
     switch (next->type) {
     case T_OPEN_PAREN:
@@ -175,20 +173,27 @@ parse_TERM(Parser* self) {
         parse_expect(self, T_CLOSE_PAREN);
         break;
 
+    case T_WORD: {
+        ASTLookup *lookup = calloc(1, sizeof(ASTLookup));
+        parser_node_init((ASTNode*) lookup, AST_LOOKUP, next);
+        lookup->name = (Object*) String_fromCharArrayAndSize(
+            self->tokens->fetch_text(self->tokens, next),
+            next->length
+        );
+        result = (ASTNode*) lookup;
+        break;
+    }
     case T_NUMBER:
     case T_STRING:
     case T_TRUE:
     case T_FALSE:
-    case T_NULL:
-        is_literal = true;
-    case T_WORD:
+    case T_NULL: {
         // Do something with the token
-        term = calloc(1, sizeof(ASTTerm));
+        ASTTerm _term, *term = &_term;
         parser_node_init((ASTNode*) term, AST_TERM, next);
         term->token_type = next->type;
         term->text = self->tokens->fetch_text(self->tokens, next);
         term->length = next->length;
-        result = (ASTNode*) term;
 
         if (next->type == T_NUMBER) {
             char* endpos;
@@ -207,15 +212,12 @@ parse_TERM(Parser* self) {
             }
         }
 
-        if (is_literal) {
-            Object *literal = eval_term(NULL, term);
-            free(term);
-            result = calloc(1, sizeof(ASTLiteral));
-            parser_node_init((ASTNode*) result, AST_LITERAL, next);
-            ((ASTLiteral*) result)->literal = literal;
-        }
+        Object *literal = eval_term(NULL, term);
+        result = calloc(1, sizeof(ASTLiteral));
+        parser_node_init((ASTNode*) result, AST_LITERAL, next);
+        ((ASTLiteral*) result)->literal = literal;
         break;
-
+    }
     case T_FUNCTION: {
         ASTFunction* astfun = calloc(1, sizeof(ASTFunction));
         parser_node_init((ASTNode*) astfun, AST_FUNCTION, next);
@@ -281,9 +283,9 @@ stack_peek(Stack* self) {
 static void
 stack_push(Stack* self, void* object) {
     assert(self->index < 15);
-    
+
     // TODO: Resize stack on items larger than 15
-    
+
     *(self->head + self->index++) = object;
 }
 
@@ -334,10 +336,10 @@ get_precedence(enum token_type op) {
 }
 
 static Object*
-parse_word2string(ASTTerm* term) {
-    assert(term->token_type == T_WORD);
-    Object* rv = (Object*) String_fromCharArrayAndSize(term->text, term->length);
-    printf("%p\n", rv);
+parse_word2string(ASTNode* node) {
+    assert(node->type == AST_LOOKUP);
+    Object* rv = ((ASTLookup*)node)->name;
+    free(node);
     return rv;
 }
 

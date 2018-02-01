@@ -12,7 +12,7 @@ StackFrame_new(void) {
 }
 
 Object*
-eval_lookup2(Interpreter* self, Object* key) {
+stack_lookup2(Interpreter* self, Object* key) {
     // TODO: Use HashObject_lookup_fast();
     Object *value;
     HashObject *sources[] = { self->stack->locals, self->globals };
@@ -32,17 +32,17 @@ eval_lookup2(Interpreter* self, Object* key) {
 }
 
 Object*
-eval_lookup(Interpreter* self, char* name, size_t length) {
+stack_lookup(Interpreter* self, char* name, size_t length) {
     // TODO: Cache the key in the AST node ...
     Object* key = (Object*) String_fromCharArrayAndSize(name, length);
-    Object* rv = eval_lookup2(self, key);
+    Object* rv = stack_lookup2(self, key);
     DECREF(key);
 
     return rv;
 }
 
 void
-eval_assign2(Interpreter* self, Object* name, Object* value) {
+stack_assign2(Interpreter* self, Object* name, Object* value) {
     HashObject* locals = self->stack->locals;
 
     if (!locals) {

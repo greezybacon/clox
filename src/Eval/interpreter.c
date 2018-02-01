@@ -14,14 +14,14 @@ eval_eval(Interpreter* self) {
     ASTNode* ast;
     Parser* parser = self->parser;
     Object* last = LoxNIL;
-    
+
     if (!parser)
         return NULL;
-    
+
     while ((ast = parser->next(parser))) {
         last = eval_node(self, ast);
     }
-    
+
     return last;
 }
 
@@ -52,6 +52,8 @@ eval_node(Interpreter* self, ASTNode* ast) {
 
     case AST_INVOKE:
         return eval_invoke(self, (ASTInvoke*) ast);
+    case AST_LOOKUP:
+        return eval_lookup(self, (ASTLookup*) ast);
 
     case AST_CLASS:
         break;
@@ -63,10 +65,10 @@ eval_init(Interpreter* eval, Parser* parser) {
     *eval = (Interpreter) {
         .parser = parser,
         .eval = eval_eval,
-        .lookup = eval_lookup,
-        .lookup2 = eval_lookup2,
-        .assign2 = eval_assign2,
-        
+        .lookup = stack_lookup,
+        .lookup2 = stack_lookup2,
+        .assign2 = stack_assign2,
+
         .globals = Hash_new(),
         // .stack = StackFrame_new(),
     };
@@ -84,7 +86,7 @@ eval_stdin(void) {
 
     Parser parser;
     parser_init(&parser, &input);
-    
+
     Interpreter ctx;
     eval_init(&ctx, &parser);
 

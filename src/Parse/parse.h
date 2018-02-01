@@ -20,6 +20,7 @@ enum ast_type {
     AST_BINARY_OP,
     AST_TERM,
     AST_LITERAL,
+    AST_LOOKUP,
     AST_INVOKE,
     AST_CLASS,
 };
@@ -43,6 +44,11 @@ typedef struct ast_assignment {
     Object              *name;
     ASTNode             *expression;
 } ASTAssignment;
+
+typedef struct ast_lookup {
+    ASTNode             node;
+    Object              *name;
+} ASTLookup;
 
 typedef struct ast_term {
     ASTNode             node;

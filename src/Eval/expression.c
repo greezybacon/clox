@@ -185,6 +185,11 @@ eval_assignment(Interpreter* self, ASTAssignment* assign) {
 }
 
 Object*
+eval_lookup(Interpreter* self, ASTLookup* lookup) {
+    return self->lookup2(self, lookup->name);
+}
+
+Object*
 eval_term(Interpreter* self, ASTTerm* term) {
     Object* rv;
 
@@ -206,8 +211,7 @@ eval_term(Interpreter* self, ASTTerm* term) {
         return (Object*) LoxTRUE;
     case T_FALSE:
         return (Object*) LoxFALSE;
-    case T_WORD:
-        return self->lookup(self, term->text, term->length);
+
     default:
         fprintf(stdout, "Say what?: %d\n", term->token_type);
     }

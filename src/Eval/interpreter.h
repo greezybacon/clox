@@ -14,7 +14,7 @@ typedef struct interp_context {
     Object*     (*lookup2)(struct interp_context*, Object* key);
     void        (*assign)(struct interp_context*, char* name, size_t length, Object*);
     void        (*assign2)(struct interp_context*, Object*, Object*);
-    
+
     HashObject* globals;
     StackFrame* stack;
 } Interpreter;
@@ -40,6 +40,9 @@ eval_assignment(Interpreter*, ASTAssignment*);
 Object*
 eval_term(Interpreter*, ASTTerm*);
 
+Object*
+eval_lookup(Interpreter*, ASTLookup*);
+
 // From function.c
 
 Object*
@@ -55,15 +58,15 @@ void StackFrame_pop(Interpreter*);
 void StackFrame_push(Interpreter*);
 
 Object*
-eval_lookup(Interpreter*, char*, size_t);
+stack_lookup(Interpreter*, char*, size_t);
 
 Object*
-eval_lookup2(Interpreter*, Object*);
+stack_lookup2(Interpreter*, Object*);
 
 void
-eval_assign(Interpreter*, char*, size_t, Object*);
+stack_assign(Interpreter*, char*, size_t, Object*);
 
 void
-eval_assign2(Interpreter*, Object*, Object*);
+stack_assign2(Interpreter*, Object*, Object*);
 
 #endif
