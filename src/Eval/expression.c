@@ -196,15 +196,11 @@ eval_term(Interpreter* self, ASTTerm* term) {
     switch (term->token_type) {
     case T_NUMBER:
         if (term->isreal) {
-            rv = (Object*) Float_fromLongDouble(term->token.real);
+            return (Object*) Float_fromLongDouble(term->token.real);
         }
-        else {
-            rv = (Object*) Integer_fromLongLong(term->token.integer);
-        }
-        break;
+        return (Object*) Integer_fromLongLong(term->token.integer);
     case T_STRING:
-        rv = (Object*) String_fromCharArrayAndSize(term->text, term->length);
-        break;
+        return (Object*) String_fromCharArrayAndSize(term->text, term->length);
     case T_NULL:
         return LoxNIL;
     case T_TRUE:
@@ -215,7 +211,5 @@ eval_term(Interpreter* self, ASTTerm* term) {
     default:
         fprintf(stdout, "Say what?: %d\n", term->token_type);
     }
-
-    INCREF(rv);
-    return rv;
+    return LoxNIL;
 }

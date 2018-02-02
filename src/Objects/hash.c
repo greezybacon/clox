@@ -39,7 +39,7 @@ HashObject *Hash_newWithSize(size_t size) {
     }
     hashtable->size = size;
 
-	return hashtable;	
+	return hashtable;
 }
 
 // My implementation as a table which will auto resize
@@ -48,7 +48,7 @@ HashObject *Hash_new(void) {
 }
 
 /* Hash a string for a particular hash table. */
-static int 
+static int
 ht_hashslot(int size, Object *key) {
     assert(key->type->hash);
 	return key->type->hash(key) % (size - 1);
@@ -89,7 +89,7 @@ hash_resize(HashObject* self, size_t newsize) {
     free(self->table);
     self->table = table;
     self->size = newsize;
-    
+
     return 0;
 }
 
@@ -108,7 +108,7 @@ hash_set(HashObject *self, Object *key, Object *value) {
             ;
     }
     // TODO: In case resize failed, check that there are at least two slots
-    // in the table. If there are not, then this insert should fail. There 
+    // in the table. If there are not, then this insert should fail. There
     // must be at least one empty slot or lookups for missing items would
     // loop forever.
 
@@ -127,7 +127,7 @@ hash_set(HashObject *self, Object *key, Object *value) {
         slot = (slot + 1) % self->size;
         entry = self->table + slot;
 	}
-    
+
     INCREF(value);
     INCREF(key);
     entry->value = value;
@@ -142,7 +142,7 @@ hash_lookup_fast(HashObject* self, Object* key, int slot) {
     assert(slot < self->size);
 
     entry = self->table + slot;
-    
+
 	/* Step through the table, looking for our value. */
 	while (entry->key != NULL
         && LoxFALSE == entry->key->type->op_eq(entry->key, key)
@@ -168,7 +168,7 @@ static Object*
 hash_get(Object *self, Object *key) {
     assert(self->type == &HashType);
 	HashEntry *entry = hash_lookup((HashObject*) self, key);
-    
+
     if (entry == NULL)
         // TODO: Raise error
         return NULL;
@@ -286,7 +286,7 @@ hash_free(Object* self) {
     assert(self->type == &HashType);
 
     int i;
-    HashObject *hash = (HashObject*) self; 
+    HashObject *hash = (HashObject*) self;
     HashEntry *entry;
     for (entry = hash->table, i=hash->size; i; entry++, i--) {
         if (entry->key != NULL) {

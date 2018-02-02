@@ -33,6 +33,7 @@ eval_while(Interpreter *self, ASTWhile* node) {
     assert(node->node.type == AST_WHILE);
 
     Object *condition;
+    Object *rv = LoxNIL;
 
     for (;;) {
         condition = eval_node(self, node->condition);
@@ -42,12 +43,12 @@ eval_while(Interpreter *self, ASTWhile* node) {
             condition = T;
         }
 
-        if (condition != (Object*) LoxTRUE)
+        if (condition == (Object*) LoxFALSE)
             break;
-    
+
         // Execute the associated block
-        eval_node(self, node->block);
+        rv = eval_node(self, node->block);
     }
 
-    return LoxNIL;
+    return rv;
 }
