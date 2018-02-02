@@ -31,7 +31,7 @@ HashObject *Hash_newWithSize(size_t size) {
     hashtable = object_new(sizeof(HashObject), &HashType);
     if (hashtable == NULL)
         return hashtable;
-    
+
     hashtable->table = calloc(size, sizeof(HashEntry));
     if (hashtable->table == NULL) {
         free(hashtable);
@@ -176,6 +176,14 @@ hash_get(Object *self, Object *key) {
     return entry->value;
 }
 
+static Object*
+hash_contains(Object *self, Object *key) {
+    assert(self->type == &HashType);
+	HashEntry *entry = hash_lookup((HashObject*) self, key);
+
+    return (entry == NULL) ? LoxFALSE : LoxTRUE;
+}
+
 static void
 hash_remove(Object* self, Object* key) {
     assert(self->type == &HashType);
@@ -188,7 +196,7 @@ hash_remove(Object* self, Object* key) {
     DECREF(entry->value);
     DECREF(entry->key);
     ((HashObject*) self)->count--;
-    
+
     entry->key = NULL;
     entry->value = NULL;
 }
@@ -237,7 +245,7 @@ hash_entries__next(Iterator* this) {
 static Iterator*
 iter_hash_entries(HashObject* self) {
     HashObjectIterator* it = malloc(sizeof(HashObjectIterator));
-    
+
     *it = (HashObjectIterator) {
         .base.next = hash_entries__next,
         .hash = self,
@@ -304,7 +312,8 @@ static struct object_type HashType = (ObjectType) {
     .set_item = hash_set,
     .get_item = hash_get,
     .remove_item = hash_remove,
-    
+    .contains = hash_contains,
+
     .as_string = hash_asstring,
     .as_bool = hash_asbool,
 

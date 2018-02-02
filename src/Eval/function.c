@@ -13,18 +13,13 @@ eval_invoke(Interpreter* self, ASTInvoke* invoke) {
     // Fetch the function code to invoke
     assert(invoke->callable);
 
-    Object* callable;
-
     // If invoking an expression, then eval it first
-    if (invoke->callable->type == AST_EXPRESSION_CHAIN) {
-        callable = eval_expression(self, (ASTExpressionChain*) invoke->callable);
-    }
-    
-    assert(Function_isCallable(callable));
-    
+    Object* callable = eval_node(self, invoke->callable);
+
     // XXX: For now this will only work with an actual FunctionObject
+    assert(Function_isCallable(callable));
     assert(Function_isFunction(callable));
-    
+
     StackFrame_push(self);
 
     // TODO: Associate closure information, if any
@@ -51,10 +46,10 @@ eval_function(Interpreter* self, ASTFunction* callable) {
     // Creates a Function object which can be called with
     // args later
     Object* F = Function_fromAST(callable);
-    
+
     // TODO: If the function has a name, attach it to the global? scope
     if (callable->name_length)
-        ;
-    
+        self->assign(callable->name, callable->name_length, F);
+
     return F;
 }

@@ -69,7 +69,7 @@ eval_init(Interpreter* eval, Parser* parser) {
         .lookup2 = stack_lookup2,
         .assign2 = stack_assign2,
 
-        .globals = Hash_new(),
+        .global_scope = Scope_create(NULL),
         // .stack = StackFrame_new(),
     };
 }

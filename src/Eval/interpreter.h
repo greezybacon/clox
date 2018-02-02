@@ -15,8 +15,8 @@ typedef struct interp_context {
     void        (*assign)(struct interp_context*, char* name, size_t length, Object*);
     void        (*assign2)(struct interp_context*, Object*, Object*);
 
-    HashObject* globals;
-    StackFrame* stack;
+    Scope       *globals;
+    StackFrame  *stack;
 } Interpreter;
 
 // From control.c
