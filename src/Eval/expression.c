@@ -93,51 +93,51 @@ get_precedence(enum token_type op) {
 }
 
 static Object*
-eval_binary_op(Interpreter* self, Object* arg2, Object* arg1, enum token_type op) {
+eval_binary_op(Interpreter* self, Object* lhs, Object* rhs, enum token_type op) {
     Object* rv;
 
     switch (op) {
     case T_OP_PLUS:
-        if (!arg1->type->op_plus)
+        if (!lhs->type->op_plus)
             eval_error(self, "Object does not support `+`");
-        return arg1->type->op_plus(arg1, arg2);
+        return lhs->type->op_plus(lhs, rhs);
 
     case T_OP_MINUS:
-        if (!arg1->type->op_minus)
+        if (!lhs->type->op_minus)
             eval_error(self, "Object does not support `-`");
-        return arg1->type->op_minus(arg1, arg2);
+        return lhs->type->op_minus(lhs, rhs);
 
     case T_OP_STAR:
-        if (!arg1->type->op_star)
+        if (!lhs->type->op_star)
             eval_error(self, "Object does not support `*`");
-        return arg1->type->op_star(arg1, arg2);
+        return lhs->type->op_star(lhs, rhs);
 
     case T_OP_SLASH:
-        if (!arg1->type->op_slash)
+        if (!lhs->type->op_slash)
             eval_error(self, "Object does not support `/`");
-        return arg1->type->op_slash(arg1, arg2);
+        return lhs->type->op_slash(lhs, rhs);
 
     case T_OP_LT:
-        return arg1->type->op_lt(arg1, arg2);
+        return lhs->type->op_lt(lhs, rhs);
 
     case T_OP_LTE:
-        return arg1->type->op_lte(arg1, arg2);
+        return lhs->type->op_lte(lhs, rhs);
 
     case T_OP_GT:
-        return arg1->type->op_gt(arg1, arg2);
+        return lhs->type->op_gt(lhs, rhs);
 
     case T_OP_GTE:
-        return arg1->type->op_gte(arg1, arg2);
+        return lhs->type->op_gte(lhs, rhs);
 
     case T_OP_EQUAL:
-        return arg1->type->op_eq(arg1, arg2);
+        return lhs->type->op_eq(lhs, rhs);
 
     case T_OP_ASSIGN:
-        // For assignment, the arg2 expression should be assigned to the local
-        // variable represented by arg1
-        assert(String_isString(arg1));
-        self->assign2(self, arg1, arg2);
-        return arg2;
+        // For assignment, the rhs expression should be assigned to the local
+        // variable represented by lhs
+        assert(String_isString(lhs));
+        StackFrame_assign(self->stack, lhs, rhs);
+        return rhs;
 
     case T_AND:
     case T_OR:

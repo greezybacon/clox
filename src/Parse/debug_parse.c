@@ -9,23 +9,10 @@
 #include "Objects/garbage.h"
 
 static void
-print_expression_chain(FILE* output, ASTExpressionChain* node) {
-    if (node->unary_op)
-        fprintf(output, " (%s) ", get_operator(node->unary_op));
-    fprintf(output, "%s", "Expression(");
-    print_node(output, node->lhs);
-    fprintf(output, ")");
-    if (node->op)
-        fprintf(output, " (%s) ", get_operator(node->op));
-    if (node->rhs)
-        print_node(output, (ASTNode*) node->rhs);
-}
-
-static void
 print_expression(FILE* output, ASTExpression* node) {
     fprintf(output, "%s", "Expression(");
     if (node->unary_op)
-        ;
+        fprintf(output, " (%s) ", get_operator(node->unary_op));
     print_node(output, node->lhs);
     if (node->binary_op)
         fprintf(output, " (%s) ", get_operator(node->binary_op));
@@ -38,9 +25,8 @@ static void
 print_assignment(FILE* output, ASTAssignment* node) {
     assert(String_isString(node->name));
     StringObject* S = (StringObject*) node->name;
-    fprintf(output, "(%.*s := ", S->length, S->characters);
-    print_expression(output, node->expression);
-    fprintf(output, ")");
+    fprintf(output, "%.*s := ", S->length, S->characters);
+    print_node(output, node->expression);
 }
 
 static void
@@ -107,9 +93,9 @@ static void
 print_function(FILE* output, ASTFunction* node) {
     fprintf(output, "Function(name=%s, params={", node->name);
     print_node(output, node->arglist);
-    fprintf(output, "}) {");
+    fprintf(output, "}) { ");
     print_node_list(output, node->block, "\n");
-    fprintf(output, "}");
+    fprintf(output, " }");
 }
 
 static void
@@ -117,6 +103,13 @@ print_param(FILE* output, ASTFuncParam* node) {
     fprintf(output, "<%.*s>", node->name_length, node->name);
     if (node->default_value)
         print_node(output, node->default_value);
+}
+
+static void
+print_lookup(FILE* output, ASTLookup* node) {
+    assert(String_isString(node->name));
+    StringObject* S = (StringObject*) node->name;
+    fprintf(output, "@%.*s", S->length, S->characters);
 }
 
 void
@@ -131,9 +124,6 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
             break;
         case AST_EXPRESSION:
             print_expression(output, (ASTExpression*) current);
-            break;
-        case AST_EXPRESSION_CHAIN:
-            print_expression_chain(output, (ASTExpressionChain*) current);
             break;
         case AST_STATEMENT:
             print_node_list(output, node, "\n");
@@ -165,6 +155,9 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
             break;
         case AST_INVOKE:
             print_invoke(output, (ASTInvoke*) current);
+            break;
+        case AST_LOOKUP:
+            print_lookup(output, (ASTLookup*) current);
             break;
         default:
             fprintf(output, "Unexpected AST type: %d", current->type);

@@ -32,8 +32,7 @@ eval_node(Interpreter* self, ASTNode* ast) {
     case AST_ASSIGNMENT:
         return eval_assignment(self, (ASTAssignment*) ast);
     case AST_EXPRESSION:
-    case AST_EXPRESSION_CHAIN:
-        return eval_expression(self, (ASTExpressionChain*) ast);
+        return eval_expression(self, (ASTExpression*) ast);
 
     case AST_WHILE:
         return eval_while(self, (ASTWhile*) ast);

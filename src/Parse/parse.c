@@ -85,7 +85,6 @@ parse_invoke(Parser* self, ASTNode* callable) {
     Tokenizer* T = self->tokens;
     Token* func = T->current;
     Token* peek = T->peek(T);
-    ASTNode* result;
     ASTNode* args = NULL;
     ASTNode* narg;
 
@@ -344,14 +343,18 @@ parse_word2string(ASTNode* node) {
 }
 
 static inline ASTNode*
+parse_expression_assign(Token *token, Stack *stack) {
+    ASTAssignment* assign = calloc(1, sizeof(ASTAssignment));
+    parser_node_init((ASTNode*) assign, AST_ASSIGNMENT, token);
+    assign->expression = (ASTNode*) stack_pop(stack);
+    assign->name = parse_word2string(stack_pop(stack));
+    return (ASTNode*) assign;       
+}
+
+static inline ASTNode*
 parse_expression_binop(Token* token, Stack* stack, int binop) {
-    if (binop == T_OP_ASSIGN) {
-        ASTAssignment* assign = calloc(1, sizeof(ASTAssignment));
-        parser_node_init((ASTNode*) assign, AST_ASSIGNMENT, token);
-        assign->expression = (ASTNode*) stack_pop(stack);
-        assign->name = parse_word2string(stack_pop(stack));
-        return (ASTNode*) assign;
-    }
+    if (binop == T_OP_ASSIGN)
+        return parse_expression_assign(token, stack);
 
     ASTExpression* expr = calloc(1, sizeof(ASTExpression));
     parser_node_init((ASTNode*) expr, AST_EXPRESSION, token);
