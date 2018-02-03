@@ -48,10 +48,12 @@ HashObject *Hash_new(void) {
 }
 
 /* Hash a string for a particular hash table. */
-static int
-ht_hashslot(int size, Object *key) {
-    assert(key->type->hash);
-	return key->type->hash(key) % (size - 1);
+static hashval_t
+ht_hashval(Object *key) {
+    if (key->type->hash)
+        return key->type->hash(key);
+    else
+        return (hashval_t) (void*) key;
 }
 
 static int
@@ -72,13 +74,12 @@ hash_resize(HashObject* self, size_t newsize) {
     HashEntry *entry, *current;
     for (current = self->table, i=self->size; i; current++, i--) {
         if (current->key != NULL) {
-        	slot = ht_hashslot(newsize, current->key);
-            assert(slot < newsize);
+            slot = ht_hashval(current->key) % (newsize - 1);
 
             // Find an empty slot
         	entry = table + slot;
         	while (entry->key != NULL) {
-                slot = (slot + 1) % newsize;
+                slot = (slot + 1) % (newsize - 1);
                 entry = table + slot;
         	}
 
@@ -98,7 +99,8 @@ static void
 hash_set(HashObject *self, Object *key, Object *value) {
     assert(((Object*)self)->type == &HashType);
 
-	int slot = 0;
+    int slot;
+    hashval_t hash = 0;
     HashEntry *entry;
 
     // If the table is over half full, double the size
@@ -112,11 +114,11 @@ hash_set(HashObject *self, Object *key, Object *value) {
     // must be at least one empty slot or lookups for missing items would
     // loop forever.
 
-	slot = ht_hashslot(self->size, key);
-    assert(slot < self->size);
+    hash = ht_hashval(key);
+    slot = hash % (self->size - 1);
 
-	entry = self->table + slot;
-	while (entry->key != NULL) {
+    entry = self->table + slot;
+    while (entry->key != NULL) {
         if (LoxTRUE == entry->key->type->op_eq(entry->key, key)) {
 	        // There's something associated with this key. Let's replace it
             DECREF(entry->value);
@@ -124,30 +126,33 @@ hash_set(HashObject *self, Object *key, Object *value) {
     		entry->value = value;
             return;
         }
-        slot = (slot + 1) % self->size;
+        slot = (slot + 1) % (self->size - 1);
         entry = self->table + slot;
 	}
 
     INCREF(value);
     INCREF(key);
-    entry->value = value;
-    entry->key = key;
+    *entry = (HashEntry) {
+        .value = value,
+        .key = key,
+        .hash = hash,
+    };
     self->count++;
 }
 
 static HashEntry*
-hash_lookup_fast(HashObject* self, Object* key, int slot) {
+hash_lookup_fast(HashObject* self, Object* key, hashval_t hash) {
 	HashEntry *entry;
 
-    assert(slot < self->size);
-
+    int slot = hash % (self->size - 1);
     entry = self->table + slot;
 
 	/* Step through the table, looking for our value. */
 	while (entry->key != NULL
-        && LoxFALSE == entry->key->type->op_eq(entry->key, key)
+        && entry->hash == hash
+        && LoxFALSE == (BoolObject*) entry->key->type->op_eq(entry->key, key)
     ) {
-        slot = (slot + 1) % self->size;
+        slot = (slot + 1) % (self->size - 1);
         entry = self->table + slot;
 	}
 
@@ -160,7 +165,7 @@ hash_lookup_fast(HashObject* self, Object* key, int slot) {
 
 static HashEntry*
 hash_lookup(HashObject *self, Object *key) {
-    return hash_lookup_fast(self, key, ht_hashslot(self->size, key));
+    return hash_lookup_fast(self, key, ht_hashval(key));
 }
 
 /* Retrieve a key-value pair from a hash table. */
@@ -219,6 +224,7 @@ hash_asbool(Object* self) {
 
 typedef struct _iterator {
     Object* (*next)(struct _iterator*);
+    Object* previous;
 } Iterator;
 
 typedef struct {
@@ -232,10 +238,13 @@ hash_entries__next(Iterator* this) {
     HashObjectIterator *self = (HashObjectIterator*) this;
     int p;
     HashEntry* table = self->hash->table;
+    if (this->previous)
+        DECREF(this->previous);
     while (self->pos < self->hash->size) {
         p = self->pos++;
         if (table[p].key != NULL) {
-            return Tuple_fromArgs(2, table[p].key, table[p].value);
+            return this->previous
+                = (Object*) Tuple_fromArgs(2, table[p].key, table[p].value);
         }
     }
     // Send terminating sentinel
@@ -268,10 +277,11 @@ hash_asstring(Object* self) {
     Object *next, *key, *value;
     StringObject *skey, *svalue;
 
-    HashObjectIterator* it = (HashObjectIterator*) iter_hash_entries((HashObject*) self);
-    while ((next = it->base.next((Iterator*) it))) {
-        key = (Object*) Tuple_getItem(next, 0);
-        value = (Object*) Tuple_getItem(next, 1);
+    Iterator* it = iter_hash_entries((HashObject*) self);
+    while ((next = it->next(it))) {
+        assert(Tuple_isTuple(next));
+        key = Tuple_getItem((TupleObject*) next, 0);
+        value = Tuple_getItem((TupleObject*) next, 1);
         skey = (StringObject*) key->type->as_string(key);
         svalue = (StringObject*) value->type->as_string(value);
         bytes = snprintf(position, remaining, "%.*s: %.*s, ",
@@ -279,7 +289,6 @@ hash_asstring(Object* self) {
         position += bytes, remaining -= bytes;
         DECREF((Object*) skey);
         DECREF((Object*) svalue);
-        DECREF(next);
     }
     position += snprintf(position, remaining, "}");
 
