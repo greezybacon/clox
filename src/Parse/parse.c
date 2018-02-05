@@ -31,7 +31,7 @@ parse_syntax_error(Parser* self, char* message) {
     Token* next = tokens->peek(tokens);
 
     fprintf(stderr, "Parse Error: line %d, at %d: %s\n",
-        tokens->stream->line, tokens->stream->pos, message);
+        tokens->stream->line, tokens->stream->offset, message);
     exit(-1);
 }
 
