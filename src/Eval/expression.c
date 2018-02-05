@@ -181,12 +181,13 @@ eval_expression(Interpreter* self, ASTExpression* expr) {
 Object*
 eval_assignment(Interpreter* self, ASTAssignment* assign) {
     assert(String_isString(assign->name));
-    self->assign2(self, assign->name, eval_node(self, assign->expression));
+    StackFrame_assign(self->stack, assign->name, eval_node(self, assign->expression));
 }
 
 Object*
 eval_lookup(Interpreter* self, ASTLookup* lookup) {
-    return self->lookup2(self, lookup->name);
+    assert(String_isString(lookup->name));
+    return StackFrame_lookup(self->stack, lookup->name);
 }
 
 Object*

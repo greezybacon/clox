@@ -211,22 +211,25 @@ parse_TERM(Parser* self) {
             }
         }
 
-        Object *literal = eval_term(NULL, term);
-        result = calloc(1, sizeof(ASTLiteral));
-        parser_node_init((ASTNode*) result, AST_LITERAL, next);
-        ((ASTLiteral*) result)->literal = literal;
+        Object *value = eval_term(NULL, term);
+        ASTLiteral* literal = calloc(1, sizeof(ASTLiteral));
+        parser_node_init((ASTNode*) literal, AST_LITERAL, next);
+        literal->literal = value;
+        result = (ASTNode*) literal;
         break;
     }
     case T_FUNCTION: {
         ASTFunction* astfun = calloc(1, sizeof(ASTFunction));
         parser_node_init((ASTNode*) astfun, AST_FUNCTION, next);
 
-        if ((next = T->peek(T))->type == T_WORD) {
-            T->next(T);
+        if (T->peek(T)->type == T_WORD) {
+            next = T->next(T);
+            // XXX: Use a StringObject for better memory management
             astfun->name = strndup(
                 self->tokens->fetch_text(self->tokens, next),
                 next->length
             );
+            astfun->name_length = next->length;
         }
 
         astfun->arglist = parse_arg_list(self);

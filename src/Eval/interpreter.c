@@ -64,12 +64,6 @@ eval_init(Interpreter* eval, Parser* parser) {
     *eval = (Interpreter) {
         .parser = parser,
         .eval = eval_eval,
-        .lookup = stack_lookup,
-        .lookup2 = stack_lookup2,
-        .assign2 = stack_assign2,
-
-        .global_scope = Scope_create(NULL),
-        // .stack = StackFrame_new(),
     };
 }
 
@@ -89,18 +83,21 @@ eval_stdin(void) {
     Interpreter ctx;
     eval_init(&ctx, &parser);
 
-    // Start with a root stack frame
-    StackFrame_push(&ctx);
+    // Start with a root stack frame and a global scope
+    StackFrame *stack = StackFrame_push(&ctx);
+    stack->scope = Scope_create(NULL, stack->locals);
 
     Object* result = ctx.eval(&ctx);
 
     fprintf(stdout, "%p\n", result->type);
 
-    if (result && result->type && result->type->as_string) {
-        StringObject* text = (StringObject*) result->type->as_string(result);
-        // TODO: assert(text->type->code == TYPE_STRING);
-        fprintf(stdout, "Result: (%s) %.*s\n", result->type->name,
-            text->length, text->characters);
+    if (result && result->type) {
+        printf("Result: (%s)", result->type->name);
+        if (result->type->as_string) {
+            StringObject* text = (StringObject*) result->type->as_string(result);
+            // TODO: assert(text->type->code == TYPE_STRING);
+            printf(" %.*s\n", text->length, text->characters);
+        }
     }
 
     /*

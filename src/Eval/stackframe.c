@@ -2,55 +2,77 @@
 
 #include "error.h"
 #include "interpreter.h"
+#include "scope.h"
 
 #include "Include/Lox.h"
 
 StackFrame*
-StackFrame_new(void) {
-    StackFrame* frame = calloc(1, sizeof(StackFrame));
+StackFrame_create(StackFrame* previous) {
+    StackFrame* frame = malloc(sizeof(StackFrame));
+    *frame = (StackFrame) {
+        .prev = previous,
+    };
     return frame;
 }
 
+Scope*
+StackFrame_createScope(StackFrame* self) {
+    // This assumes that, if anything is added to this frame's locals after
+    // this closure is created, then those items should be visible within
+    // the closure. Is that correct?
+    if (!self->locals)
+        self->locals = Hash_new();
+    return Scope_create(self->scope, self->locals);
+}
+
 Object*
-stack_lookup2(Interpreter* self, Object* key) {
+StackFrame_lookup(StackFrame *self, Object *key) {
+    HashObject *table = self->locals;
+
+    if (table && Bool_isTrue(table->base.type->contains((Object*) table, key)))
+        return table->base.type->get_item((Object*) table, key);
+
     Object *value = Scope_lookup(self->scope, key);
     if (value)
         return value;
 
     StringObject* skey = (StringObject*) key->type->as_string(key);
-    eval_error(self, "%.*s: Variable has not yet been set in this scope\n", skey->length, skey->characters);
+    eval_error(NULL, "%.*s: Variable has not yet been set in this scope\n", skey->length, skey->characters);
     DECREF((Object*) skey);
 
     return NULL;
 }
 
-Object*
-stack_lookup(Interpreter* self, char* name, size_t length) {
-    // TODO: Cache the key in the AST node ...
-    Object* key = (Object*) String_fromCharArrayAndSize(name, length);
-    Object* rv = stack_lookup2(self, key);
-    DECREF(key);
+void
+StackFrame_assign_local(StackFrame *self, Object *name, Object *value) {
+    HashObject *table = self->locals;
+    if (!table)
+        table = self->locals = Hash_new();
 
-    return rv;
+    return table->base.type->set_item((Object*) table, name, value);
 }
 
 void
-stack_assign2(Interpreter* self, Object* name, Object* value) {
-    return Scope_assign(self->scope, key, value);
+StackFrame_assign(StackFrame* self, Object* name, Object* value) {
+    HashObject *table = self->locals;
+    if (table && table->base.type->contains((Object*) table, name))
+        return StackFrame_assign_local(self, name, value);
+
+    return Scope_assign(self->scope, name, value);
 }
 
-void
+StackFrame*
 StackFrame_push(Interpreter* self) {
-    StackFrame* new = StackFrame_new();
-    new->prev = self->stack;
-
-    self->stack = new;
+    StackFrame* new = StackFrame_create(self->stack);
+    return self->stack = new;
 }
 
 void
 StackFrame_pop(Interpreter* self) {
     assert(self->stack != NULL);
 
+    if (self->stack->locals)
+        DECREF(self->stack->locals);
     free(self->stack);
     self->stack = self->stack->prev;
 }

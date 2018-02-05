@@ -5,17 +5,14 @@
 #include "Objects/object.h"
 #include "Parse/parse.h"
 
+#include "scope.h"
 #include "stackframe.h"
 
 typedef struct interp_context {
     Parser*     parser;
     Object*     (*eval)(struct interp_context*);
-    Object*     (*lookup)(struct interp_context*, char* name, size_t length);
-    Object*     (*lookup2)(struct interp_context*, Object* key);
-    void        (*assign)(struct interp_context*, char* name, size_t length, Object*);
-    void        (*assign2)(struct interp_context*, Object*, Object*);
 
-    Scope       *globals;
+    HashObject  *globals;
     StackFrame  *stack;
 } Interpreter;
 
@@ -55,18 +52,31 @@ eval_function(Interpreter*, ASTFunction*);
 
 StackFrame* StackFrame_new(void);
 void StackFrame_pop(Interpreter*);
-void StackFrame_push(Interpreter*);
+StackFrame* StackFrame_push(Interpreter*);
 
 Object*
-stack_lookup(Interpreter*, char*, size_t);
+StackFrame_lookup(StackFrame*, Object*);
+
+void StackFrame_assign_local(StackFrame *self, Object *name, Object *value);
+void StackFrame_assign_local(StackFrame *self, Object *name, Object *value);
+Scope* StackFrame_createScope(StackFrame*);
+StackFrame* StackFrame_create(StackFrame*);
+
+// From scope.h
+
+Scope*
+Scope_create(Scope*, HashObject* );
+
+Scope*
+Scope_leave(Scope* );
 
 Object*
-stack_lookup2(Interpreter*, Object*);
+Scope_lookup(Scope* , Object* );
 
 void
-stack_assign(Interpreter*, char*, size_t, Object*);
+Scope_assign_local(Scope* , Object* , Object* );
 
 void
-stack_assign2(Interpreter*, Object*, Object*);
+Scope_assign(Scope* , Object* , Object* );
 
 #endif

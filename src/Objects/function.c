@@ -65,9 +65,18 @@ function_call(Object* self, Interpreter* eval) {
     return eval_node(eval, ((FunctionObject*) self)->code);
 }
 
+static Object*
+function_asstring(Object* self) {
+    char buffer[256];
+    int bytes;
+    bytes = snprintf(buffer, sizeof(buffer), "function@%p", self);
+    return (Object*) String_fromCharArrayAndSize(buffer, bytes);
+}
+
 static struct object_type FunctionType = (ObjectType) {
     .code = TYPE_FUNCTION,
     .name = "function",
 
     .call = function_call,
+    .as_string = function_asstring,
 };

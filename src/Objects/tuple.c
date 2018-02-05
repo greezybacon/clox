@@ -41,6 +41,11 @@ Tuple_getItem(TupleObject* self, int index) {
     return *(self->items + index);
 }
 
+bool
+Tuple_isTuple(Object* self) {
+    return self->type == &TupleType;
+}
+
 static Object*
 tuple_getitem(Object* self, Object* index) {
     assert(self->type == &TupleType);
@@ -55,8 +60,8 @@ tuple_cleanup(Object* self) {
     
     TupleObject* this = (TupleObject*) self;
     int i = this->count;
-    for(; i > 0; i--)
-        DECREF(*(this->items + i));
+    while (i)
+        DECREF(*(this->items + --i));
 
     free(this->items);
 }
