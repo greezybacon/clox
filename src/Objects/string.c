@@ -16,15 +16,15 @@ String_fromCharArrayAndSize(char *characters, size_t size) {
     return O;
 }
 
-static unsigned long int
+static hashval_t
 string_hash(Object* self) {
     assert(self != NULL);
     assert(self->type == &StringType);
 
     StringObject* S = (StringObject*) self;
     char *ch = S->characters;
-    int length = S->length,
-        hash = 0;
+    unsigned length = S->length;
+    hashval_t hash = 0;
 
     while (length--)
         hash = (hash << 4) + hash + *ch++;
@@ -57,7 +57,7 @@ string_asstring(Object* self) {
     return self;
 }
 
-static Object*
+static BoolObject*
 string_asbool(Object* self) {
     assert(self != NULL);
     assert(self->type == &StringType);
@@ -65,7 +65,7 @@ string_asbool(Object* self) {
     return ((StringObject*) self)->length == 0 ? LoxFALSE : LoxTRUE;
 }
 
-static Object*
+static BoolObject*
 string_op_eq(Object* self, Object* other) {
     assert(self->type == &StringType);
     
@@ -77,7 +77,7 @@ string_op_eq(Object* self, Object* other) {
         ? LoxTRUE : LoxFALSE;
 }
 
-static Object*
+static BoolObject*
 string_op_ne(Object* self, Object* other) {
     return string_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;;
 }

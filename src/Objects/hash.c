@@ -74,12 +74,12 @@ hash_resize(HashObject* self, size_t newsize) {
     HashEntry *entry, *current;
     for (current = self->table, i=self->size; i; current++, i--) {
         if (current->key != NULL) {
-            slot = ht_hashval(current->key) % (newsize - 1);
+            slot = ht_hashval(current->key) % newsize;
 
             // Find an empty slot
         	entry = table + slot;
         	while (entry->key != NULL) {
-                slot = (slot + 1) % (newsize - 1);
+                slot = (slot + 1) % newsize;
                 entry = table + slot;
         	}
 
@@ -115,7 +115,7 @@ hash_set(HashObject *self, Object *key, Object *value) {
     // loop forever.
 
     hash = ht_hashval(key);
-    slot = hash % (self->size - 1);
+    slot = hash % self->size;
 
     entry = self->table + slot;
     while (entry->key != NULL) {
@@ -126,7 +126,7 @@ hash_set(HashObject *self, Object *key, Object *value) {
     		entry->value = value;
             return;
         }
-        slot = (slot + 1) % (self->size - 1);
+        slot = (slot + 1) % self->size;
         entry = self->table + slot;
 	}
 
@@ -142,17 +142,15 @@ hash_set(HashObject *self, Object *key, Object *value) {
 
 static HashEntry*
 hash_lookup_fast(HashObject* self, Object* key, hashval_t hash) {
-	HashEntry *entry;
-
-    int slot = hash % (self->size - 1);
-    entry = self->table + slot;
+    int slot = hash % self->size;
+    HashEntry *entry = self->table + slot;
 
 	/* Step through the table, looking for our value. */
 	while (entry->key != NULL
         && entry->hash == hash
-        && LoxFALSE == (BoolObject*) entry->key->type->op_eq(entry->key, key)
+        && !Bool_isTrue(entry->key->type->op_eq(entry->key, key))
     ) {
-        slot = (slot + 1) % (self->size - 1);
+        slot = (slot + 1) % self->size;
         entry = self->table + slot;
 	}
 
@@ -181,11 +179,10 @@ hash_get(Object *self, Object *key) {
     return entry->value;
 }
 
-static Object*
+static BoolObject*
 hash_contains(Object *self, Object *key) {
     assert(self->type == &HashType);
 	HashEntry *entry = hash_lookup((HashObject*) self, key);
-
     return (entry == NULL) ? LoxFALSE : LoxTRUE;
 }
 
@@ -214,7 +211,7 @@ hash_len(Object* self) {
     return (Object*) Integer_fromLongLong(((HashObject*) self)->count);
 }
 
-static Object*
+static BoolObject*
 hash_asbool(Object* self) {
     assert(self != NULL);
     assert(self->type == &HashType);

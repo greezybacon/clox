@@ -13,6 +13,7 @@ typedef struct bool_object {
 Object* Bool_fromBool(bool);
 Object* Bool_fromObject(Object*);
 bool Bool_isBool(Object*);
+bool Bool_isTrue(Object*);
 
 BoolObject *LoxTRUE, *LoxFALSE;
 Object *LoxNIL;

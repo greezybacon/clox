@@ -26,7 +26,7 @@ Float_fromLongLong(long long value) {
     return O;
 }
 
-static int
+hashval_t
 float_hash(Object* self) {
     assert(self->type->code == TYPE_FLOAT);
 
@@ -108,7 +108,7 @@ float_op_slash(Object* self, Object* other) {
     return (Object*) Float_fromLongDouble(((FloatObject*) self)->value / ((FloatObject*) other)->value);
 }
 
-static Object*
+static BoolObject*
 float_op_eq(Object* self, Object* other) {
     assert(self->type->code == TYPE_FLOAT);
 
@@ -121,7 +121,7 @@ float_op_eq(Object* self, Object* other) {
     return ((FloatObject*) self)->value == ((FloatObject*) other)->value ? LoxTRUE : LoxFALSE;
 }
 
-static Object*
+static BoolObject*
 float_op_ne(Object* self, Object* other) {
     return float_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;
 }

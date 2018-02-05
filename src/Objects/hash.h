@@ -22,8 +22,6 @@ typedef struct _hash_object {
 
 #endif
 
-typedef unsigned long int hashval_t;
-
 typedef struct entry_s {
     Object *key;
     Object *value;

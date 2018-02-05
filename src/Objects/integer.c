@@ -2,10 +2,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "object.h"
 #include "boolean.h"
+#include "object.h"
 #include "integer.h"
 #include "float.h"
+#include "garbage.h"
 #include "string.h"
 
 static struct object_type IntegerType;
@@ -30,7 +31,7 @@ Integer_toInt(Object* value) {
     return I->value;
 }
 
-static int
+static hashval_t
 integer_hash(Object* self) {
     assert(self != NULL);
     assert(self->type == &IntegerType);
@@ -63,7 +64,7 @@ integer_asstring(Object* self) {
     return (Object*) String_fromCharArrayAndSize(buffer, sizeof(buffer));
 }
 
-static Object*
+static BoolObject*
 integer_asbool(Object* self) {
     assert(self != NULL);
     assert(self->type == &IntegerType);
@@ -135,7 +136,7 @@ integer_op_divide(Object* self, Object* other) {
     return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value / ((IntegerObject*) other)->value);
 }
 
-static Object*
+static BoolObject*
 integer_op_eq(Object* self, Object* other) {
     assert(self->type == &IntegerType);
 
@@ -143,12 +144,12 @@ integer_op_eq(Object* self, Object* other) {
     return ((IntegerObject*) self)->value == ((IntegerObject*) other)->value ? LoxTRUE : LoxFALSE;
 }
 
-static Object*
+static BoolObject*
 integer_op_ne(Object* self, Object* other) {
-    return integer_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;;
+    return integer_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;
 }
 
-static Object*
+static BoolObject*
 integer_op_lt(Object* self, Object* other) {
     assert(self->type == &IntegerType);
     IntegerObject* rhs = coerce_integer(other);
@@ -156,7 +157,7 @@ integer_op_lt(Object* self, Object* other) {
         ? LoxTRUE : LoxFALSE;
 }
 
-static Object*
+static BoolObject*
 integer_op_lte(Object* self, Object* other) {
     assert(self->type == &IntegerType);
     IntegerObject* rhs = coerce_integer(other);
@@ -164,7 +165,7 @@ integer_op_lte(Object* self, Object* other) {
         ? LoxTRUE : LoxFALSE;
 }
 
-static Object*
+static BoolObject*
 integer_op_gt(Object* self, Object* other) {
     assert(self->type == &IntegerType);
     IntegerObject* rhs = coerce_integer(other);
@@ -172,7 +173,7 @@ integer_op_gt(Object* self, Object* other) {
         ? LoxTRUE : LoxFALSE;
 }
 
-static Object*
+static BoolObject*
 integer_op_gte(Object* self, Object* other) {
     assert(self->type == &IntegerType);
     IntegerObject* rhs = coerce_integer(other);

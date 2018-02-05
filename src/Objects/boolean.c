@@ -35,6 +35,13 @@ Bool_isBool(Object* value) {
     return value->type == &BooleanType;
 }
 
+bool
+Bool_isTrue(Object* value) {
+    if (value->type != &BooleanType)
+        value = Bool_fromObject(value);
+    return value == (Object*) LoxTRUE;
+}
+
 static Object*
 bool_self(Object* self) {
     return self;
