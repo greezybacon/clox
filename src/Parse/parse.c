@@ -196,12 +196,12 @@ parse_TERM(Parser* self) {
 
         if (next->type == T_NUMBER) {
             char* endpos;
-            if (memchr(term->text, '.', next->length) != NULL) {
+            term->isreal = memchr(term->text, '.', next->length) != NULL;
+            if (term->isreal) {
                 term->token.real = strtold(term->text, &endpos);
                 if (term->token.real == 0.0 && endpos == term->text) {
                     parse_syntax_error(self, "Invalid floating point number");
                 }
-                term->isreal = 1;
             }
             else {
                 term->token.integer = strtoll(term->text, &endpos, 10);
