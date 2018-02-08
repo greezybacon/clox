@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -153,6 +154,11 @@ stream_init(Stream* stream) {
     };
 }
 
+static void
+stream_cleanup(Stream *stream) {
+    free(stream->context);
+}
+
 int
 stream_init_file(Stream* stream, FILE* file) {
     stream_init(stream);
@@ -171,4 +177,83 @@ stream_init_file(Stream* stream, FILE* file) {
     stream->ops = &file_stream_ops;
 
     file_stream_readahead(stream);
+}
+
+void
+stream_uninit(Stream* stream) {
+    if (stream->ops->cleanup)
+        stream->ops->cleanup(stream);
+}
+
+
+
+typedef struct {
+    const char*     buffer;
+    size_t          length;
+} BufferStream;
+
+static char
+buffer_stream_next(Stream* stream) {
+    BufferStream* context = (BufferStream*) stream->context;
+
+    if (stream->pos >= context->length)
+        return -1;
+
+    char current = *(context->buffer + stream->pos++);
+    if (current == '\n') {
+        stream->line++;
+        stream->offset=0;
+    }
+    stream->offset++;
+
+    return current;
+}
+
+static char
+buffer_stream_peek(Stream* stream) {
+    BufferStream* context = (BufferStream*) stream->context;
+
+    if (stream->pos >= context->length)
+        return -1;
+
+    return *(context->buffer + stream->pos);
+}
+
+static char*
+buffer_stream_read(Stream* stream, int offset, int length) {
+    assert(offset >= 0);
+    assert(length >= 0);
+
+    BufferStream* context = (BufferStream*) stream->context;
+    
+    if (offset + length > context->length)
+        return NULL;
+
+    return context->buffer + offset;
+}
+
+static StreamOps buffer_stream_ops = {
+    .next = buffer_stream_next,
+    .peek = buffer_stream_peek,
+    .read = buffer_stream_read,
+    .cleanup = stream_cleanup,
+};
+
+int
+stream_init_buffer(Stream* stream, const char* buffer, size_t length) {
+    stream_init(stream);
+
+    stream->context = calloc(1, sizeof(BufferStream));
+    if (stream->context == NULL)
+        // Do something...
+        ;
+
+    BufferStream* fstream = (BufferStream*) stream->context;
+    *fstream = (BufferStream) {
+        .buffer = buffer,
+        .length = length,
+    };
+
+    stream->ops = &buffer_stream_ops;
+    return 0;   
 }

@@ -9,8 +9,7 @@
 #include "stackframe.h"
 
 typedef struct interp_context {
-    Parser*     parser;
-    Object*     (*eval)(struct interp_context*);
+    Object*     (*eval)(struct interp_context*, Parser*);
 
     HashObject  *globals;
     StackFrame  *stack;
@@ -78,5 +77,14 @@ Scope_assign_local(Scope* , Object* , Object* );
 
 void
 Scope_assign(Scope* , Object* , Object* );
+
+// From interpreter.c
+Object*
+eval_file(FILE *);
+
+Object*
+eval_string(const char *, size_t length);
+
+void eval_init(Interpreter*);
 
 #endif

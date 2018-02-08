@@ -16,5 +16,6 @@ typedef struct string_object {
 
 StringObject* String_fromCharArrayAndSize(char*, size_t);
 bool String_isString(Object*);
+StringObject* String_fromObject(Object*);
 
 #endif

@@ -58,7 +58,7 @@ typedef struct ast_term {
     } token;
     char                *text;  // Original token text (could be free()d for int/real)
     unsigned            length; // Length of text
-    unsigned char       isreal; // T_NUMBER could be float or int
+    bool                isreal; // T_NUMBER could be float or int
 } ASTTerm;
 
 typedef struct ast_literal {

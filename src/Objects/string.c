@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "object.h"
@@ -14,6 +15,18 @@ String_fromCharArrayAndSize(char *characters, size_t size) {
     O->length = size;
     O->characters = strndup(characters, size);
     return O;
+}
+
+StringObject*
+String_fromObject(Object* value) {
+    assert(value->type);
+
+    if (value->type->as_string)
+        return value->type->as_string(value);
+
+    char buffer[32];
+    size_t length = snprintf(buffer, sizeof(buffer), "object@%p", value);
+    return String_fromCharArrayAndSize(buffer, length);
 }
 
 static hashval_t

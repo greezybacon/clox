@@ -10,9 +10,8 @@
 // EvalContext ---------------
 
 static Object*
-eval_eval(Interpreter* self) {
+eval_eval(Interpreter* self, Parser* parser) {
     ASTNode* ast;
-    Parser* parser = self->parser;
     Object* last = LoxNIL;
 
     if (!parser)
@@ -59,57 +58,43 @@ eval_node(Interpreter* self, ASTNode* ast) {
     }
 }
 
-static void
-eval_init(Interpreter* eval, Parser* parser) {
+void
+eval_init(Interpreter* eval) {
     *eval = (Interpreter) {
-        .parser = parser,
         .eval = eval_eval,
     };
 }
 
-int
-eval_string(const char * text, int length) {
-    Parser parser;
+Object*
+eval_string(const char * text, size_t length) {
+    Stream _stream, *stream = &_stream;
+    Parser _parser, *parser = &_parser;
+    Interpreter self;
+
+    stream_init_buffer(stream, text, length);
+    parser_init(parser, stream);
+    eval_init(&self);
+
+    return self.eval(&self, parser);
 }
 
-int
-eval_stdin(void) {
+Object*
+eval_file(FILE * file) {
     Stream input;
-    stream_init_file(&input, stdin);
+    stream_init_file(&input, file);
 
     Parser parser;
     parser_init(&parser, &input);
 
     Interpreter ctx;
-    eval_init(&ctx, &parser);
+    eval_init(&ctx);
 
     // Start with a root stack frame and a global scope
     StackFrame *stack = StackFrame_push(&ctx);
     stack->scope = Scope_create(NULL, stack->locals);
 
-    Object* result = ctx.eval(&ctx);
-
+    Object* result = ctx.eval(&ctx, &parser);
+    return result;
+    
     fprintf(stdout, "%p\n", result->type);
-
-    if (result && result->type) {
-        printf("Result: (%s)", result->type->name);
-        if (result->type->as_string) {
-            StringObject* text = (StringObject*) result->type->as_string(result);
-            // TODO: assert(text->type->code == TYPE_STRING);
-            printf(" %.*s\n", text->length, text->characters);
-        }
-    }
-
-    /*
-    ASTNode* next;
-    while ((next = parser.next(&parser)) != NULL) {
-        print_node(stdout, next);
-        fprintf(stdout, "\n---\n");
-    }
-    */
-}
-
-int
-main(int argc, char** argv) {
-    return eval_stdin();
 }

@@ -31,6 +31,9 @@ eval_invoke(Interpreter* self, ASTInvoke* invoke) {
     Object** param_names = F->parameters;
     Object* T;
     for (; a != NULL; a = a->next, param_names++) {
+        // XXX: Assumes params and args have same length. This should handle
+        // differing lengths by using the default value or assigning NIL or
+        // undefined
         T = eval_node(self, a);
         StackFrame_assign_local(newstack, *param_names, T);
         DECREF(T);

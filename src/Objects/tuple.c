@@ -26,7 +26,7 @@ Tuple_fromArgs(int count, ...) {
         va_end(args);
         self->items = items;
     }
-    return self;        
+    return self;
 }
 
 Object*
