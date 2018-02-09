@@ -71,9 +71,12 @@ eval_repl(Interpreter* self) {
     }
 }
 
-
 static bool
 repl_onecmd(CmdLoop *self, const char* line) {
+    static Object* _ = NULL;
+    if (!_)
+        _ = String_fromCharArrayAndSize("_", 1);
+
     if (strncmp(line, "EOF", 3) == 0)
         return true;
 
@@ -83,6 +86,9 @@ repl_onecmd(CmdLoop *self, const char* line) {
     stream_init_buffer(stream, line, strlen(line));
     parser_init(parser, stream);
     Object* result = self->interpreter->eval(self->interpreter, parser);
+
+    if (result != LoxNIL)
+        StackFrame_assign_local(self->interpreter->stack, _, result);
 
     StringObject *S = (StringObject*) result->type->as_string(result);
     printf("%.*s\n", S->length, S->characters);
