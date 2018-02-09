@@ -57,7 +57,6 @@ Object*
 StackFrame_lookup(StackFrame*, Object*);
 
 void StackFrame_assign_local(StackFrame *self, Object *name, Object *value);
-void StackFrame_assign_local(StackFrame *self, Object *name, Object *value);
 Scope* StackFrame_createScope(StackFrame*);
 StackFrame* StackFrame_create(StackFrame*);
 

@@ -9,55 +9,6 @@
 #include "Parse/debug_parse.h"
 #include "Objects/boolean.h"
 
-// Simple stack for shunting yard algorithm style expression interpretation
-
-typedef struct stack_entry {
-    struct stack_entry * next;
-    Object* object;
-} StackEntry;
-
-typedef struct stack_thingy {
-    struct stack_entry * head;
-
-    Object* (*pop)(struct stack_thingy*);
-    void (*push)(struct stack_thingy*, Object*);
-} Stack;
-
-static Object*
-stack_pop(Stack* self) {
-    if (self->head == NULL)
-        return NULL;
-
-    Object* rv = self->head->object;
-    free(self->head);
-
-    self->head = self->head->next;
-    return rv;
-}
-
-static void
-stack_push(Stack* self, Object* object) {
-    StackEntry* new = malloc(sizeof(StackEntry));
-    if (new == NULL)
-        return;
-
-    *new = (StackEntry) {
-        .next = self->head,
-        .object = object,
-    };
-
-    self->head = new;
-}
-
-static void
-stack_init(Stack* stack) {
-    *stack = (Stack) {
-        .pop = stack_pop,
-        .push = stack_push,
-        .head = NULL,
-    };
-}
-
 // Operator precedence listing (XXX: Maybe place in a header?)
 
 static struct operator_precedence {
@@ -181,7 +132,9 @@ eval_expression(Interpreter* self, ASTExpression* expr) {
 Object*
 eval_assignment(Interpreter* self, ASTAssignment* assign) {
     assert(String_isString(assign->name));
-    StackFrame_assign(self->stack, assign->name, eval_node(self, assign->expression));
+    Object *result = eval_node(self, assign->expression);
+    StackFrame_assign(self->stack, assign->name, result);
+    return result;
 }
 
 Object*

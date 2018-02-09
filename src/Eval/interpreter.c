@@ -59,10 +59,14 @@ eval_node(Interpreter* self, ASTNode* ast) {
 }
 
 void
-eval_init(Interpreter* eval) {
-    *eval = (Interpreter) {
+eval_init(Interpreter* self) {
+    *self = (Interpreter) {
         .eval = eval_eval,
     };
+
+    // Start with a root stack frame and a global scope
+    StackFrame *stack = StackFrame_push(self);
+    stack->scope = Scope_create(NULL, stack->locals);
 }
 
 Object*
@@ -88,10 +92,6 @@ eval_file(FILE * file) {
 
     Interpreter ctx;
     eval_init(&ctx);
-
-    // Start with a root stack frame and a global scope
-    StackFrame *stack = StackFrame_push(&ctx);
-    stack->scope = Scope_create(NULL, stack->locals);
 
     Object* result = ctx.eval(&ctx, &parser);
     return result;
