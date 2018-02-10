@@ -36,46 +36,11 @@ exit:
     return rv;
 }
 
-static int
-eval_repl_oom(Interpreter* self) {
-    
-}
-
-static int
-eval_repl_next(Interpreter* self) {
-    char buffer[2048], *bufpos = buffer;
-    size_t chars_read;
-
-    fprintf(stderr, ">>> ");
-    for (;;) {
-        bufpos += getline(&bufpos, &chars_read, stdin);
-        if (bufpos - buffer >= sizeof(buffer))
-            return eval_repl_oom(self);
-        if (!eval_repl_isdangling(self, buffer, bufpos - buffer))
-            break;
-        fprintf(stderr, "... ");
-    }
-
-    Stream _stream, *stream = &_stream;
-    Parser _parser, *parser = &_parser;
-
-    stream_init_buffer(stream, buffer, bufpos - buffer);
-    parser_init(parser, stream);
-    self->eval(self, parser);
-}
-
-void
-eval_repl(Interpreter* self) {
-    for (;;) {
-        eval_repl_next(self);
-    }
-}
-
 static bool
 repl_onecmd(CmdLoop *self, const char* line) {
     static Object* _ = NULL;
     if (!_)
-        _ = String_fromCharArrayAndSize("_", 1);
+        _ = (Object*) String_fromCharArrayAndSize("_", 1);
 
     if (strncmp(line, "EOF", 3) == 0)
         return true;
@@ -87,18 +52,18 @@ repl_onecmd(CmdLoop *self, const char* line) {
     parser_init(parser, stream);
     Object* result = self->interpreter->eval(self->interpreter, parser);
 
-    if (result != LoxNIL)
+    if (result && result != LoxNIL) {
         StackFrame_assign_local(self->interpreter->stack, _, result);
-
-    StringObject *S = (StringObject*) result->type->as_string(result);
-    printf("%.*s\n", S->length, S->characters);
-
+        StringObject *S = (StringObject*) result->type->as_string(result);
+        printf("%.*s\n", S->length, S->characters);
+        DECREF(S);
+    }
     return false;
 }
 
 void
 repl_loop(CmdLoop* self) {
-    char _buffer[2048], *buffer = _buffer;
+    char *buffer = calloc(2048, sizeof(char));
 
     if (self->preloop)
         self->preloop(self);
@@ -108,9 +73,10 @@ repl_loop(CmdLoop* self) {
     bool stop = false;
     char *line;
     while (!stop) {
-        printf("%s", self->prompt);
+        if (self->prompt)
+            printf("%s", self->prompt);
 
-        line = fgets(buffer, sizeof(buffer), stdin);
+        line = fgets(buffer, 2048 * sizeof(char), stdin);
         if (!line)
             line = "EOF";
 
@@ -118,6 +84,7 @@ repl_loop(CmdLoop* self) {
         if (self->postcmd)
             stop = self->postcmd(self, stop, line);
     }
+    free(buffer);
 }
 
 void
