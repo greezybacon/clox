@@ -87,6 +87,7 @@ parse_invoke(Parser* self, ASTNode* callable) {
     Token* peek = T->peek(T);
     ASTNode* args = NULL;
     ASTNode* narg;
+    size_t count = 0;
 
     ASTInvoke* call = calloc(1, sizeof(ASTInvoke));
     parser_node_init((ASTNode*) call, AST_INVOKE, func);
@@ -101,6 +102,7 @@ parse_invoke(Parser* self, ASTNode* callable) {
             break;
 
         narg = parse_expression(self);
+        count += 1;
         if (args == NULL) {
             call->args = args = narg;
         }
@@ -112,6 +114,7 @@ parse_invoke(Parser* self, ASTNode* callable) {
     while (peek->type == T_COMMA);
     parse_expect(self, T_CLOSE_PAREN);
 
+    call->nargs = count;
     return (ASTNode*) call;
 }
 

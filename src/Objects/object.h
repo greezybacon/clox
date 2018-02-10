@@ -22,6 +22,7 @@ typedef struct object_method {
 
 typedef unsigned long int hashval_t;
 typedef struct bool_object BoolObject;
+typedef struct interp_context Interpreter;
 
 typedef struct object_type {
     enum base_type  code;
@@ -63,7 +64,7 @@ typedef struct object_type {
     Object* (*compare)(Object*, Object*);
 
     // TODO: Callable
-	Object* (*call)(Object*, void*);
+	Object* (*call)(Object*, Interpreter*, Object*);
 
     // TODO: Methods (stuff unique to each type)
     ObjectMethod* methods;

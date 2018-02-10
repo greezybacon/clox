@@ -15,9 +15,7 @@ eval_invoke(Interpreter* self, ASTInvoke* invoke) {
     // If invoking an expression, then eval it first
     Object* callable = eval_node(self, invoke->callable);
 
-    // XXX: For now this will only work with an actual FunctionObject
     assert(Function_isCallable(callable));
-    assert(Function_isFunction(callable));
     
     // Create a new stack frame for the call
     StackFrame *newstack = StackFrame_create(self->stack);
@@ -26,16 +24,20 @@ eval_invoke(Interpreter* self, ASTInvoke* invoke) {
     FunctionObject* F = (FunctionObject*) callable;
     Scope* scope = newstack->scope = F->enclosing_scope;
 
-    // Create local variables from invoke->args
+    // XXX: Assumes params and args have same length. This should handle
+    // differing lengths by using the default value or assigning NIL or
+    // undefined
+
+    // Create an args tuple to pass to the function call. A tuple is used
+    // rather than setting the stack variables here to support both user-defined
+    // functions as well as native functions.
+    TupleObject* args = Tuple_new(invoke->nargs);
     ASTNode* a = invoke->args;
-    Object** param_names = F->parameters;
+    size_t i = 0;
     Object* T;
-    for (; a != NULL; a = a->next, param_names++) {
-        // XXX: Assumes params and args have same length. This should handle
-        // differing lengths by using the default value or assigning NIL or
-        // undefined
+    for (; a != NULL; a = a->next) {
         T = eval_node(self, a);
-        StackFrame_assign_local(newstack, *param_names, T);
+        Tuple_setItem(args, i++, T);
         DECREF(T);
     }
     
@@ -43,9 +45,10 @@ eval_invoke(Interpreter* self, ASTInvoke* invoke) {
     self->stack = newstack;
 
     // Eval the function's code (AST)
-    Object* result = callable->type->call(callable, (void*) self);
+    Object* result = callable->type->call(callable, (void*) self, args);
     // XXX: Why is this required?
     INCREF(result);
+    DECREF(args);
 
     StackFrame_pop(self);
     

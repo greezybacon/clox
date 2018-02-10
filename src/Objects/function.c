@@ -57,9 +57,17 @@ Function_fromAST(ASTFunction* function) {
 }
 
 static Object*
-function_call(Object* self, Interpreter* eval) {
+function_call(Object* self, Interpreter* eval, Object* args) {
     assert(self->type == &FunctionType);
-    
+    assert(Tuple_isTuple(args));
+
+    FunctionObject* fun = (FunctionObject*) self;
+    Object** param_names = fun->parameters;
+    size_t i = 0, count = Tuple_getSize(args);
+    for (; i < count; i++, param_names++) {
+         StackFrame_assign_local(eval->stack, *param_names, Tuple_getItem(args, i));   
+    }
+
     // The idea is that the current stack frame for this invocation has
     // already been setup in the interpreter (before this call)
     return eval_node(eval, ((FunctionObject*) self)->code);
@@ -79,4 +87,27 @@ static struct object_type FunctionType = (ObjectType) {
 
     .call = function_call,
     .as_string = function_asstring,
+};
+
+
+
+
+static struct object_type NativeFunctionType;
+
+static Object*
+nfunction_call(Object* self, Interpreter* eval, Object* args) {
+    assert(self->type == &FunctionType);
+    return ((NFunctionObject*) self)->callable(eval, args);
+}
+
+static Object*
+nfunction_asstring(Object* self) {
+    assert(self->type == &FunctionType);
+    return String_fromCharArrayAndSize("native code {}", 14);
+}
+
+static struct object_type NativeFunctionType = (ObjectType) {
+    .name = "native function",
+    .call = nfunction_call,
+    .as_string = nfunction_asstring,
 };

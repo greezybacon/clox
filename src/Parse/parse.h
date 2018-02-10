@@ -70,6 +70,7 @@ typedef struct ast_invoke {
     ASTNode             node;
     struct ast_node     *callable;
     struct ast_node     *args;
+    size_t              nargs;
 } ASTInvoke;
 
 typedef struct ast_parameter {

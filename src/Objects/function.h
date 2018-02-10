@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 
+#include "tuple.h"
 #include "Parse/parse.h"
 #include "Eval/scope.h"
 
@@ -12,6 +13,7 @@ typedef struct function_object {
 
     ASTNode     *code;
     Object      **parameters;
+    size_t      nparameters;
     Scope       *enclosing_scope;
 } FunctionObject;
 
@@ -20,5 +22,13 @@ bool Function_isCallable(Object*);
 
 Object*
 Function_fromAST(ASTFunction*);
+
+typedef Object* (*NativeFunctionCall)(Interpreter*, Object* args) ;
+
+typedef struct nfunction_object {
+    // Inherits from Object
+    Object          base;
+    NativeFunctionCall callable;
+} NFunctionObject;
 
 #endif

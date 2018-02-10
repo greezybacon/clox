@@ -13,8 +13,10 @@ typedef struct tuple_object {
     Object**    items;
 } TupleObject;
 
-TupleObject* Tuple_fromArgs(int, ...);
+TupleObject* Tuple_new(size_t);
+TupleObject* Tuple_fromArgs(size_t, ...);
 Object* Tuple_getItem(TupleObject*, int);
+void Tuple_setItem(TupleObject*, size_t, Object*);
 bool Tuple_isTuple(Object*);
 
 #endif

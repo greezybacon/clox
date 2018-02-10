@@ -8,23 +8,28 @@
 static struct object_type TupleType;
 
 TupleObject*
-Tuple_fromArgs(int count, ...) {
-    va_list args;
-
+Tuple_new(size_t count) {
     TupleObject* self = object_new(sizeof(TupleObject), &TupleType);
     self->count = count;
+    self->items = malloc(count * sizeof(Object*));
+    return self;      
+}
+
+TupleObject*
+Tuple_fromArgs(size_t count, ...) {
+    va_list args;
+
+    TupleObject* self = Tuple_new(count);
 
     if (count > 0) {
         va_start(args, count);
-        Object** items = malloc(count * sizeof(Object*));
-        Object** pitem = items;
+        Object** pitem = self->items;
         Object* item;
         while (count--) {
             *(pitem++) = item = va_arg(args, Object*);
             INCREF(item);
         }
         va_end(args);
-        self->items = items;
     }
     return self;
 }
@@ -39,6 +44,22 @@ Tuple_getItem(TupleObject* self, int index) {
     }
 
     return *(self->items + index);
+}
+
+void
+Tuple_setItem(TupleObject* self, size_t index, Object* value) {
+    if (self->count > index) {
+        INCREF(value);
+        *(self->items + index) = value;
+    }
+    // Else raise error
+}
+
+size_t
+Tuple_getSize(Object* self) {
+    assert(self->type == &TupleType);
+
+    return ((TupleObject*) self)->count;
 }
 
 bool
