@@ -29,6 +29,12 @@ String_fromObject(Object* value) {
     return String_fromCharArrayAndSize(buffer, length);
 }
 
+StringObject*
+String_fromLiteral(char* value, size_t size) {
+    // TODO: Interpret backslash-escaped characters
+    return String_fromCharArrayAndSize(value + 1, size - 2);
+}
+
 static hashval_t
 string_hash(Object* self) {
     assert(self != NULL);
@@ -78,6 +84,18 @@ string_asbool(Object* self) {
     return ((StringObject*) self)->length == 0 ? LoxFALSE : LoxTRUE;
 }
 
+static Object*
+string_asint(Object* self) {
+    StringObject* string = (StringObject*) self;
+    // TODO: (asint) should support base (10 or 16)
+    char* endpos;
+    long long value = strtoll(string->characters, &endpos, 10);
+
+    // TODO: Check for invalid numbers
+    // TODO: endpos should be at the end of the string
+    return (Object*) Integer_fromLongLong(value);
+}
+
 static BoolObject*
 string_op_eq(Object* self, Object* other) {
     assert(self->type == &StringType);
@@ -108,7 +126,8 @@ static struct object_type StringType = (ObjectType) {
     .name = "string",
     .hash = string_hash,
     .len = string_len,
-    
+
+    .as_int = string_asint,
     .as_string = string_asstring,
     .as_bool = string_asbool,
 

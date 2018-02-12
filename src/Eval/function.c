@@ -24,10 +24,6 @@ eval_invoke(Interpreter* self, ASTInvoke* invoke) {
     FunctionObject* F = (FunctionObject*) callable;
     Scope* scope = newstack->scope = F->enclosing_scope;
 
-    // XXX: Assumes params and args have same length. This should handle
-    // differing lengths by using the default value or assigning NIL or
-    // undefined
-
     // Create an args tuple to pass to the function call. A tuple is used
     // rather than setting the stack variables here to support both user-defined
     // functions as well as native functions.
@@ -45,7 +41,7 @@ eval_invoke(Interpreter* self, ASTInvoke* invoke) {
     self->stack = newstack;
 
     // Eval the function's code (AST)
-    Object* result = callable->type->call(callable, (void*) self, args);
+    Object* result = callable->type->call(callable, (void*) self, NULL, args);
     // XXX: Why is this required?
     INCREF(result);
     DECREF(args);

@@ -14,15 +14,14 @@ enum base_type {
 };
 
 typedef struct object Object;
-
-typedef struct object_method {
-    struct object* name;
-    struct object* (*callable)(struct object*);
-} ObjectMethod;
-
 typedef unsigned long int hashval_t;
 typedef struct bool_object BoolObject;
 typedef struct interp_context Interpreter;
+
+typedef struct object_method {
+    char*       name;
+    Object*     (*method)(Interpreter*, Object*, Object*);
+} ObjectMethod;
 
 typedef struct object_type {
     enum base_type  code;
@@ -64,7 +63,7 @@ typedef struct object_type {
     Object* (*compare)(Object*, Object*);
 
     // TODO: Callable
-	Object* (*call)(Object*, Interpreter*, Object*);
+	Object* (*call)(Object*, Interpreter*, Object*, Object*);
 
     // TODO: Methods (stuff unique to each type)
     ObjectMethod* methods;

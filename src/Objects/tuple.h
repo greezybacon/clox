@@ -18,5 +18,6 @@ TupleObject* Tuple_fromArgs(size_t, ...);
 Object* Tuple_getItem(TupleObject*, int);
 void Tuple_setItem(TupleObject*, size_t, Object*);
 bool Tuple_isTuple(Object*);
+size_t Tuple_getSize(Object*);
 
 #endif

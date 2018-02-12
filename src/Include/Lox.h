@@ -15,4 +15,7 @@
 #include "Objects/integer.h"
 #include "Objects/function.h"
 
+// Modules (extensions)
+#include "Objects/module.h"
+
 #endif

@@ -186,6 +186,25 @@ hash_contains(Object *self, Object *key) {
     return (entry == NULL) ? LoxFALSE : LoxTRUE;
 }
 
+Object*
+Hash_getItem(HashObject* self, Object* key) {
+    assert(self);
+    return hash_get((Object*) self, key);
+}
+
+void
+Hash_setItem(HashObject* self, Object* key, Object* value) {
+    assert(self);
+    hash_set(self, key, value);
+}
+
+bool
+Hash_contains(HashObject* self, Object* key) {
+    assert(self);
+	HashEntry *entry = hash_lookup((HashObject*) self, key);
+    return entry != NULL;
+}
+
 static void
 hash_remove(Object* self, Object* key) {
     assert(self->type == &HashType);

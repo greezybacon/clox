@@ -23,12 +23,14 @@ bool Function_isCallable(Object*);
 Object*
 Function_fromAST(ASTFunction*);
 
-typedef Object* (*NativeFunctionCall)(Interpreter*, Object* args) ;
+typedef Object* (*NativeFunctionCall)(Interpreter*, Object*, Object*) ;
 
 typedef struct nfunction_object {
     // Inherits from Object
     Object          base;
     NativeFunctionCall callable;
 } NFunctionObject;
+
+Object* NativeFunction_new(NativeFunctionCall);
 
 #endif

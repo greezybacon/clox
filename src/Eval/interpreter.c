@@ -4,6 +4,8 @@
 #include "interpreter.h"
 #include "Objects/string.h"
 #include "Objects/boolean.h"
+#include "Objects/module.h"
+#include "Lib/builtin.h"
 
 #include "Parse/debug_parse.h"
 
@@ -64,9 +66,13 @@ eval_init(Interpreter* self) {
         .eval = eval_eval,
     };
 
+    // Load the __builtins__ module into the global scope
+    ModuleObject* builtins = BuiltinModule_init();
+    Scope* globals = Scope_create(NULL, builtins->properties);
+
     // Start with a root stack frame and a global scope
     StackFrame *stack = StackFrame_push(self);
-    stack->scope = Scope_create(NULL, stack->locals);
+    stack->scope = Scope_create(globals, stack->locals);
 }
 
 Object*

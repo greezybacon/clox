@@ -10,8 +10,8 @@ typedef struct bool_object {
     bool value;
 } BoolObject;
 
-Object* Bool_fromBool(bool);
-Object* Bool_fromObject(Object*);
+BoolObject* Bool_fromBool(bool);
+BoolObject* Bool_fromObject(Object*);
 bool Bool_isBool(Object*);
 bool Bool_isTrue(Object*);
 

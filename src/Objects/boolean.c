@@ -10,12 +10,12 @@
 
 static struct object_type BooleanType;
 
-Object*
+BoolObject*
 Bool_fromBool(bool value) {
-    return (Object*) (value ? LoxTRUE : LoxFALSE);
+    return value ? LoxTRUE : LoxFALSE;
 }
 
-Object*
+BoolObject*
 Bool_fromObject(Object* value) {
     if (value->type == &BooleanType)
         return value;

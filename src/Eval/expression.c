@@ -154,7 +154,7 @@ eval_term(Interpreter* self, ASTTerm* term) {
         }
         return (Object*) Integer_fromLongLong(term->token.integer);
     case T_STRING:
-        return (Object*) String_fromCharArrayAndSize(term->text, term->length);
+        return (Object*) String_fromLiteral(term->text, term->length);
     case T_NULL:
         return LoxNIL;
     case T_TRUE:

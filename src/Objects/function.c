@@ -7,6 +7,7 @@
 #include "object.h"
 #include "function.h"
 #include "string.h"
+#include "tuple.h"
 #include "Eval/interpreter.h"
 #include "Parse/debug_parse.h"
 
@@ -51,21 +52,26 @@ Function_fromAST(ASTFunction* function) {
                 param->name_length);
         }
         O->parameters = (Object**) names;
+        O->nparameters = count;
     }
 
     return (Object*) O;
 }
 
 static Object*
-function_call(Object* self, Interpreter* eval, Object* args) {
+function_call(Object* self, Interpreter* eval, Object* object, Object* args) {
     assert(self->type == &FunctionType);
     assert(Tuple_isTuple(args));
 
+    // XXX: Assumes params and args have same length. This should handle
+    // differing lengths by using the default value or assigning NIL or
+    // undefined
     FunctionObject* fun = (FunctionObject*) self;
     Object** param_names = fun->parameters;
     size_t i = 0, count = Tuple_getSize(args);
     for (; i < count; i++, param_names++) {
-         StackFrame_assign_local(eval->stack, *param_names, Tuple_getItem(args, i));   
+         StackFrame_assign_local(eval->stack, *param_names,
+             Tuple_getItem((TupleObject*) args, i));
     }
 
     // The idea is that the current stack frame for this invocation has
@@ -91,18 +97,24 @@ static struct object_type FunctionType = (ObjectType) {
 
 
 
-
 static struct object_type NativeFunctionType;
 
+Object*
+NativeFunction_new(NativeFunctionCall callable) {
+    NFunctionObject* self = object_new(sizeof(NFunctionObject), &NativeFunctionType);
+    self->callable = callable;
+    return (Object*) self;
+}
+
 static Object*
-nfunction_call(Object* self, Interpreter* eval, Object* args) {
-    assert(self->type == &FunctionType);
-    return ((NFunctionObject*) self)->callable(eval, args);
+nfunction_call(Object* self, Interpreter* eval, Object* object, Object* args) {
+    assert(self->type == &NativeFunctionType);
+    return ((NFunctionObject*) self)->callable(eval, object, args);
 }
 
 static Object*
 nfunction_asstring(Object* self) {
-    assert(self->type == &FunctionType);
+    assert(self->type == &NativeFunctionType);
     return String_fromCharArrayAndSize("native code {}", 14);
 }
 
