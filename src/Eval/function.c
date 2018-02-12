@@ -16,7 +16,7 @@ eval_invoke(Interpreter* self, ASTInvoke* invoke) {
     Object* callable = eval_node(self, invoke->callable);
 
     assert(Function_isCallable(callable));
-    
+
     // Create a new stack frame for the call
     StackFrame *newstack = StackFrame_create(self->stack);
 
@@ -36,7 +36,7 @@ eval_invoke(Interpreter* self, ASTInvoke* invoke) {
         Tuple_setItem(args, i++, T);
         DECREF(T);
     }
-    
+
     // And transition to the new stack for the call
     self->stack = newstack;
 
@@ -46,8 +46,9 @@ eval_invoke(Interpreter* self, ASTInvoke* invoke) {
     INCREF(result);
     DECREF(args);
 
+
     StackFrame_pop(self);
-    
+
     return result;
 }
 

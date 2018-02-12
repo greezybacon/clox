@@ -81,8 +81,10 @@ tuple_cleanup(Object* self) {
     
     TupleObject* this = (TupleObject*) self;
     int i = this->count;
-    while (i)
-        DECREF(*(this->items + --i));
+    while (i) {
+        i--;
+        DECREF(*(this->items + i));
+    }
 
     free(this->items);
 }
