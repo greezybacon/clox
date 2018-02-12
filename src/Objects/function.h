@@ -11,6 +11,7 @@ typedef struct function_object {
     // Inherits from Object
     Object      base;
 
+    Object      *name;
     ASTNode     *code;
     Object      **parameters;
     size_t      nparameters;

@@ -6,6 +6,7 @@
 
 #include "object.h"
 #include "function.h"
+#include "garbage.h"
 #include "string.h"
 #include "tuple.h"
 #include "Eval/interpreter.h"
@@ -31,21 +32,21 @@ Function_isFunction(Object* object) {
 }
 
 Object*
-Function_fromAST(ASTFunction* function) {
+Function_fromAST(ASTFunction* fun) {
     FunctionObject* O = object_new(sizeof(FunctionObject), &FunctionType);
-    O->code = function->block;
+    O->code = fun->block;
         
     ASTNode *p;
     ASTFuncParam *param;
     
     int count = 0;
-    for (p = function->arglist; p != NULL; p = p->next)
+    for (p = fun->arglist; p != NULL; p = p->next)
         count++;
 
     if (count > 0) {
         StringObject** names = calloc(count, sizeof(StringObject*));
         StringObject** pname = names;
-        for (p = function->arglist; p != NULL; p = p->next) {
+        for (p = fun->arglist; p != NULL; p = p->next) {
             assert(p->type == AST_PARAM);
             param = (ASTFuncParam*) p;
             *pname++ = String_fromCharArrayAndSize(param->name,
@@ -54,6 +55,9 @@ Function_fromAST(ASTFunction* function) {
         O->parameters = (Object**) names;
         O->nparameters = count;
     }
+
+    if (fun->name_length)
+        O->name = String_fromCharArrayAndSize(fun->name, fun->name_length);
 
     return (Object*) O;
 }
@@ -81,10 +85,29 @@ function_call(Object* self, Interpreter* eval, Object* object, Object* args) {
 
 static Object*
 function_asstring(Object* self) {
+    assert(self->type == &FunctionType);
+
     char buffer[256];
     int bytes;
-    bytes = snprintf(buffer, sizeof(buffer), "function@%p", self);
+    FunctionObject* F = (FunctionObject*) self;
+    if (F->name != NULL) {
+        assert(String_isString(F->name));
+        StringObject* S = (StringObject*) F->name;
+        bytes = snprintf(buffer, sizeof(buffer), "function<%.*s>@%p",
+            S->length, S->characters, self);
+    }
+    else
+        bytes = snprintf(buffer, sizeof(buffer), "function@%p", self);
     return (Object*) String_fromCharArrayAndSize(buffer, bytes);
+}
+
+static void
+function_cleanup(Object* self) {
+    assert(self->type == &FunctionType);
+    FunctionObject* F = (FunctionObject*) self;
+
+    if (F->name)
+        DECREF(F->name);
 }
 
 static struct object_type FunctionType = (ObjectType) {
@@ -93,6 +116,8 @@ static struct object_type FunctionType = (ObjectType) {
 
     .call = function_call,
     .as_string = function_asstring,
+
+    .cleanup = function_cleanup,
 };
 
 
