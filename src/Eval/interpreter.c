@@ -72,6 +72,7 @@ eval_init(Interpreter* self) {
 
     // Start with a root stack frame and a global scope
     StackFrame *stack = StackFrame_push(self);
+    stack->locals = Hash_new();
     stack->scope = Scope_create(globals, stack->locals);
 }
 

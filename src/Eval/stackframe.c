@@ -28,13 +28,13 @@ StackFrame_createScope(StackFrame* self) {
 Object*
 StackFrame_lookup(StackFrame *self, Object *key) {
     HashObject *table = self->locals;
+    Object *rv;
 
-    if (table && Bool_isTrue(table->base.type->contains((Object*) table, key)))
-        return table->base.type->get_item((Object*) table, key);
+    if (table && NULL != (rv = Hash_getItem(table, key)))
+        return rv;
 
-    Object *value = Scope_lookup(self->scope, key);
-    if (value)
-        return value;
+    if ((rv = Scope_lookup(self->scope, key)))
+        return rv;
 
     StringObject* skey = (StringObject*) key->type->as_string(key);
     eval_error(NULL, "%.*s: Variable has not yet been set in this scope\n", skey->length, skey->characters);

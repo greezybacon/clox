@@ -32,11 +32,11 @@ Scope_leave(Scope* self) {
 
 static HashObject*
 Scope_locate(Scope* self, Object* name) {
-    // TODO: Use HashObject_lookup_fast();
     HashObject* table = self->locals;
+    Object* rv;
 
-    if (table && Bool_isTrue(table->base.type->contains((Object*) table, name)))
-        return self->locals;
+    if (table && Hash_contains(table, name))
+        return table;
 
     Scope *scope = self->outer;
     if (scope)
@@ -47,11 +47,18 @@ Scope_locate(Scope* self, Object* name) {
 
 Object*
 Scope_lookup(Scope* self, Object* name) {
-    HashObject* table = Scope_locate(self, name);
-    if (!table)
-        return NULL;
+    // TODO: Use HashObject_lookup_fast();
+    HashObject* table = self->locals;
+    Object* rv;
 
-    return table->base.type->get_item((Object*) table, name);
+    if (table && NULL != (rv = Hash_getItem(table, name)))
+        return rv;
+
+    Scope *scope = self->outer;
+    if (scope)
+        return Scope_lookup(scope, name);
+
+    return NULL;
 }
 
 void

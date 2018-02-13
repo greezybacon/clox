@@ -38,6 +38,7 @@ HashObject *Hash_newWithSize(size_t size) {
         return NULL;
     }
     hashtable->size = size;
+    hashtable->size_mask = size - 1;
 
 	return hashtable;
 }
@@ -71,15 +72,16 @@ hash_resize(HashObject* self, size_t newsize) {
 
     // Place all the keys in the new table
     int slot, i;
+    size_t mask = newsize - 1;
     HashEntry *entry, *current;
     for (current = self->table, i=self->size; i; current++, i--) {
         if (current->key != NULL) {
-            slot = ht_hashval(current->key) % newsize;
+            slot = ht_hashval(current->key) & mask;
 
             // Find an empty slot
         	entry = table + slot;
         	while (entry->key != NULL) {
-                slot = (slot + 1) % newsize;
+                slot = (slot + 1) & mask;
                 entry = table + slot;
         	}
 
@@ -90,6 +92,7 @@ hash_resize(HashObject* self, size_t newsize) {
     free(self->table);
     self->table = table;
     self->size = newsize;
+    self->size_mask = mask;
 
     return 0;
 }
@@ -115,7 +118,7 @@ hash_set(HashObject *self, Object *key, Object *value) {
     // loop forever.
 
     hash = ht_hashval(key);
-    slot = hash % self->size;
+    slot = hash & self->size_mask;
 
     entry = self->table + slot;
     while (entry->key != NULL) {
@@ -126,7 +129,7 @@ hash_set(HashObject *self, Object *key, Object *value) {
     		entry->value = value;
             return;
         }
-        slot = (slot + 1) % self->size;
+        slot = (slot + 1) & self->size_mask;
         entry = self->table + slot;
 	}
 
@@ -142,7 +145,7 @@ hash_set(HashObject *self, Object *key, Object *value) {
 
 static HashEntry*
 hash_lookup_fast(HashObject* self, Object* key, hashval_t hash) {
-    int slot = hash % self->size;
+    int slot = hash & self->size_mask;
     HashEntry *entry = self->table + slot;
 
 	/* Step through the table, looking for our value. */
@@ -150,7 +153,7 @@ hash_lookup_fast(HashObject* self, Object* key, hashval_t hash) {
         && entry->hash == hash
         && !Bool_isTrue(entry->key->type->op_eq(entry->key, key))
     ) {
-        slot = (slot + 1) % self->size;
+        slot = (slot + 1) & self->size_mask;
         entry = self->table + slot;
 	}
 

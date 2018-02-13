@@ -36,6 +36,7 @@ typedef struct hash_object {
 
     size_t  count;
     size_t  size;
+    size_t  size_mask;
     HashEntry *table;
 } HashObject;
 
