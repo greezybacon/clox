@@ -33,7 +33,6 @@ static Object*
 builtin_int(Interpreter* state, Object* self, Object* args) {
     assert(Tuple_isTuple(args));
 
-    size_t argc = Tuple_getSize(args);
     Object* arg = Tuple_getItem((TupleObject*) args, 0);
 
     if (arg->type->as_int) {

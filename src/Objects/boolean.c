@@ -21,6 +21,7 @@ Bool_fromObject(Object* value) {
         return value;
     else if (value->type->as_bool)
         return value->type->as_bool(value);
+    // TODO: If type has a len() method, compare > zero
     // TODO: NULL should be false
     else
         // XXX: FIXME
