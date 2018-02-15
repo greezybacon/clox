@@ -17,22 +17,24 @@ eval_if(Interpreter *self, ASTIf *node) {
         condition = T;
     }
 
+    Object* rv = LoxNIL;
     if (condition == (Object*) LoxTRUE) {
         // Execute the associated block
-        return eval_node(self, node->block);
+        rv = eval_node(self, node->block);
     }
     else if (node->otherwise) {
-        return eval_node(self, node->otherwise);
+        rv = eval_node(self, node->otherwise);
     }
 
-    return LoxNIL;
+    DECREF(condition);
+    return rv;
 }
 
 Object*
 eval_while(Interpreter *self, ASTWhile* node) {
     assert(node->node.type == AST_WHILE);
 
-    Object *condition;
+    Object *condition = NULL;
     Object *rv = LoxNIL;
 
     for (;;) {
@@ -47,8 +49,11 @@ eval_while(Interpreter *self, ASTWhile* node) {
             break;
 
         // Execute the associated block
+        if (rv) DECREF(rv);
         rv = eval_node(self, node->block);
+        DECREF(condition);
     }
 
+    DECREF(condition);
     return rv;
 }
