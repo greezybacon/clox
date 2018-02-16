@@ -531,12 +531,9 @@ parse_statement_or_block(Parser* self) {
 static ASTNode*
 parser_parse_next(Parser* self) {
     Token* token = self->tokens->peek(self->tokens);
+    ASTNode *rv;
 
     switch (token->type) {
-    // statement separator
-    case T_SEMICOLON:
-        self->tokens->next(self->tokens);
-        return parse_next(self);
 
     // Statement
     case T_VAR:
@@ -545,14 +542,21 @@ parser_parse_next(Parser* self) {
     case T_WHILE:
     case T_RETURN:
         self->tokens->next(self->tokens);
-        return parse_statement(self);
+        rv = parse_statement(self);
+        break;
 
     case T_EOF:
         return NULL;
 
     default:
-        return parse_expression(self);
+        rv = parse_expression(self);
     }
+
+    if (self->tokens->peek(self->tokens)->type == T_SEMICOLON) {
+        // If a semicolon comes at the end of an or statement -- just move over it
+        self->tokens->next(self->tokens);
+    }
+    return rv;
 }
 
 ASTNode*

@@ -73,9 +73,10 @@ function_call(Object* self, Interpreter* eval, Object* object, Object* args) {
     FunctionObject* fun = (FunctionObject*) self;
     Object** param_names = fun->parameters;
     size_t i = 0, count = Tuple_getSize(args);
+
     for (; i < count; i++, param_names++) {
-         StackFrame_assign_local(eval->stack, *param_names,
-             Tuple_getItem((TupleObject*) args, i));
+        StackFrame_assign_local(eval->stack, *param_names,
+            Tuple_getItem((TupleObject*) args, i));
     }
 
     // The idea is that the current stack frame for this invocation has

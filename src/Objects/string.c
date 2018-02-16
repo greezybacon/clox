@@ -110,7 +110,7 @@ string_op_eq(Object* self, Object* other) {
 
 static BoolObject*
 string_op_ne(Object* self, Object* other) {
-    return string_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;;
+    return string_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;
 }
 
 static void

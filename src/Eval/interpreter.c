@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "error.h"
 #include "interpreter.h"
 #include "Objects/string.h"
 #include "Objects/boolean.h"
@@ -28,36 +29,55 @@ eval_eval(Interpreter* self, Parser* parser) {
 
 Object*
 eval_node(Interpreter* self, ASTNode* ast) {
-    switch (ast->type) {
-    case AST_STATEMENT:
-    case AST_ASSIGNMENT:
-        return eval_assignment(self, (ASTAssignment*) ast);
-    case AST_EXPRESSION:
-        return eval_expression(self, (ASTExpression*) ast);
+    Object* rv = LoxNIL;
 
-    case AST_WHILE:
-        return eval_while(self, (ASTWhile*) ast);
-    case AST_FOR:
-    case AST_IF:
-        return eval_if(self, (ASTIf*) ast);
+    while (ast) {
+        switch (ast->type) {
+        case AST_STATEMENT:
+        case AST_ASSIGNMENT:
+            rv = eval_assignment(self, (ASTAssignment*) ast);
+            break;
+        case AST_EXPRESSION:
+            rv = eval_expression(self, (ASTExpression*) ast);
+            break;
 
-    case AST_VAR:
+        case AST_WHILE:
+            rv = eval_while(self, (ASTWhile*) ast);
+            break;
+        case AST_FOR:
+        case AST_IF:
+            rv = eval_if(self, (ASTIf*) ast);
+            break;
 
-    case AST_FUNCTION:
-        return eval_function(self, (ASTFunction*) ast);
-    case AST_TERM:
-        return eval_term(self, (ASTTerm*) ast);
-    case AST_LITERAL:
-        return ((ASTLiteral*) ast)->literal;
+        case AST_VAR:
 
-    case AST_INVOKE:
-        return eval_invoke(self, (ASTInvoke*) ast);
-    case AST_LOOKUP:
-        return eval_lookup(self, (ASTLookup*) ast);
+        case AST_FUNCTION:
+            rv = eval_function(self, (ASTFunction*) ast);
+            break;
+        case AST_TERM:
+            rv = eval_term(self, (ASTTerm*) ast);
+            break;
+        case AST_LITERAL:
+            rv = ((ASTLiteral*) ast)->literal;
+            break;
 
-    case AST_CLASS:
-        break;
+        case AST_INVOKE:
+            rv = eval_invoke(self, (ASTInvoke*) ast);
+            break;
+        case AST_LOOKUP:
+            rv = eval_lookup(self, (ASTLookup*) ast);
+            break;
+
+        case AST_CLASS:
+            break;
+
+        default:
+            eval_error(self, "Unexpected AST node type");
+        }
+        ast = ast->next;
     }
+
+    return rv;
 }
 
 void

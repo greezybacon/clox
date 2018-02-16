@@ -46,7 +46,6 @@ eval_invoke(Interpreter* self, ASTInvoke* invoke) {
     INCREF(result);
     DECREF(args);
 
-
     StackFrame_pop(self);
 
     return result;
