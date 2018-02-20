@@ -91,9 +91,7 @@ void
 repl_init(CmdLoop *loop, Interpreter* eval) {
     *loop = (CmdLoop) {
         .prompt = "(Lox) ",
-        
         .onecmd = repl_onecmd,
-
         .interpreter = eval,
     };
 }

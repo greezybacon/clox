@@ -6,6 +6,7 @@
 
 #include "interpreter.h"
 #include "repl.h"
+#include "Compile/compile.h"
 #include "Include/Lox.h"
 
 const char *argp_program_version =
@@ -72,7 +73,8 @@ main(int argc, char** argv) {
         }
     }
     else if (arguments->cmd) {
-        result = eval_string(arguments->cmd, strlen(arguments->cmd));
+        result = vmeval_string(arguments->cmd, strlen(arguments->cmd));
+//        result = eval_string(arguments->cmd, strlen(arguments->cmd));
     }
     else {
         CmdLoop repl;
