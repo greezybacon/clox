@@ -150,9 +150,9 @@ hash_lookup_fast(HashObject* self, Object* key, hashval_t hash) {
 
 	/* Step through the table, looking for our value. */
 	while (entry->key != NULL
-        && entry->hash == hash
-        && !Bool_isTrue(entry->key->type->op_eq(entry->key, key))
-    ) {
+        && (entry->hash != hash
+        || !Bool_ISTRUE(entry->key->type->op_eq(entry->key, key))
+    )) {
         slot = (slot + 1) & self->size_mask;
         entry = self->table + slot;
 	}
