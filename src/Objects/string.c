@@ -101,7 +101,10 @@ string_op_eq(Object* self, Object* other) {
     assert(self->type == &StringType);
     
     if (other->type != self->type)
-        return false;
+        return LoxFALSE;
+
+    if (self == other)
+        return LoxTRUE;
 
     return strncmp(((StringObject*) self)->characters, ((StringObject*) other)->characters,
         ((StringObject*) self)->length) == 0
