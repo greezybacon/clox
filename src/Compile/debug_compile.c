@@ -22,7 +22,9 @@ static struct named_opcode OpcodeNames[] = {
 
     // Variables
     { OP_LOOKUP,        "LOOKUP" },
+    { OP_LOOKUP_LOCAL,  "LOOKUP_LOCAL" },
     { OP_STORE,         "STORE" },
+    { OP_STORE_LOCAL,   "STORE_LOCAL" },
     { OP_CONSTANT,      "CONSTANT" },
 
     // Comparison
@@ -62,7 +64,20 @@ print_opcode(CodeContext *context, Instruction *op) {
     case OP_CONSTANT:
     case OP_STORE:
     case OP_LOOKUP: {
-        Object* T = *(context->constants + op->arg);
+        Constant *C = context->constants + op->arg;
+        Object *T = C->value;
+        if (T && T->type && T->type->as_string) {
+            StringObject *S = T->type->as_string(T);
+            printf(" (%.*s)", S->length, S->characters);
+            if (!String_isString(T))
+                DECREF(S);
+        }
+    }
+    break;
+
+    case OP_STORE_LOCAL:
+    case OP_LOOKUP_LOCAL: {
+        Object *T = *(context->locals.names + op->arg);
         if (T && T->type && T->type->as_string) {
             StringObject *S = T->type->as_string(T);
             printf(" (%.*s)", S->length, S->characters);

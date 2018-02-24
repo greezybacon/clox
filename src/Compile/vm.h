@@ -14,7 +14,9 @@ enum opcode {
     OP_RETURN,
 
     OP_LOOKUP,
+    OP_LOOKUP_LOCAL,
     OP_STORE,
+    OP_STORE_LOCAL,
     OP_CONSTANT,
 
     // Comparison
@@ -50,12 +52,24 @@ typedef struct code_instructions {
     struct instruction  *instructions;
 } CodeBlock;
 
+typedef struct constant_object {
+    Object              *value;
+    hashval_t           hash;
+} Constant;
+
+typedef struct locals_list {
+    Object              **names;
+    unsigned            size;
+    unsigned            count;
+} LocalsList;
+
 typedef struct code_context {
     unsigned            nConstants;
     unsigned            nParameters;
     CodeBlock           *block;
     unsigned            sizeConstants;
-    Object              **constants;
+    Constant            *constants;
+    LocalsList          locals;
     struct code_context *prev;
 } CodeContext;
 
@@ -69,6 +83,7 @@ typedef struct eval_context {
     unsigned            stack_size;
     Instruction         *pc;
     Object              **stack;
+    Object              **locals;
 } EvalContext;
 
 #define POP(context) *(--((context)->stack))

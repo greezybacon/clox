@@ -134,6 +134,7 @@ typedef struct ast_for {
 typedef struct ast_var {
     ASTNode             node;
     char *              name;
+    size_t              name_length;
     struct ast_node*    expression;
 } ASTVar;
 

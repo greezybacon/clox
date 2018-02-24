@@ -1,3 +1,5 @@
+#include <assert.h>
+
 #include "vm.h"
 #include "compile.h"
 #include "Include/Lox.h"
@@ -51,6 +53,22 @@ vmeval_eval(EvalContext* eval, CodeContext* context) {
             case OP_STORE:
             lhs = *(context->constants + instruction->arg);
             Hash_setItem(locals, lhs, POP(eval));
+            break;
+
+            case OP_STORE_LOCAL:
+            assert(instruction->arg < context->locals.count);
+            *(eval->locals + instruction->arg) = POP(eval);
+            break;
+
+            case OP_LOOKUP_LOCAL:
+            assert(instruction->arg < context->locals.count);
+            lhs = *(eval->locals + instruction->arg);
+            if (lhs == NULL) {
+                // RAISE RUNTIME ERROR
+                fprintf(stderr, "WARNING: `%hd` accessed before assignment", pc->arg);
+                lhs = LoxNIL;
+            }
+            PUSH(eval, lhs);
             break;
 
             case OP_CONSTANT:
@@ -113,17 +131,23 @@ vmeval_eval(EvalContext* eval, CodeContext* context) {
         eval->pc++;
     }
 
+    int i = context->locals.count - 1;
+    if (i > -1)
+        for (; i; i--)
+            DECREF(*(eval->locals + i));
+
     DECREF(locals);
     return POP(eval);
 }
 
 void
-vmeval_init(EvalContext *context) {
+vmeval_init(EvalContext *eval, CodeContext* context) {
     Object **stack = calloc(32, sizeof(Object*));
-    *context = (EvalContext) {
+    *eval = (EvalContext) {
         .stack = stack,
         .stack_size = 32,
         .pc = 0,
+        .locals = calloc(context->locals.count, sizeof(Object*)),
     };
 }
 
@@ -137,6 +161,6 @@ vmeval_string(const char * text, size_t length) {
     print_codeblock(context, context->block);
 
     EvalContext self;
-    vmeval_init(&self);
+    vmeval_init(&self, context);
     return vmeval_eval(&self, context);
 }

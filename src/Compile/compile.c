@@ -18,6 +18,10 @@ compile_push_context(Compiler* self) {
     *context = (CodeContext) {
         .constants = constants,
         .sizeConstants = 8,
+        .locals = (LocalsList) {
+            .size = 8,
+            .names = malloc(sizeof(Object*) * 8),
+        },
     };
     self->context = context;
 }
@@ -110,14 +114,64 @@ compile_emit(Compiler* self, enum opcode op, short argument) {
     return 1;
 }
 
+static int
+compile_locals_islocal(Compiler *self, Object *name) {
+    int index = 0;
+    LocalsList *locals = &self->context->locals;
+
+    // Direct search through the locals list
+    while (index < locals->count) {
+        if (LoxTRUE == name->type->op_eq(name, *(locals->names + index))) {
+            // Already in the locals list
+            return index;
+        }
+        index++;
+    }
+
+    return -1;
+}
+
+static unsigned
+compile_locals_allocate(Compiler *self, Object *name) {
+    assert(name->type);
+    assert(name->type->op_eq);
+
+    int index;
+    LocalsList *locals = &self->context->locals;
+
+    if (-1 != (index = compile_locals_islocal(self, name))) {
+        return index;
+    }
+
+    // Ensure space in the index and locals
+    if (locals->size < locals->count) {
+        locals->size += 8;
+        locals->names = realloc(locals->names, sizeof(Object*) * locals->size);
+    }
+
+    *(locals->names + locals->count) = name;
+    return locals->count++;
+}
+
 static unsigned
 compile_assignment(Compiler *self, ASTAssignment *assign) {
     // Push the expression
     unsigned length = compile_node(self, assign->expression);
-    // Find the name in the constant stack
-    short index = compile_emit_constant(self, assign->name);
-    // Push the STORE
-    return length + compile_emit(self, OP_STORE, index);
+    unsigned index;
+    
+    if (true) {
+        // Lookup or allocate a local variable
+        index = compile_locals_allocate(self, assign->name);
+        length += compile_emit(self, OP_STORE_LOCAL, index);
+    }
+    else {
+        // Non-local
+        // Find the name in the constant stack
+        index = compile_emit_constant(self, assign->name);
+        // Push the STORE
+        length += compile_emit(self, OP_STORE, index);
+    }
+    return length;
 }
 
 static unsigned
@@ -196,8 +250,13 @@ compile_literal(Compiler *self, ASTLiteral *node) {
 
 static unsigned
 compile_lookup(Compiler *self, ASTLookup *node) {
+    // See if the name is in the locals list
+    int index;
+    if (-1 != (index = compile_locals_islocal(self, node->name))) {
+        return compile_emit(self, OP_LOOKUP_LOCAL, index);
+    }
     // Fetch the index of the name constant
-    unsigned index = compile_emit_constant(self, node->name);
+    index = compile_emit_constant(self, node->name);
     return compile_emit(self, OP_LOOKUP, index);
 }
 

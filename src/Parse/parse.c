@@ -448,6 +448,7 @@ parse_statement(Parser* self) {
         parser_node_init((ASTNode*) astvar, AST_VAR, token);
         token = parse_expect(self, T_WORD);
         astvar->name = self->tokens->fetch_text(self->tokens, token);
+        astvar->name_length = token->length;
         parse_expect(self, T_OP_ASSIGN);
         astvar->expression = parse_expression(self);
 
