@@ -4,82 +4,119 @@
 #include "compile.h"
 #include "Include/Lox.h"
 
-#define BINARY_METHOD(method) do { rhs = POP(eval); lhs = POP(eval); PUSH(eval, (Object*) lhs->type->method(lhs, rhs)); } while(0)
+#define BINARY_METHOD(method) do { rhs = POP(stack); lhs = POP(stack); PUSH(stack, (Object*) lhs->type->method(lhs, rhs)); } while(0)
 
-static Object*
-vmeval_eval(EvalContext* eval, CodeContext* context) {
-    Object *lhs, *rhs;
-    HashObject *locals = Hash_new();
+Object*
+vmeval_eval(CodeContext *context, VmScope *scope, VmCallArgs *args) {
+    Object *lhs, *rhs, **local;
+    Constant *C;
 
-    eval->pc = context->block->instructions;
-    Instruction *end = eval->pc + context->block->nInstructions, *instruction;
+    // Setup storage for the stack and locals
+    Object *_locals[context->locals.count], **locals = &_locals[0];
 
-    // Return NIL if stack is empty
-    PUSH(eval, LoxNIL);
+    // TODO: Add estimate for MAX_STACK in the compile phase
+    // XXX: Program could overflow 32-slot stack
+    static Object *_stack[32], **stack = &_stack[0];
 
-    while (eval->pc < end) {
-        instruction = eval->pc;
-//        print_instructions(context, instruction, 1);
-        switch (instruction->op) {
+    Instruction *pc = context->block->instructions;
+    Instruction *end = pc + context->block->nInstructions;
+
+    int i;
+
+    while (pc < end) {
+#if DEBUG
+        print_instructions(context, instruction, 1);
+#endif
+        switch (pc->op) {
             case OP_JUMP:
-            JUMP(eval, instruction->arg);
+            pc += pc->arg;
             break;
 
             case OP_POP_JUMP_IF_TRUE:
-            lhs = POP(eval);
+            lhs = POP(stack);
             if (Bool_isTrue(lhs))
-                JUMP(eval, instruction->arg);
+                pc += pc->arg;
             break;
 
             case OP_POP_JUMP_IF_FALSE:
-            lhs = POP(eval);
+            lhs = POP(stack);
             if (!Bool_isTrue(lhs))
-                JUMP(eval, instruction->arg);
+                pc += pc->arg;
             break;
 
             case OP_DUP_TOP:
-            PUSH(eval, PEEK(eval));
+            lhs = PEEK(stack);
+            PUSH(stack, lhs);
             break;
 
-            case OP_CALL:
+            case OP_MAKE_FUN: {
+                CodeObject *code = POP(stack);
+                VmFunction *fun = CodeObject_makeFunction(code,
+                    // XXX: Globals?
+                    VmScope_create(scope, locals, context));
+                PUSH(stack, (Object*) fun);
+            }
+            break;
+
+            case OP_CALL_FUN: {
+                VmFunction *fun = POP(stack);
+                VmCallArgs args = (VmCallArgs) {
+                    .values = stack - pc->arg,
+                    .count = pc->arg,
+                };
+                Object *rv = vmeval_eval(fun->code->code, fun->scope, &args);
+                stack -= pc->arg; // POP_N, {pc->arg}
+                PUSH(stack, rv);
+            }
+            break;
+
             case OP_RETURN:
+            goto op_return;
             break;
 
             case OP_LOOKUP:
-            lhs = *(context->constants + instruction->arg);
-            PUSH(eval, Hash_getItem(locals, lhs));
+            C = context->constants + pc->arg;
+            assert(scope);
+            PUSH(stack, VmScope_lookup(scope, C->value));
             break;
 
             case OP_STORE:
-            lhs = *(context->constants + instruction->arg);
-            Hash_setItem(locals, lhs, POP(eval));
+            C = context->constants + pc->arg;
+            assert(scope);
+            VmScope_assign(scope, C->value, POP(stack));
             break;
 
             case OP_STORE_LOCAL:
-            assert(instruction->arg < context->locals.count);
-            *(eval->locals + instruction->arg) = POP(eval);
+            assert(pc->arg < context->locals.count);
+            *(locals + pc->arg) = POP(stack);
+            break;
+
+            case OP_STORE_ARG_LOCAL:
+            assert(args);
+            assert(args->count);
+            *(locals + pc->arg) = *args->values++;
+            args->count--;
             break;
 
             case OP_LOOKUP_LOCAL:
-            assert(instruction->arg < context->locals.count);
-            lhs = *(eval->locals + instruction->arg);
+            assert(pc->arg < context->locals.count);
+            lhs = *(locals + pc->arg);
             if (lhs == NULL) {
                 // RAISE RUNTIME ERROR
                 fprintf(stderr, "WARNING: `%hd` accessed before assignment", pc->arg);
                 lhs = LoxNIL;
             }
-            PUSH(eval, lhs);
+            PUSH(stack, lhs);
             break;
 
             case OP_CONSTANT:
-            lhs = *(context->constants + instruction->arg);
-            PUSH(eval, lhs);
+            C = context->constants + pc->arg;
+            PUSH(stack, C->value);
             break;
 
             // Comparison
             case OP_GT:
             BINARY_METHOD(op_gt);
-
             break;
 
             case OP_GTE:
@@ -108,7 +145,6 @@ vmeval_eval(EvalContext* eval, CodeContext* context) {
             // Expressions
             case OP_BINARY_PLUS:
             BINARY_METHOD(op_plus);
-
             break;
 
             case OP_BINARY_MINUS:
@@ -128,27 +164,17 @@ vmeval_eval(EvalContext* eval, CodeContext* context) {
             case OP_NOOP:
             break;
         }
-        eval->pc++;
+        pc++;
     }
 
-    int i = context->locals.count - 1;
-    if (i > -1)
-        for (; i; i--)
-            DECREF(*(eval->locals + i));
+op_return:
+    // Garbage collect local vars
+    i = context->locals.count;
+    while (i--)
+        if (*(locals + i))
+            DECREF(*(locals + i));
 
-    DECREF(locals);
-    return POP(eval);
-}
-
-void
-vmeval_init(EvalContext *eval, CodeContext* context) {
-    Object **stack = calloc(32, sizeof(Object*));
-    *eval = (EvalContext) {
-        .stack = stack,
-        .stack_size = 32,
-        .pc = 0,
-        .locals = calloc(context->locals.count, sizeof(Object*)),
-    };
+    return POP(stack);
 }
 
 Object*
@@ -160,7 +186,5 @@ vmeval_string(const char * text, size_t length) {
 
     print_codeblock(context, context->block);
 
-    EvalContext self;
-    vmeval_init(&self, context);
-    return vmeval_eval(&self, context);
+    return vmeval_eval(context, NULL, NULL);
 }

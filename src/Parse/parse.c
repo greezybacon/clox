@@ -499,10 +499,12 @@ parse_statement(Parser* self) {
         break;
     }
     case T_RETURN: {
-        ASTExpression* expr = parse_expression(self);
-        // expr->isreturn = 1;
+        ASTReturn* astreturn = calloc(1, sizeof(ASTReturn));
+        parser_node_init((ASTNode*) astreturn, AST_RETURN, token);
+        // XXX: The return expression is optional?
+        astreturn->expression = parse_expression(self);
 
-        result = (ASTNode*) expr;
+        result = (ASTNode*) astreturn;
         break;
     }
     default:

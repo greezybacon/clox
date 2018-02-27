@@ -77,6 +77,7 @@ coerce_integer(Object* value) {
     if (value->type != &IntegerType) {
        if (value->type->as_int == NULL) {
            eval_error("Value cannot be coerced to int");
+           return NULL;
        }
        value = value->type->as_int(value);
    }
@@ -140,7 +141,9 @@ static BoolObject*
 integer_op_eq(Object* self, Object* other) {
     assert(self->type == &IntegerType);
 
-    other = coerce_integer(other);
+    if (!(other = coerce_integer(other)))
+        return LoxFALSE;
+
     return ((IntegerObject*) self)->value == ((IntegerObject*) other)->value ? LoxTRUE : LoxFALSE;
 }
 

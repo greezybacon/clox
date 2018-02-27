@@ -15,9 +15,11 @@ static struct named_opcode OpcodeNames[] = {
     { OP_POP_JUMP_IF_TRUE, "POP_JUMP_IF_TRUE" },
     { OP_POP_JUMP_IF_FALSE, "POP_JUMP_IF_FALSE" },
     { OP_DUP_TOP,       "DUP_TOP" },
+    { OP_POP_TOP,       "POP_TOP" },
     
     // Functions
-    { OP_CALL,          "CALL" },
+    { OP_CALL_FUN,      "CALL_FUN" },
+    { OP_MAKE_FUN,      "MAKE_FUN" },
     { OP_RETURN,        "RETURN" },
 
     // Variables
@@ -25,6 +27,7 @@ static struct named_opcode OpcodeNames[] = {
     { OP_LOOKUP_LOCAL,  "LOOKUP_LOCAL" },
     { OP_STORE,         "STORE" },
     { OP_STORE_LOCAL,   "STORE_LOCAL" },
+    { OP_STORE_ARG_LOCAL, "STORE_ARG_LOCAL" },
     { OP_CONSTANT,      "CONSTANT" },
 
     // Comparison

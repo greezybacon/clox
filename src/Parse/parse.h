@@ -11,12 +11,12 @@ enum ast_type {
     AST_EXPRESSION,
     AST_ASSIGNMENT,
     AST_FUNCTION,
+    AST_RETURN,
     AST_PARAM,
     AST_WHILE,
     AST_FOR,
     AST_IF,
     AST_VAR,
-    AST_BINARY_OP,
     AST_TERM,
     AST_LITERAL,
     AST_LOOKUP,
@@ -37,6 +37,11 @@ typedef struct ast_expression {
     struct ast_node     *lhs;
     struct ast_node     *rhs;
 } ASTExpression;
+
+typedef struct ast_return {
+    ASTNode             node;
+    struct ast_node     *expression;
+} ASTReturn;
 
 typedef struct ast_assignment {
     ASTNode             node;
@@ -87,13 +92,6 @@ typedef struct ast_slice {
     struct ast_node     *end;
     struct ast_node     *step;
 } ASTSlice;
-
-typedef struct ast_binary_op {
-    ASTNode             node;
-    struct ast_node     *lhs;
-    enum token_type     op;
-    struct ast_node     *rhs;
-} ASTBinaryOp;
 
 typedef struct ast_class {
     ASTNode             node;

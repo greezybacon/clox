@@ -52,13 +52,6 @@ print_invoke(FILE* output, ASTInvoke* node) {
 }
 
 static void
-print_binop(FILE* output, ASTBinaryOp* node) {
-    print_node(output, node->lhs);
-    fprintf(output, " (%s) ", get_operator(node->op));
-    print_node(output, node->rhs);
-}
-
-static void
 print_var(FILE* output, ASTVar* node) {
     fprintf(output, "Var(%s=", node->name);
     print_node(output, node->expression);
@@ -143,9 +136,6 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
             break;
         case AST_VAR:
             print_var(output, (ASTVar*) current);
-            break;
-        case AST_BINARY_OP:
-            print_binop(output, (ASTBinaryOp*) current);
             break;
         case AST_TERM:
             print_term(output, (ASTTerm*) current);

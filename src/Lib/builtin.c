@@ -4,7 +4,7 @@
 #include "Include/Lox.h"
 
 static Object*
-builtin_print(Interpreter* state, Object* self, Object* args) {
+builtin_print(VmScope* state, Object* self, Object* args) {
     assert(Tuple_isTuple(args));
 
     Object* arg;
@@ -30,7 +30,7 @@ builtin_print(Interpreter* state, Object* self, Object* args) {
 }
 
 static Object*
-builtin_int(Interpreter* state, Object* self, Object* args) {
+builtin_int(VmScope* state, Object* self, Object* args) {
     assert(Tuple_isTuple(args));
 
     Object* arg = Tuple_getItem((TupleObject*) args, 0);

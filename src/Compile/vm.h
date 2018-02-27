@@ -10,13 +10,17 @@ enum opcode {
     OP_POP_JUMP_IF_TRUE,
     OP_POP_JUMP_IF_FALSE,
     OP_DUP_TOP,
-    OP_CALL,
+    OP_POP_TOP,
+
+    OP_MAKE_FUN,
+    OP_CALL_FUN,
     OP_RETURN,
 
     OP_LOOKUP,
     OP_LOOKUP_LOCAL,
     OP_STORE,
     OP_STORE_LOCAL,
+    OP_STORE_ARG_LOCAL,
     OP_CONSTANT,
 
     // Comparison
@@ -58,11 +62,12 @@ typedef struct constant_object {
 } Constant;
 
 typedef struct locals_list {
-    Object              **names;
+    Object              **names;    // Compile-time names of local vars
     unsigned            size;
     unsigned            count;
 } LocalsList;
 
+// Compile-time code context. Represents a compiled block of code / function body.
 typedef struct code_context {
     unsigned            nConstants;
     unsigned            nParameters;
@@ -79,17 +84,27 @@ typedef struct compiler_object {
 
 #define JUMP_LENGTH(block) ((block)->nInstructions)
 
-typedef struct eval_context {
-    unsigned            stack_size;
-    Instruction         *pc;
-    Object              **stack;
+// Run-time data to evaluate a CodeContext block
+typedef struct vmeval_scope {
+    struct vmeval_scope *outer;
     Object              **locals;
-} EvalContext;
+    CodeContext         *code;
+    HashObject          *globals;
+} VmScope;
 
-#define POP(context) *(--((context)->stack))
-#define PEEK(context) *context->stack
-#define PUSH(context, what) *((context)->stack++) = (what)
-#define JUMP(context, len) (context)->pc += (len)
+VmScope* VmScope_create(VmScope*, Object**, CodeContext*);
+void VmScope_assign(VmScope*, Object*, Object*);
+Object* VmScope_lookup(VmScope*, Object*);
+
+// Run-time args passing between calls to vmeval_eval
+typedef struct vmeval_call_args {
+    Object              **values;
+    size_t              count;
+} VmCallArgs;
+
+#define POP(stack) *(--(stack))
+#define PEEK(stack) *stack
+#define PUSH(stack, what) *(stack++) = (what)
 
 #define PRINT(value) do { \
     StringObject *S = (StringObject*) ((Object*) value)->type->as_string((Object*) value); \
@@ -97,5 +112,7 @@ typedef struct eval_context {
         ((Object*) value)->refcount); \
     DECREF(S); \
 } while(0)
+
+Object *vmeval_eval(CodeContext*, VmScope*, VmCallArgs*);
 
 #endif

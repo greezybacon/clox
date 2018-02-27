@@ -6,6 +6,10 @@
 #include "tuple.h"
 #include "Parse/parse.h"
 #include "Eval/scope.h"
+#include "Compile/vm.h"
+
+typedef struct code_context CodeContext;
+typedef struct vmeval_scope VmScope;
 
 typedef struct function_object {
     // Inherits from Object
@@ -21,10 +25,27 @@ typedef struct function_object {
 bool Function_isFunction(Object*);
 bool Function_isCallable(Object*);
 
-Object*
-Function_fromAST(ASTFunction*);
+Object* Function_fromAST(ASTFunction*);
 
-typedef Object* (*NativeFunctionCall)(Interpreter*, Object*, Object*) ;
+typedef struct code_object {
+    // Inherits from Object
+    Object      base;
+
+    Object      *name;
+    CodeContext *code;
+} CodeObject;
+
+Object* CodeObject_fromContext(ASTFunction*, CodeContext*);
+
+typedef struct vmfunction_object {
+    Object      base;
+    CodeObject  *code;
+    VmScope     *scope;
+} VmFunction;
+
+VmFunction* CodeObject_makeFunction(Object*, VmScope*);
+
+typedef Object* (*NativeFunctionCall)(VmScope*, Object*, Object*) ;
 
 typedef struct nfunction_object {
     // Inherits from Object

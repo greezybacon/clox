@@ -5,11 +5,12 @@
 #include <string.h>
 
 #include "object.h"
+#include "boolean.h"
 #include "function.h"
 #include "garbage.h"
 #include "string.h"
 #include "tuple.h"
-#include "Eval/interpreter.h"
+#include "Compile/vm.h"
 #include "Parse/debug_parse.h"
 
 static struct object_type FunctionType;
@@ -148,4 +149,90 @@ static struct object_type NativeFunctionType = (ObjectType) {
     .name = "native function",
     .call = nfunction_call,
     .as_string = nfunction_asstring,
+};
+
+
+
+
+static struct object_type CodeObjectType;
+
+Object*
+CodeObject_fromContext(ASTFunction *fun, CodeContext *code) {
+    CodeObject* O = object_new(sizeof(CodeObject), &CodeObjectType);
+    O->code = code;
+
+    if (fun->name_length)
+        O->name = String_fromCharArrayAndSize(fun->name, fun->name_length);
+
+    return (Object*) O;
+}
+
+Object*
+code_asstring(Object* self) {
+    assert(self->type == &CodeObjectType);
+
+    char buffer[256];
+    int bytes;
+    CodeObject* F = (CodeObject*) self;
+    if (F->name != NULL) {
+        assert(String_isString(F->name));
+        StringObject* S = (StringObject*) F->name;
+        bytes = snprintf(buffer, sizeof(buffer), "code<%.*s>@%p",
+            S->length, S->characters, self);
+    }
+    else {
+        bytes = snprintf(buffer, sizeof(buffer), "code@%p", self);
+    }
+    return (Object*) String_fromCharArrayAndSize(buffer, bytes);
+}
+
+static void
+code_cleanup(Object* self) {
+    assert(self->type == &CodeObjectType);
+
+    if (((CodeObject*) self)->name)
+        DECREF(((CodeObject*) self)->name);
+}
+
+static struct object_type CodeObjectType = (ObjectType) {
+    .name = "code",
+    .op_eq = IDENTITY,
+    .as_string = code_asstring,
+    .cleanup = code_cleanup,
+};
+
+
+
+static struct object_type VmFunctionObjectType;
+
+static void
+vmfun_cleanup(Object* self) {
+    assert(self->type == &VmFunctionObjectType);
+
+    free(((VmFunction*) self)->scope);
+}
+
+static Object*
+vmfun_call(Object* self, Object *object, Object *args) {
+    assert(self->type == &VmFunctionObjectType);
+
+    return vmeval_eval(((VmFunction*) self)->code->code, ((VmFunction*) self)->scope, NULL);
+}
+
+VmFunction*
+CodeObject_makeFunction(Object *code, VmScope *scope) {
+    assert(code->type == &CodeObjectType);
+
+    VmFunction* O = object_new(sizeof(VmFunction), &VmFunctionObjectType);
+    O->code = (CodeObject*) code;
+    O->scope = scope;
+
+    return O;
+}
+
+static struct object_type VmFunctionObjectType = (ObjectType) {
+    .name = "function",
+    .op_eq = IDENTITY,
+    .call = vmfun_call,
+    .cleanup = vmfun_cleanup,
 };

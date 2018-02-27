@@ -2,6 +2,7 @@
 
 #include "vm.h"
 #include "compile.h"
+#include "Objects/function.h"
 
 unsigned compile_node(Compiler *self, ASTNode* ast);
 
@@ -11,29 +12,18 @@ compile_error(Compiler* self, char* message) {
 }
 
 // Function compilation
-static void
-compile_push_context(Compiler* self) {
-    CodeContext *context = malloc(sizeof(CodeContext));
-    Object **constants = malloc(8 * sizeof(Object*));
-    *context = (CodeContext) {
-        .constants = constants,
-        .sizeConstants = 8,
-        .locals = (LocalsList) {
-            .size = 8,
-            .names = malloc(sizeof(Object*) * 8),
-        },
-    };
-    self->context = context;
-}
-
 static CodeContext*
 compile_pop_context(Compiler* self) {
     // Set the context of the compiler to be the previous, return the current
-}
+    CodeContext *rv = self->context;
+    self->context = self->context->prev;
 
-static unsigned
-compile_emit_context(Compiler* self, CodeContext* context) {
-    
+#ifdef DEBUG
+    print_codeblock(rv, rv->block);
+    printf("--------\n");
+#endif
+
+    return rv;
 }
 
 static void
@@ -47,6 +37,22 @@ compile_start_block(Compiler *self) {
     self->context->block = block;
 }
 
+static void
+compile_push_context(Compiler* self) {
+    CodeContext *context = malloc(sizeof(CodeContext));
+    *context = (CodeContext) {
+        .constants = malloc(8 * sizeof(Object*)),
+        .sizeConstants = 8,
+        .locals = (LocalsList) {
+            .size = 8,
+            .names = malloc(8 * sizeof(Object*)),
+        },
+        .prev = self->context,
+    };
+    self->context = context;
+    compile_start_block(self);
+}
+
 static CodeBlock*
 compile_block(Compiler *self, ASTNode* node) {
     compile_start_block(self);
@@ -56,15 +62,20 @@ compile_block(Compiler *self, ASTNode* node) {
     return rv;
 }
 
+static inline void
+compile_block_ensure_size(CodeBlock *block, unsigned size) {
+    while (block->size < size) {
+        block->size *= 2;
+        block->instructions = realloc(block->instructions,
+            block->size * sizeof(Instruction));
+    }
+}
+
 static unsigned
 compile_merge_block(Compiler *self, CodeBlock* block) {
     CodeBlock *current = self->context->block;
-    while (current->size - current->nInstructions < block->nInstructions) {
-        current->size *= 2;
-        current->instructions = realloc(current->instructions,
-            current->size * sizeof(Instruction));
-    }
 
+    compile_block_ensure_size(current, current->nInstructions + current->nInstructions);
     Instruction *i = block->instructions;
     unsigned rv = JUMP_LENGTH(block);
     for (; block->nInstructions--; i++)
@@ -102,11 +113,8 @@ compile_emit_constant(Compiler *self, Object *value) {
 static unsigned
 compile_emit(Compiler* self, enum opcode op, short argument) {
     CodeBlock *block = self->context->block;
-    if (block->nInstructions == block->size) {
-        block->size *= 2;
-        block->instructions = realloc(block->instructions,
-            block->size * sizeof(Instruction));
-    }
+
+    compile_block_ensure_size(block, block->nInstructions + 1);
     *(block->instructions + block->nInstructions++) = (Instruction) {
         .op = op,
         .arg = argument,
@@ -238,7 +246,17 @@ compile_expression(Compiler* self, ASTExpression *expr) {
             compile_error(self, "Parser error ...");
         }
     }
+
     return length;
+}
+
+static unsigned
+compile_return(Compiler *self, ASTReturn *node) {
+    unsigned length = 0;
+    if (node->expression)
+        length += compile_node(self, node->expression);
+
+    return length + compile_emit(self, OP_RETURN, 0);
 }
 
 static unsigned
@@ -312,29 +330,33 @@ compile_function(Compiler *self, ASTFunction *node) {
     ASTFuncParam *param;
     unsigned index, length = 0;
     
-    // Pop the arguments off the stack
-    // XXX: Do this in reverse
+    // (When the function is executed), load the arguments off the args list
+    // Into local variables. The arguments will be in the proper order already,
+    // so no need to reverse.
     for (p = node->arglist; p != NULL; p = p->next) {
         assert(p->type == AST_PARAM);
         param = (ASTFuncParam*) p;
-        index = compile_emit_constant(self, (Object*) String_fromCharArrayAndSize(param->name,
-            param->name_length));
-        length += compile_emit(self, OP_STORE, index);
+        index = compile_locals_allocate(self, 
+            (Object*) String_fromCharArrayAndSize(param->name, param->name_length));
+        length += compile_emit(self, OP_STORE_ARG_LOCAL, index);
     }
-
-    // Build the code in the new context
+    
+    // Compile the function's code in the new context
     length += compile_node(self, node->block);
 
-    // TODO: PUSH function pointer / name / something?
-    index = compile_emit_context(self, compile_pop_context(self));
+    // Create a constant for the function
+    index = compile_emit_constant(self,
+        CodeObject_fromContext(node, compile_pop_context(self)));
 
-    return length;
+    // (Meanwhile, back in the original context)
+    length += compile_emit(self, OP_CONSTANT, index);
+    return length + compile_emit(self, OP_MAKE_FUN, 0);
 }
 
 static unsigned
 compile_invoke(Compiler* self, ASTInvoke *node) {
-    // Push the function
-    unsigned length = compile_node(self, node->callable);
+    // Push the function / callable / lookup
+    unsigned length = 0;
 
     // Push all the arguments
     ASTNode* a = node->args;
@@ -342,8 +364,26 @@ compile_invoke(Compiler* self, ASTInvoke *node) {
     for (; a != NULL; a = a->next, count++)
         length += compile_node(self, a);
 
+    length += compile_node(self, node->callable);
+
     // Call the function
-    return length + compile_emit(self, OP_CALL, count);
+    return length + compile_emit(self, OP_CALL_FUN, count);
+}
+
+static unsigned
+compile_var(Compiler *self, ASTVar *node) {
+    unsigned length = 0, index;
+
+    // Make room in the locals for the name
+    index = compile_locals_allocate(self, (Object*) String_fromCharArrayAndSize(
+        node->name, node->name_length));
+
+    if (node->expression) {
+        length += compile_node(self, node->expression);
+        length += compile_emit(self, OP_STORE_LOCAL, index);
+    }
+
+    return length;
 }
 
 static unsigned
@@ -353,19 +393,19 @@ _compile_node(Compiler* self, ASTNode* ast) {
         return compile_assignment(self, (ASTAssignment*) ast);
     case AST_EXPRESSION:
         return compile_expression(self, (ASTExpression*) ast);
+    case AST_RETURN:
+        return compile_return(self, (ASTReturn*) ast);
     case AST_WHILE:
         return compile_while(self, (ASTWhile*) ast);
     case AST_FOR:
     case AST_IF:
         return compile_if(self, (ASTIf*) ast);
-
     case AST_VAR:
-
+        return compile_var(self, (ASTVar*) ast);
     case AST_FUNCTION:
         return compile_function(self, (ASTFunction*) ast);
     case AST_LITERAL:
         return compile_literal(self, (ASTLiteral*) ast);
-
     case AST_INVOKE:
         return compile_invoke(self, (ASTInvoke*) ast);
     case AST_LOOKUP:
@@ -401,7 +441,6 @@ compile_compile(Compiler* self, Parser* parser) {
     if (!parser)
         return 0;
 
-    compile_start_block(self);
     while ((ast = parser->next(parser))) {
         length += compile_node(self, ast);
     }
