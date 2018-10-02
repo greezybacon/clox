@@ -96,13 +96,13 @@ vmeval_eval(VmEvalContext *ctx) {
             case OP_LOOKUP:
             C = ctx->code->constants + pc->arg;
             assert(ctx->scope);
-            PUSH(stack, VmScope_lookup(ctx->scope, C->value));
+            PUSH(stack, VmScope_lookup(ctx->scope, C->value, C->hash));
             break;
 
             case OP_STORE:
             C = ctx->code->constants + pc->arg;
             assert(ctx->scope);
-            VmScope_assign(ctx->scope, C->value, POP(stack));
+            VmScope_assign(ctx->scope, C->value, POP(stack), C->hash);
             break;
 
             case OP_STORE_LOCAL:

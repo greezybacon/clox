@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "interpreter.h"
+#include "Compile/vm.h"
 #include "repl.h"
 #include "Include/Lox.h"
 

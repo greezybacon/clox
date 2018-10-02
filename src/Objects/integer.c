@@ -130,7 +130,10 @@ integer_op_divide(Object* self, Object* other) {
 
     // Promote floating point operations
     if (other->type->code == TYPE_FLOAT) {
-        return other->type->op_slash(other, self);
+        FloatObject *F = self->type->as_float(self),
+                    *rv = F->base.type->op_slash(F, other);
+        DECREF(F);
+        return rv;
     }
     // Else coerce to integer
     else other = coerce_integer(other);

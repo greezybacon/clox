@@ -195,6 +195,16 @@ Hash_getItem(HashObject* self, Object* key) {
     return hash_get((Object*) self, key);
 }
 
+Object*
+Hash_getItemEx(HashObject* self, Object* key, hashval_t hash) {
+    assert(self);
+    HashEntry *rv = hash_lookup_fast(self, key, hash);
+    if (rv != NULL)
+        return rv->value;
+
+    return NULL;
+}
+
 void
 Hash_setItem(HashObject* self, Object* key, Object* value) {
     assert(self);

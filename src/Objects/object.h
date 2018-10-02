@@ -80,4 +80,10 @@ typedef struct object {
 void*
 object_new(size_t size, ObjectType*);
 
+#define HASHVAL(object) (hashval_t) ((object)->type->hash ? (object)->type->hash(object) : (unsigned int) (object))
+
+static inline hashval_t *MYADDRESS(Object *self) {
+    return (hashval_t) (unsigned int) self;
+}
+
 #endif

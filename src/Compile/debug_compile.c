@@ -84,7 +84,7 @@ print_opcode(const CodeContext *context, const Instruction *op) {
 
     case OP_STORE_LOCAL:
     case OP_LOOKUP_LOCAL: {
-        Object *T = *(context->locals.names + op->arg);
+        Object *T = (context->locals.names + op->arg)->value;
         if (T && T->type && T->type->as_string) {
             StringObject *S = (StringObject*) T->type->as_string(T);
             assert(String_isString((Object*) S));

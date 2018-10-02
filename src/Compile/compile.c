@@ -46,7 +46,7 @@ compile_push_context(Compiler* self) {
         .sizeConstants = 8,
         .locals = (LocalsList) {
             .size = 8,
-            .names = malloc(8 * sizeof(Object*)),
+            .names = malloc(8 * sizeof(Constant)),
         },
         .prev = self->context,
     };
@@ -128,13 +128,15 @@ compile_emit(Compiler* self, enum opcode op, short argument) {
 }
 
 static int
-compile_locals_islocal(Compiler *self, Object *name) {
+compile_locals_islocal(Compiler *self, Object *name, hashval_t hash) {
     int index = 0;
     LocalsList *locals = &self->context->locals;
 
     // Direct search through the locals list
     while (index < locals->count) {
-        if (LoxTRUE == name->type->op_eq(name, *(locals->names + index))) {
+        if ((locals->names + index)->hash == hash
+            && LoxTRUE == name->type->op_eq(name, (locals->names + index)->value)
+        ) {
             // Already in the locals list
             return index;
         }
@@ -152,17 +154,21 @@ compile_locals_allocate(Compiler *self, Object *name) {
     int index;
     LocalsList *locals = &self->context->locals;
 
-    if (-1 != (index = compile_locals_islocal(self, name))) {
+    hashval_t hash = HASHVAL(name);
+    if (-1 != (index = compile_locals_islocal(self, name, hash))) {
         return index;
     }
 
     // Ensure space in the index and locals
     if (locals->size < locals->count) {
         locals->size += 8;
-        locals->names = realloc(locals->names, sizeof(Object*) * locals->size);
+        locals->names = realloc(locals->names, sizeof(*locals->names) * locals->size);
     }
 
-    *(locals->names + locals->count) = name;
+    *(locals->names + locals->count) = (Constant) {
+        .value = name,
+        .hash = name->type->hash(name),
+    };
     return locals->count++;
 }
 
@@ -276,7 +282,7 @@ static unsigned
 compile_lookup(Compiler *self, ASTLookup *node) {
     // See if the name is in the locals list
     int index;
-    if (-1 != (index = compile_locals_islocal(self, node->name))) {
+    if (-1 != (index = compile_locals_islocal(self, node->name, HASHVAL(node->name)))) {
         return compile_emit(self, OP_LOOKUP_LOCAL, index);
     }
     // Fetch the index of the name constant

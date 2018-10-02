@@ -172,6 +172,7 @@ code_cleanup(Object* self) {
 
 static struct object_type CodeObjectType = (ObjectType) {
     .name = "code",
+    .hash = MYADDRESS,
     .op_eq = IDENTITY,
     .as_string = code_asstring,
     .cleanup = code_cleanup,
@@ -222,6 +223,7 @@ CodeObject_makeFunction(Object *code, VmScope *scope) {
 
 static struct object_type VmFunctionObjectType = (ObjectType) {
     .name = "function",
+    .hash = MYADDRESS,
     .op_eq = IDENTITY,
     .call = vmfun_call,
     .cleanup = vmfun_cleanup,

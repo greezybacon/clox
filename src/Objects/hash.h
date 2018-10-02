@@ -43,6 +43,7 @@ typedef struct hash_object {
 HashObject* Hash_new(void);
 HashObject* Hash_newWithSize(size_t);
 Object* Hash_getItem(HashObject*, Object*);
+Object* Hash_getItemEx(HashObject*, Object*, hashval_t);
 bool Hash_contains(HashObject*, Object*);
 void Hash_setItem(HashObject*, Object*, Object*);
 

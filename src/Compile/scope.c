@@ -28,7 +28,7 @@ VmScope_leave(VmScope* self) {
 #include "Objects/garbage.h"
 
 static Object*
-VmScope_lookup_local(VmScope* self, Object* name) {
+VmScope_lookup_local(VmScope* self, Object* name, hashval_t hash) {
     int index = 0;
     if (!self->code || !self->locals)
         return NULL;
@@ -37,7 +37,9 @@ VmScope_lookup_local(VmScope* self, Object* name) {
 
     // Direct search through the locals list
     while (index < locals->count) {
-        if (LoxTRUE == name->type->op_eq(name, *(locals->names + index))) {
+        if ((locals->names + index)->hash == hash
+            && LoxTRUE == name->type->op_eq(name, (locals->names + index)->value)
+        ) {
             // Found it in the locals list
             return *(self->locals + index);
         }
@@ -46,26 +48,30 @@ VmScope_lookup_local(VmScope* self, Object* name) {
 
     // Search outer scope(s)
     if (self->outer)
-        return VmScope_lookup_local(self->outer, name);
+        return VmScope_lookup_local(self->outer, name, hash);
 
     return NULL;
 }
 
 Object*
-VmScope_lookup(VmScope* self, Object* name) {
+VmScope_lookup(VmScope* self, Object* name, hashval_t hash) {
     Object *rv;
-    if (self->locals && (rv = VmScope_lookup_local(self, name)))
+    if (self->locals && (rv = VmScope_lookup_local(self, name, hash)))
         return rv;
 
     // Search globals
-    if (self->globals && (rv = Hash_getItem(self->globals, name)))
+    if (self->globals && (rv = Hash_getItemEx(self->globals, name, hash)))
         return rv;
 
+    if (self->outer)
+        return VmScope_lookup(self->outer, name, hash);
+
     return LoxNIL;
+
 }
 
 static bool
-VmScope_assign_local(VmScope* self, Object* name, Object* value) {
+VmScope_assign_local(VmScope* self, Object* name, Object* value, hashval_t hash) {
     // See if the variable is in the immediately outer scope (stack)
     int index = 0;
     LocalsList *locals = &self->code->locals;
@@ -73,7 +79,9 @@ VmScope_assign_local(VmScope* self, Object* name, Object* value) {
 
     // Direct search through the locals list
     while (index < locals->count) {
-        if (LoxTRUE == name->type->op_eq(name, *(locals->names + index))) {
+        if ((locals->names + index)->hash == hash
+            && LoxTRUE == name->type->op_eq(name, (locals->names + index)->value)
+        ) {
             // Found it in the locals list
             Object *old = *(self->locals + index);
             *(self->locals + index) = value;
@@ -88,15 +96,15 @@ VmScope_assign_local(VmScope* self, Object* name, Object* value) {
     
     // ???: Unable to find in this scope -- look further out
     if (self->outer)
-        return VmScope_assign_local(self->outer, name, value);
+        return VmScope_assign_local(self->outer, name, value, hash);
 
     return false;
 }
 
 void
-VmScope_assign(VmScope* self, Object* name, Object* value) {
+VmScope_assign(VmScope* self, Object* name, Object* value, hashval_t hash) {
     Object *rv;
-    if (self->locals && VmScope_assign_local(self, name, value))
+    if (self->locals && VmScope_assign_local(self, name, value, hash))
         return;
 
     // TODO: Assign global?

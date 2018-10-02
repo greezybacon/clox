@@ -58,13 +58,13 @@ typedef struct code_instructions {
     struct instruction  *instructions;
 } CodeBlock;
 
-typedef struct constant_object {
+typedef struct code_constant {
     Object              *value;
     hashval_t           hash;
 } Constant;
 
 typedef struct locals_list {
-    Object              **names;    // Compile-time names of local vars
+    Constant            *names;     // Compile-time names of local vars
     unsigned            size;
     unsigned            count;
 } LocalsList;
@@ -100,8 +100,8 @@ typedef struct vmeval_scope {
 } VmScope;
 
 VmScope* VmScope_create(VmScope*, Object**, CodeContext*);
-void VmScope_assign(VmScope*, Object*, Object*);
-Object* VmScope_lookup(VmScope*, Object*);
+void VmScope_assign(VmScope*, Object*, Object*, hashval_t);
+Object* VmScope_lookup(VmScope*, Object*, hashval_t);
 
 // Run-time args passing between calls to vmeval_eval
 typedef struct vmeval_call_args {
