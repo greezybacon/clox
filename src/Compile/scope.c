@@ -20,6 +20,8 @@ VmScope_create(VmScope *outer, Object **locals, CodeContext *code) {
 VmScope*
 VmScope_leave(VmScope* self) {
     VmScope* rv = self->outer;
+
+    free(self->locals);
     free(self);
     return rv;
 }

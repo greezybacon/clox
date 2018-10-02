@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <string.h>
 
 #include "vm.h"
 #include "compile.h"
@@ -13,7 +14,8 @@ vmeval_eval(VmEvalContext *ctx) {
     Constant *C;
 
     // Setup storage for the stack and locals
-    Object **locals = calloc(ctx->code->locals.count, sizeof(Object*));
+    Object *_locals[ctx->code->locals.count], **locals = &_locals[0];
+    memset(&_locals, 0, sizeof(_locals));
 
     // TODO: Add estimate for MAX_STACK in the compile phase
     // XXX: Program could overflow 32-slot stack
@@ -71,9 +73,12 @@ vmeval_eval(VmEvalContext *ctx) {
 
             case OP_CLOSE_FUN: {
                 CodeObject *code = (CodeObject*) POP(stack);
+                // Copy the locals into a persistent storage
+                Object **closed_locals = malloc(ctx->code->locals.count * sizeof(Object*));
+                memcpy((void*) closed_locals, locals, sizeof(_locals));
                 VmFunction *fun = CodeObject_makeFunction((Object*) code,
                     // XXX: Globals?
-                    VmScope_create(ctx->scope, locals, ctx->code));
+                    VmScope_create(ctx->scope, closed_locals, ctx->code));
                 PUSH(stack, (Object*) fun);
             }
             break;
