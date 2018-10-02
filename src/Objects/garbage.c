@@ -5,7 +5,7 @@
 #include "garbage.h"
 #include "object.h"
 
-static GarbageHeap pile = {};
+static GarbageHeap *pile = NULL;
 
 static void
 _garbage_collect(Object* object) {
@@ -21,23 +21,26 @@ _garbage_collect(Object* object) {
 void
 garbage_collect(void) {
     printf("Collecting garbage...\n");
-    PieceOfTrash *leftover = pile.heap, *item = pile.heap;
-    while (item) {
-        if (item->object->refcount == 0) {
+    PieceOfTrash *leftover = pile->heap, *item = pile->heap;
+    int i;
+    for (i=0; i<GARBAGE_HEAP_SIZE; i++) {
+        if (pile->count == 0)
+            break;
+        if (item->inuse && item->object->refcount == 0) {
             _garbage_collect(item->object);
-            pile.count--;
+            pile->count--;
         }
         // Either way, evict from garbage.
         item->inuse = false;
-        item = item->next;
+        item++; // = item->next;
     }
 }
 
 static PieceOfTrash *
 _garbage_find_slot(void) {
     int i;
-    PieceOfTrash *item = pile.heap;
-    for(i=0; i<GARBAGE_HEAP_SIZE; i++) {
+    PieceOfTrash *item = pile->heap;
+    for (i=0; i<GARBAGE_HEAP_SIZE; i++) {
         if (!item->inuse)
             return item;
         item++;
@@ -47,6 +50,9 @@ _garbage_find_slot(void) {
 
 void
 garbage_mark(Object* object) {
+    if (pile == NULL)
+        pile = calloc(1, sizeof(GarbageHeap));
+
     PieceOfTrash *item = _garbage_find_slot();
     if (!item) {
         garbage_collect();
@@ -55,6 +61,6 @@ garbage_mark(Object* object) {
     else {
         item->object = object;
         item->inuse = true;
-        pile.count++;
+        pile->count++;
     }
 }

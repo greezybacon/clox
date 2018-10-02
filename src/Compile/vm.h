@@ -102,6 +102,7 @@ typedef struct vmeval_scope {
 VmScope* VmScope_create(VmScope*, Object**, CodeContext*);
 void VmScope_assign(VmScope*, Object*, Object*, hashval_t);
 Object* VmScope_lookup(VmScope*, Object*, hashval_t);
+VmScope* VmScope_leave(VmScope*);
 
 // Run-time args passing between calls to vmeval_eval
 typedef struct vmeval_call_args {

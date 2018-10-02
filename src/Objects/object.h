@@ -82,8 +82,9 @@ object_new(size_t size, ObjectType*);
 
 #define HASHVAL(object) (hashval_t) ((object)->type->hash ? (object)->type->hash(object) : (unsigned int) (object))
 
-static inline hashval_t *MYADDRESS(Object *self) {
-    return (hashval_t) (unsigned int) self;
+static hashval_t MYADDRESS(Object *self) {
+    Object **pself = &self;
+    return (hashval_t) *pself;
 }
 
 #endif

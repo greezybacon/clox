@@ -186,7 +186,9 @@ static void
 vmfun_cleanup(Object* self) {
     assert(self->type == &VmFunctionObjectType);
 
-    free(((VmFunction*) self)->scope);
+    VmFunction *this = (VmFunction*) self;
+    if (this->scope)
+        VmScope_leave(this->scope);
 }
 
 static Object*
