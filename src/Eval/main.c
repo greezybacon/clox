@@ -69,7 +69,7 @@ main(int argc, char** argv) {
     if (arguments->input_file) {
         FILE *file = fopen(arguments->input_file, "r");
         if (file) {
-            result = eval_file(file);
+            result = vmeval_file(file);
         }
     }
     else if (arguments->cmd) {

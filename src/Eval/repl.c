@@ -12,6 +12,7 @@ eval_repl_isdangling(Interpreter* self, char* code, size_t length) {
     Stream _stream, *stream = &_stream;
     Tokenizer* tokens;
     bool rv = false;
+    int parens = 0, braces = 0;
 
     stream_init_buffer(stream, code, length);
     tokens = tokenizer_init(stream);
@@ -22,14 +23,23 @@ eval_repl_isdangling(Interpreter* self, char* code, size_t length) {
     while ((next = tokens->next(tokens))->type != T_EOF) {
         switch (next->type) {
         case T_OPEN_PAREN:
+            parens += 1;
+            break;
         case T_CLOSE_PAREN:
+            parens -= 1;
+            break;
         case T_OPEN_BRACE:
+            braces += 1;
+            break;
         case T_CLOSE_BRACE:
+            braces -= 1;
             break;
         }
     }
-
     free(tokens);
+
+    // Ensure braces and parentheses are balanced
+    rv = braces != 0 || parens != 0;
 
 exit: 
     stream_uninit(stream);
@@ -45,15 +55,10 @@ repl_onecmd(CmdLoop *self, const char* line) {
     if (strncmp(line, "EOF", 3) == 0)
         return true;
 
-    Stream _stream, *stream = &_stream;
-    Parser _parser, *parser = &_parser;
-
-    stream_init_buffer(stream, line, strlen(line));
-    parser_init(parser, stream);
-    Object* result = self->interpreter->eval(self->interpreter, parser);
+    Object* result = vmeval_string_inscope(line, strlen(line), self->scope);
 
     if (result && result != LoxNIL) {
-        StackFrame_assign_local(self->interpreter->stack, _, result);
+        Hash_setItem(self->scope->globals, _, result);
         StringObject *S = (StringObject*) result->type->as_string(result);
         printf("%.*s\n", S->length, S->characters);
         DECREF(S);
@@ -63,7 +68,7 @@ repl_onecmd(CmdLoop *self, const char* line) {
 
 void
 repl_loop(CmdLoop* self) {
-    char *buffer = calloc(2048, sizeof(char));
+    char *buffer = calloc(2048, sizeof(char)), *pbuffer = buffer;
 
     if (self->preloop)
         self->preloop(self);
@@ -71,28 +76,39 @@ repl_loop(CmdLoop* self) {
         printf("%s\n", self->intro);
 
     bool stop = false;
-    char *line;
+    char *line, *prompt = self->prompt;
     while (!stop) {
-        if (self->prompt)
-            printf("%s", self->prompt);
+        if (prompt)
+            printf("%s", prompt);
 
-        line = fgets(buffer, 2048 * sizeof(char), stdin);
+        line = fgets(pbuffer, (2048 - (pbuffer - buffer)) * sizeof(char), stdin);
         if (!line)
             line = "EOF";
+
+        pbuffer += strlen(line);
+        if (eval_repl_isdangling(self, buffer, pbuffer - buffer)) {
+            prompt = self->prompt2;
+            continue;
+        }
 
         stop = self->onecmd(self, line);
         if (self->postcmd)
             stop = self->postcmd(self, stop, line);
+
+        prompt = self->prompt;
     }
     free(buffer);
 }
 
 void
 repl_init(CmdLoop *loop, Interpreter* eval) {
+    VmScope *scope = malloc(sizeof(VmScope));
+    *scope = (VmScope) { .globals = Hash_new() };
     *loop = (CmdLoop) {
         .prompt = "(Lox) ",
+        .prompt2 = " ...  ",
         .onecmd = repl_onecmd,
-        .interpreter = eval,
+        .scope = scope,
     };
 }
 

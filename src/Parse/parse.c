@@ -67,10 +67,9 @@ parse_block(Parser* self) {
         }
         peek = T->peek(T);
     }
-    while (peek->type != T_CLOSE_BRACE);
+    while (peek->type != T_EOF && peek->type != T_CLOSE_BRACE);
 
-    // Console close brace
-    T->next(T);
+    parse_expect(self, T_CLOSE_BRACE);
 
     return result;
 }
@@ -546,6 +545,12 @@ parser_parse_next(Parser* self) {
     case T_RETURN:
         self->tokens->next(self->tokens);
         rv = parse_statement(self);
+        break;
+        
+    case T_COMMENT:
+        // For now, do nothing -- this isn't the line you're looking for. Move along
+        self->tokens->next(self->tokens);
+        rv = parser_parse_next(self);
         break;
 
     case T_EOF:

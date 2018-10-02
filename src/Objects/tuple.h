@@ -15,6 +15,7 @@ typedef struct tuple_object {
 
 TupleObject* Tuple_new(size_t);
 TupleObject* Tuple_fromArgs(size_t, ...);
+TupleObject* Tuple_fromList(size_t, Object*);
 Object* Tuple_getItem(TupleObject*, int);
 void Tuple_setItem(TupleObject*, size_t, Object*);
 bool Tuple_isTuple(Object*);

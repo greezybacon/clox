@@ -22,7 +22,7 @@ Function_isCallable(Object* object) {
     
     assert(object->type);
     
-    return (object->type->call != NULL);
+    return object->type->call != NULL;
 }
 
 bool
@@ -58,31 +58,9 @@ Function_fromAST(ASTFunction* fun) {
     }
 
     if (fun->name_length)
-        O->name = String_fromCharArrayAndSize(fun->name, fun->name_length);
+        O->name = (Object*) String_fromCharArrayAndSize(fun->name, fun->name_length);
 
     return (Object*) O;
-}
-
-static Object*
-function_call(Object* self, Interpreter* eval, Object* object, Object* args) {
-    assert(self->type == &FunctionType);
-    assert(Tuple_isTuple(args));
-
-    // XXX: Assumes params and args have same length. This should handle
-    // differing lengths by using the default value or assigning NIL or
-    // undefined
-    FunctionObject* fun = (FunctionObject*) self;
-    Object** param_names = fun->parameters;
-    size_t i = 0, count = Tuple_getSize(args);
-
-    for (; i < count; i++, param_names++) {
-        StackFrame_assign_local(eval->stack, *param_names,
-            Tuple_getItem((TupleObject*) args, i));
-    }
-
-    // The idea is that the current stack frame for this invocation has
-    // already been setup in the interpreter (before this call)
-    return eval_node(eval, ((FunctionObject*) self)->code);
 }
 
 static Object*
@@ -116,12 +94,10 @@ static struct object_type FunctionType = (ObjectType) {
     .code = TYPE_FUNCTION,
     .name = "function",
 
-    .call = function_call,
     .as_string = function_asstring,
 
     .cleanup = function_cleanup,
 };
-
 
 
 static struct object_type NativeFunctionType;
@@ -134,15 +110,15 @@ NativeFunction_new(NativeFunctionCall callable) {
 }
 
 static Object*
-nfunction_call(Object* self, Interpreter* eval, Object* object, Object* args) {
+nfunction_call(Object* self, VmScope *scope, Object* object, Object* args) {
     assert(self->type == &NativeFunctionType);
-    return ((NFunctionObject*) self)->callable(eval, object, args);
+    return ((NFunctionObject*) self)->callable(scope, object, args);
 }
 
 static Object*
 nfunction_asstring(Object* self) {
     assert(self->type == &NativeFunctionType);
-    return String_fromCharArrayAndSize("native code {}", 14);
+    return (Object*) String_fromCharArrayAndSize("native code {}", 14);
 }
 
 static struct object_type NativeFunctionType = (ObjectType) {
@@ -162,7 +138,7 @@ CodeObject_fromContext(ASTFunction *fun, CodeContext *code) {
     O->code = code;
 
     if (fun->name_length)
-        O->name = String_fromCharArrayAndSize(fun->name, fun->name_length);
+        O->name = (Object*) String_fromCharArrayAndSize(fun->name, fun->name_length);
 
     return (Object*) O;
 }
@@ -213,10 +189,24 @@ vmfun_cleanup(Object* self) {
 }
 
 static Object*
-vmfun_call(Object* self, Object *object, Object *args) {
+vmfun_call(Object* self, VmScope *ignored, Object *object, Object *args) {
     assert(self->type == &VmFunctionObjectType);
+    assert(Tuple_isTuple(args));
 
-    return vmeval_eval(((VmFunction*) self)->code->code, ((VmFunction*) self)->scope, NULL);
+    VmEvalContext call_ctx = (VmEvalContext) {
+        .code = ((VmFunction*) self)->code->code,
+        .scope = ((VmFunction*) self)->scope,
+        .args = (VmCallArgs) {
+            .values = ((TupleObject*) args)->items,
+            .count = ((TupleObject*) args)->count,
+        },
+    };
+    return vmeval_eval(&call_ctx);
+}
+
+static Object*
+vmfun_asstring(Object *self) {
+    return (Object*) String_fromCharArrayAndSize("function() {}", 13);
 }
 
 VmFunction*
@@ -235,4 +225,5 @@ static struct object_type VmFunctionObjectType = (ObjectType) {
     .op_eq = IDENTITY,
     .call = vmfun_call,
     .cleanup = vmfun_cleanup,
+    .as_string = vmfun_asstring,
 };

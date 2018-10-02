@@ -16,11 +16,11 @@ enum base_type {
 typedef struct object Object;
 typedef unsigned long int hashval_t;
 typedef struct bool_object BoolObject;
-typedef struct interp_context Interpreter;
+typedef struct vmeval_scope VmScope;
 
 typedef struct object_method {
     char*       name;
-    Object*     (*method)(Interpreter*, Object*, Object*);
+    Object*     (*method)(VmScope*, Object*, Object*);
 } ObjectMethod;
 
 typedef struct object_type {
@@ -63,7 +63,7 @@ typedef struct object_type {
     Object* (*compare)(Object*, Object*);
 
     // TODO: Callable
-	Object* (*call)(Object*, Interpreter*, Object*, Object*);
+	Object* (*call)(Object*, VmScope*, Object*, Object*);
 
     // TODO: Methods (stuff unique to each type)
     ObjectMethod* methods;

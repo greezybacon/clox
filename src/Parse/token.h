@@ -4,7 +4,7 @@
 #include "stream.h"
 
 enum token_type {
-    T_EOF = 0,
+    T_EOF = -1,
     T_WHITESPACE = 1,
     T_TRUE,
     T_FALSE,
@@ -44,6 +44,7 @@ enum token_type {
     T_CLOSE_BRACKET,
     T_COMMA,
     T_RETURN,
+    T_COMMENT,
 };
 
 typedef struct token {

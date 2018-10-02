@@ -7,12 +7,14 @@ enum opcode {
     // Basic
     OP_NOOP = 0,
     OP_JUMP,
+    OP_JUMP_IF_TRUE,
     OP_POP_JUMP_IF_TRUE,
+    OP_JUMP_IF_FALSE,
     OP_POP_JUMP_IF_FALSE,
     OP_DUP_TOP,
     OP_POP_TOP,
 
-    OP_MAKE_FUN,
+    OP_CLOSE_FUN,
     OP_CALL_FUN,
     OP_RETURN,
 
@@ -78,8 +80,13 @@ typedef struct code_context {
     struct code_context *prev;
 } CodeContext;
 
+enum compiler_flags {
+    CFLAG_LOCAL_VARS =  0x00000001,         // Use local vars where possible
+};
+
 typedef struct compiler_object {
     CodeContext         *context;
+    unsigned            flags;
 } Compiler;
 
 #define JUMP_LENGTH(block) ((block)->nInstructions)
@@ -113,6 +120,15 @@ typedef struct vmeval_call_args {
     DECREF(S); \
 } while(0)
 
-Object *vmeval_eval(CodeContext*, VmScope*, VmCallArgs*);
+typedef struct vmeval_context {
+    CodeContext     *code;
+    VmScope         *scope;
+    VmCallArgs      args;
+} VmEvalContext;
+
+Object *vmeval_eval(VmEvalContext*);
+Object* vmeval_string(const char*, size_t);
+Object* vmeval_string_inscope(const char*, size_t, VmScope*);
+Object* vmeval_file(FILE *input);
 
 #endif

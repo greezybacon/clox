@@ -5,6 +5,7 @@
 #include "object.h"
 #include "boolean.h"
 #include "integer.h"
+#include "garbage.h"
 #include "string.h"
 
 static struct object_type StringType;
@@ -14,6 +15,14 @@ String_fromCharArrayAndSize(char *characters, size_t size) {
     StringObject* O = object_new(sizeof(StringObject), &StringType);
     O->length = size;
     O->characters = strndup(characters, size);
+    return O;
+}
+
+static StringObject*
+String_fromMalloc(char *characters, size_t size) {
+    StringObject* O = object_new(sizeof(StringObject), &StringType);
+    O->length = size;
+    O->characters = characters;
     return O;
 }
 
@@ -73,6 +82,7 @@ string_len(Object* self) {
 
 static Object*
 string_asstring(Object* self) {
+    INCREF(self);
     return self;
 }
 
@@ -99,6 +109,7 @@ string_asint(Object* self) {
 static BoolObject*
 string_op_eq(Object* self, Object* other) {
     assert(self->type == &StringType);
+    assert(other);
     
     if (other->type != self->type)
         return LoxFALSE;

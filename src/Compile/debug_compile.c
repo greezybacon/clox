@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -14,12 +15,14 @@ static struct named_opcode OpcodeNames[] = {
     { OP_JUMP,          "JUMP" },
     { OP_POP_JUMP_IF_TRUE, "POP_JUMP_IF_TRUE" },
     { OP_POP_JUMP_IF_FALSE, "POP_JUMP_IF_FALSE" },
+    { OP_JUMP_IF_TRUE, "JUMP_IF_TRUE" },
+    { OP_JUMP_IF_FALSE, "JUMP_IF_FALSE" },
     { OP_DUP_TOP,       "DUP_TOP" },
     { OP_POP_TOP,       "POP_TOP" },
     
     // Functions
-    { OP_CALL_FUN,      "CALL_FUN" },
-    { OP_MAKE_FUN,      "MAKE_FUN" },
+    { OP_CALL_FUN,      "CALL_FUNCTION" },
+    { OP_CLOSE_FUN,     "CLOSE_FUNCTION" },
     { OP_RETURN,        "RETURN" },
 
     // Variables
@@ -55,7 +58,7 @@ static int cmpfunc (const void * a, const void * b) {
 }
 
 static inline void
-print_opcode(CodeContext *context, Instruction *op) {
+print_opcode(const CodeContext *context, const Instruction *op) {
     struct named_opcode* T, key = { .code = op->op };
     T = bsearch(&key, OpcodeNames, sizeof(OpcodeNames) / sizeof(struct named_opcode), 
         sizeof(struct named_opcode), cmpfunc);
@@ -70,7 +73,8 @@ print_opcode(CodeContext *context, Instruction *op) {
         Constant *C = context->constants + op->arg;
         Object *T = C->value;
         if (T && T->type && T->type->as_string) {
-            StringObject *S = T->type->as_string(T);
+            StringObject *S = (StringObject*) T->type->as_string(T);
+            assert(String_isString((Object*) S));
             printf(" (%.*s)", S->length, S->characters);
             if (!String_isString(T))
                 DECREF(S);
@@ -82,7 +86,8 @@ print_opcode(CodeContext *context, Instruction *op) {
     case OP_LOOKUP_LOCAL: {
         Object *T = *(context->locals.names + op->arg);
         if (T && T->type && T->type->as_string) {
-            StringObject *S = T->type->as_string(T);
+            StringObject *S = (StringObject*) T->type->as_string(T);
+            assert(String_isString((Object*) S));
             printf(" (%.*s)", S->length, S->characters);
             if (!String_isString(T))
                 DECREF(S);
@@ -95,7 +100,7 @@ print_opcode(CodeContext *context, Instruction *op) {
 }
 
 void
-print_instructions(CodeContext *context, Instruction *block, int count) {
+print_instructions(const CodeContext *context, const Instruction *block, int count) {
     static bool sorted = false;
     if (!sorted) {
         qsort(OpcodeNames, sizeof(OpcodeNames) / sizeof(struct named_opcode),
@@ -108,6 +113,6 @@ print_instructions(CodeContext *context, Instruction *block, int count) {
 }
 
 void
-print_codeblock(CodeContext* context, CodeBlock *block) {
+print_codeblock(const CodeContext* context, const CodeBlock *block) {
     print_instructions(context, block->instructions, block->nInstructions);
 }

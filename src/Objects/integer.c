@@ -201,6 +201,7 @@ static struct object_type IntegerType = (ObjectType) {
 	.op_star = integer_op_multiply,
 	.op_slash = integer_op_divide,
 
+    // comparison
     .op_lt = integer_op_lt,
     .op_lte = integer_op_lte,
     .op_gt = integer_op_gt,

@@ -1,10 +1,11 @@
 #include <assert.h>
+#include <stdio.h>
 
 #include "vm.h"
 #include "compile.h"
 #include "Objects/function.h"
 
-unsigned compile_node(Compiler *self, ASTNode* ast);
+static unsigned compile_node(Compiler *self, ASTNode* ast);
 
 static void
 compile_error(Compiler* self, char* message) {
@@ -91,22 +92,26 @@ static unsigned short
 compile_emit_constant(Compiler *self, Object *value) {
     CodeContext *context = self->context;
     unsigned short index = 0;
-    {
-        Object **C = context->constants;
-        while (index < context->nConstants) {
-            if (Bool_isTrue(value->type->op_eq(value, *C)))
-                return index;
-            index++;
-            C++;
-        }
+
+    // Short-circuit this process for emitting repeat constants
+    Constant *C = context->constants;
+    while (index < context->nConstants) {
+        if (LoxTRUE == value->type->op_eq(value, C->value))
+            return index;
+        index++;
+        C++;
     }
+
     if (context->nConstants == context->sizeConstants) {
         context->sizeConstants *= 2;
         context->constants = realloc(context->constants,
-            context->sizeConstants * sizeof(Object*));
+            context->sizeConstants * sizeof(Constant));
     }
     index = context->nConstants++;
-    *(context->constants + index) = value;
+    *(context->constants + index) = (Constant) {
+        .value = value,
+        .hash = (value->type->hash) ? value->type->hash(value) : 0,
+    };  
     return index;
 }
 
@@ -167,7 +172,7 @@ compile_assignment(Compiler *self, ASTAssignment *assign) {
     unsigned length = compile_node(self, assign->expression);
     unsigned index;
     
-    if (true) {
+    if (self->flags & CFLAG_LOCAL_VARS) {
         // Lookup or allocate a local variable
         index = compile_locals_allocate(self, assign->name);
         length += compile_emit(self, OP_STORE_LOCAL, index);
@@ -195,6 +200,7 @@ compile_expression(Compiler* self, ASTExpression *expr) {
         break;
 
         case T_OP_MINUS:
+
         case T_OP_PLUS:
         default:
         // This is really a noop
@@ -301,21 +307,24 @@ static unsigned
 compile_if(Compiler *self, ASTIf *node) {
     // Emit the condition
     unsigned length = compile_node(self, node->condition);
-    // Duplicate the ToS if there is an otherwise
-    if (node->otherwise)
-        compile_emit(self, OP_DUP_TOP, 0);
 
     // Compile (but not emit) the code block
     CodeBlock *block = compile_block(self, node->block);
+
     // Jump over the block if condition is false
-    length += compile_emit(self, OP_POP_JUMP_IF_FALSE, JUMP_LENGTH(block));
+    // TODO: The JUMP could perhaps be omitted (if the end of `block` is RETURN)
+    // ... 1 for JUMP below (if node->otherwise)
+    length += compile_emit(self, OP_POP_JUMP_IF_FALSE, JUMP_LENGTH(block) + (
+        node->otherwise ? 1 : 0));
+    // Add in the block following the condition
     length += compile_merge_block(self, block);
 
     // If there's an otherwise, then emit it
     if (node->otherwise) {
         block = compile_block(self, node->otherwise);
-        // Jump over the block if condition is true
-        length += compile_emit(self, OP_POP_JUMP_IF_FALSE, JUMP_LENGTH(block));
+        // (As part of the positive/previous block), skip the ELSE part. 
+        // TODO: If the last line was RETURN, this could be ignored
+        length += compile_emit(self, OP_JUMP, JUMP_LENGTH(block));
         length += compile_merge_block(self, block);
     }
     return length;
@@ -342,7 +351,12 @@ compile_function(Compiler *self, ASTFunction *node) {
     }
     
     // Compile the function's code in the new context
-    length += compile_node(self, node->block);
+    // Local vars are welcome inside the function
+    Compiler nested = (Compiler) {
+        .context = self->context,
+        .flags = self->flags | CFLAG_LOCAL_VARS,
+    };
+    length += compile_node(&nested, node->block);
 
     // Create a constant for the function
     index = compile_emit_constant(self,
@@ -350,7 +364,16 @@ compile_function(Compiler *self, ASTFunction *node) {
 
     // (Meanwhile, back in the original context)
     length += compile_emit(self, OP_CONSTANT, index);
-    return length + compile_emit(self, OP_MAKE_FUN, 0);
+    length += compile_emit(self, OP_CLOSE_FUN, 0);
+
+    // Store the named function?
+    if (node->name_length) {
+        index = compile_emit_constant(self,
+            (Object*) String_fromCharArrayAndSize(node->name, node->name_length));
+        // Push the STORE
+        length += compile_emit(self, OP_STORE, index);
+    }
+    return length;
 }
 
 static unsigned
@@ -359,15 +382,14 @@ compile_invoke(Compiler* self, ASTInvoke *node) {
     unsigned length = 0;
 
     // Push all the arguments
-    ASTNode* a = node->args;
-    unsigned count = 0;
-    for (; a != NULL; a = a->next, count++)
-        length += compile_node(self, a);
+    if (node->nargs && node->args != NULL)
+        length += compile_node(self, node->args);
 
+    // Make the function
     length += compile_node(self, node->callable);
 
     // Call the function
-    return length + compile_emit(self, OP_CALL_FUN, count);
+    return length + compile_emit(self, OP_CALL_FUN, node->nargs);
 }
 
 static unsigned
@@ -375,8 +397,8 @@ compile_var(Compiler *self, ASTVar *node) {
     unsigned length = 0, index;
 
     // Make room in the locals for the name
-    index = compile_locals_allocate(self, (Object*) String_fromCharArrayAndSize(
-        node->name, node->name_length));
+    index = compile_locals_allocate(self, 
+        (Object*) String_fromCharArrayAndSize(node->name, node->name_length));
 
     if (node->expression) {
         length += compile_node(self, node->expression);
@@ -417,7 +439,7 @@ _compile_node(Compiler* self, ASTNode* ast) {
     return 0;
 }
 
-unsigned
+static unsigned
 compile_node(Compiler *self, ASTNode* ast) {
     unsigned length = 0;
 
@@ -448,15 +470,29 @@ compile_compile(Compiler* self, Parser* parser) {
     return length;
 }
 
+static void
+_compile_init_stream(Compiler *self, Stream *stream) {
+    Parser _parser, *parser = &_parser;
+
+    parser_init(parser, stream);
+    compile_init(self);
+    compile_compile(self, parser);    
+}
+
 CodeContext*
 compile_string(Compiler *self, const char * text, size_t length) {
     Stream _stream, *stream = &_stream;
-    Parser _parser, *parser = &_parser;
-
     stream_init_buffer(stream, text, length);
-    parser_init(parser, stream);
-    compile_init(self);
-    compile_compile(self, parser);
 
+    _compile_init_stream(self, stream);
+    return self->context;
+}
+
+CodeContext*
+compile_file(Compiler *self, const FILE *input) {
+    Stream _stream, *stream = &_stream;
+    stream_init_file(stream, input);
+
+    _compile_init_stream(self, stream);
     return self->context;
 }

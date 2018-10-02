@@ -3,29 +3,33 @@
 #include "vm.h"
 #include "compile.h"
 #include "Include/Lox.h"
+#include "Lib/builtin.h"
 
 #define BINARY_METHOD(method) do { rhs = POP(stack); lhs = POP(stack); PUSH(stack, (Object*) lhs->type->method(lhs, rhs)); } while(0)
 
 Object*
-vmeval_eval(CodeContext *context, VmScope *scope, VmCallArgs *args) {
+vmeval_eval(VmEvalContext *ctx) {
     Object *lhs, *rhs, **local;
     Constant *C;
 
     // Setup storage for the stack and locals
-    Object *_locals[context->locals.count], **locals = &_locals[0];
+    Object **locals = calloc(ctx->code->locals.count, sizeof(Object*));
 
     // TODO: Add estimate for MAX_STACK in the compile phase
     // XXX: Program could overflow 32-slot stack
-    static Object *_stack[32], **stack = &_stack[0];
+    static Object *_stack[64], **stack = &_stack[0];
 
-    Instruction *pc = context->block->instructions;
-    Instruction *end = pc + context->block->nInstructions;
+    Instruction *pc = ctx->code->block->instructions;
+    Instruction *end = pc + ctx->code->block->nInstructions;
+
+    // Default result is NIL
+    PUSH(stack, LoxNIL);
 
     int i;
 
     while (pc < end) {
 #if DEBUG
-        print_instructions(context, instruction, 1);
+        print_instructions(ctx->code, pc, 1);
 #endif
         switch (pc->op) {
             case OP_JUMP:
@@ -38,8 +42,20 @@ vmeval_eval(CodeContext *context, VmScope *scope, VmCallArgs *args) {
                 pc += pc->arg;
             break;
 
+            case OP_JUMP_IF_TRUE:
+            lhs = PEEK(stack);
+            if (Bool_isTrue(lhs))
+                pc += pc->arg;
+            break;
+
             case OP_POP_JUMP_IF_FALSE:
             lhs = POP(stack);
+            if (!Bool_isTrue(lhs))
+                pc += pc->arg;
+            break;
+
+            case OP_JUMP_IF_FALSE:
+            lhs = PEEK(stack);
             if (!Bool_isTrue(lhs))
                 pc += pc->arg;
             break;
@@ -49,22 +65,25 @@ vmeval_eval(CodeContext *context, VmScope *scope, VmCallArgs *args) {
             PUSH(stack, lhs);
             break;
 
-            case OP_MAKE_FUN: {
-                CodeObject *code = POP(stack);
-                VmFunction *fun = CodeObject_makeFunction(code,
+            case OP_POP_TOP:
+            POP(stack);
+            break;
+
+            case OP_CLOSE_FUN: {
+                CodeObject *code = (CodeObject*) POP(stack);
+                VmFunction *fun = CodeObject_makeFunction((Object*) code,
                     // XXX: Globals?
-                    VmScope_create(scope, locals, context));
+                    VmScope_create(ctx->scope, locals, ctx->code));
                 PUSH(stack, (Object*) fun);
             }
             break;
 
             case OP_CALL_FUN: {
-                VmFunction *fun = POP(stack);
-                VmCallArgs args = (VmCallArgs) {
-                    .values = stack - pc->arg,
-                    .count = pc->arg,
-                };
-                Object *rv = vmeval_eval(fun->code->code, fun->scope, &args);
+                VmFunction *fun = (VmFunction*) POP(stack);
+                assert(Function_isCallable((Object*) fun));
+                
+                TupleObject *args = Tuple_fromList(pc->arg, *(stack - pc->arg));
+                Object *rv = fun->base.type->call((Object*) fun, ctx->scope, NULL, (Object*) args);
                 stack -= pc->arg; // POP_N, {pc->arg}
                 PUSH(stack, rv);
             }
@@ -75,31 +94,33 @@ vmeval_eval(CodeContext *context, VmScope *scope, VmCallArgs *args) {
             break;
 
             case OP_LOOKUP:
-            C = context->constants + pc->arg;
-            assert(scope);
-            PUSH(stack, VmScope_lookup(scope, C->value));
+            C = ctx->code->constants + pc->arg;
+            assert(ctx->scope);
+            PUSH(stack, VmScope_lookup(ctx->scope, C->value));
             break;
 
             case OP_STORE:
-            C = context->constants + pc->arg;
-            assert(scope);
-            VmScope_assign(scope, C->value, POP(stack));
+            C = ctx->code->constants + pc->arg;
+            assert(ctx->scope);
+            VmScope_assign(ctx->scope, C->value, POP(stack));
             break;
 
             case OP_STORE_LOCAL:
-            assert(pc->arg < context->locals.count);
+            assert(pc->arg < ctx->code->locals.count);
             *(locals + pc->arg) = POP(stack);
+            INCREF(*(locals + pc->arg));
+            // DECREF old value?
             break;
 
             case OP_STORE_ARG_LOCAL:
-            assert(args);
-            assert(args->count);
-            *(locals + pc->arg) = *args->values++;
-            args->count--;
+            assert(ctx->args.count);
+            *(locals + pc->arg) = *ctx->args.values++;
+            INCREF(*(locals + pc->arg));
+            ctx->args.count--;
             break;
 
             case OP_LOOKUP_LOCAL:
-            assert(pc->arg < context->locals.count);
+            assert(pc->arg < ctx->code->locals.count);
             lhs = *(locals + pc->arg);
             if (lhs == NULL) {
                 // RAISE RUNTIME ERROR
@@ -110,7 +131,7 @@ vmeval_eval(CodeContext *context, VmScope *scope, VmCallArgs *args) {
             break;
 
             case OP_CONSTANT:
-            C = context->constants + pc->arg;
+            C = ctx->code->constants + pc->arg;
             PUSH(stack, C->value);
             break;
 
@@ -160,7 +181,7 @@ vmeval_eval(CodeContext *context, VmScope *scope, VmCallArgs *args) {
             break;
 
             default:
-            printf("Unexpected OPCODE");
+            printf("Unexpected OPCODE (%d)\n", pc->op);
             case OP_NOOP:
             break;
         }
@@ -169,22 +190,79 @@ vmeval_eval(CodeContext *context, VmScope *scope, VmCallArgs *args) {
 
 op_return:
     // Garbage collect local vars
-    i = context->locals.count;
+    i = ctx->code->locals.count;
     while (i--)
         if (*(locals + i))
             DECREF(*(locals + i));
 
-    return POP(stack);
+    Object *rv = POP(stack);
+
+    while (*stack != _stack[0]) {
+        DECREF(stack);
+        stack--;
+    }
+
+    return rv;
+}
+
+static Object*
+vmeval_inscope(CodeContext *code, VmScope *scope) {
+    static ModuleObject* builtins = NULL;
+    if (builtins == NULL)
+        builtins = BuiltinModule_init();
+
+    VmScope superglobals = (VmScope) {
+        .globals = builtins->properties,
+    };
+
+    VmScope module = (VmScope) {
+        .globals = Hash_new(),
+        .outer = &superglobals,
+    };
+ 
+    VmScope final;
+    if (scope) {
+        final = *scope;
+        final.outer = &module;
+    }
+    else {
+        final = module;
+    }
+
+    VmEvalContext ctx = (VmEvalContext) {
+        .code = code,
+        .scope = &final,
+    };
+
+    return vmeval_eval(&ctx);
 }
 
 Object*
-vmeval_string(const char * text, size_t length) {
-    Compiler compiler;
+vmeval_string_inscope(const char * text, size_t length, VmScope* scope) {
+    Compiler compiler = { .flags = 0 };
     CodeContext *context;
     
     context = compile_string(&compiler, text, length);
 
     print_codeblock(context, context->block);
+    printf("------\n");
+    
+    return vmeval_inscope(context, scope);
+}
 
-    return vmeval_eval(context, NULL, NULL);
+Object*
+vmeval_string(const char * text, size_t length) {
+    return vmeval_string_inscope(text, length, NULL);
+}
+
+Object*
+vmeval_file(FILE *input) {
+    Compiler compiler = { .flags = 0 };
+    CodeContext *context;
+    
+    context = compile_file(&compiler, input);
+
+    print_codeblock(context, context->block);
+
+    return vmeval_inscope(context, NULL);
 }

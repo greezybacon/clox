@@ -11,18 +11,12 @@ static Token next = { 0 };
 static char
 peek_char(Tokenizer *self) {
     char c = self->stream->peek(self->stream);
-    if (c == -1)
-        return 0;
-
     return c;
 }
 
 static char
 next_char(Tokenizer *self) {
     char c = self->stream->next(self->stream);
-    if (c == -1)
-        return 0;
-
     return c;
 }
 
@@ -41,7 +35,7 @@ next_token(Tokenizer *self) {
     do {
         c = next_char(self);
     }
-    while (isspace(c) && c != 0);
+    while (isspace(c) && c != -1);
 
     Token *token = &next;
     *token = (struct token) {
@@ -89,6 +83,7 @@ next_token(Tokenizer *self) {
         if (peek_char(self) == '/') {
             // Scan to end of line (comment)
             while (next_char(self) != '\n');
+            token->type = T_COMMENT;
         }
         else {
             token->type = T_OP_SLASH;
@@ -196,9 +191,9 @@ next_token(Tokenizer *self) {
         case 4:
             if (0 == strncmp(token_text, "else", 4))
                 token->type = T_ELSE;
-            else if (0 == strncmp(token_text, "null", 4))
+            else if (0 == strncasecmp(token_text, "null", 4))
                 token->type = T_NULL;
-            else if (0 == strncmp(token_text, "true", 4))
+            else if (0 == strncasecmp(token_text, "true", 4))
                 token->type = T_TRUE;
             break;
         case 5:

@@ -36,6 +36,7 @@ typedef struct ast_expression {
     enum token_type     binary_op;
     struct ast_node     *lhs;
     struct ast_node     *rhs;
+    bool                isreturn;        
 } ASTExpression;
 
 typedef struct ast_return {

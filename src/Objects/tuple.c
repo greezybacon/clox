@@ -34,6 +34,21 @@ Tuple_fromArgs(size_t count, ...) {
     return self;
 }
 
+TupleObject*
+Tuple_fromList(size_t count, Object *first) {
+    TupleObject* self = Tuple_new(count);
+
+    if (count > 0) {
+        Object** pitem = self->items;
+        Object* item;
+        while (count--) {
+            *(pitem++) = item = first++;
+            INCREF(item);
+        }
+    }
+    return self;
+}
+
 Object*
 Tuple_getItem(TupleObject* self, int index) {
     if (index < 0)

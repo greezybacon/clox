@@ -2,9 +2,10 @@
 #define REPL_H
 
 typedef struct class_cmdloop {
-    char *intro;
-    char *prompt;
-    Interpreter* interpreter;
+    char        *intro;
+    char        *prompt;
+    char        *prompt2;
+    VmScope     *scope;
 
     void (*preloop)(struct class_cmdloop*);
     bool (*onecmd)(struct class_cmdloop*, const char*);
