@@ -54,5 +54,6 @@ typedef struct nfunction_object {
 } NFunctionObject;
 
 Object* NativeFunction_new(NativeFunctionCall);
+bool Function_isNativeFunction(Object*);
 
 #endif

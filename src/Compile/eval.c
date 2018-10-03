@@ -85,11 +85,24 @@ vmeval_eval(VmEvalContext *ctx) {
             break;
 
             case OP_CALL_FUN: {
-                VmFunction *fun = (VmFunction*) POP(stack);
-                assert(Function_isCallable((Object*) fun));
+                Object *fun = POP(stack);
+                assert(Function_isCallable(fun));
                 
-                TupleObject *args = Tuple_fromList(pc->arg, *(stack - pc->arg));
-                Object *rv = fun->base.type->call((Object*) fun, ctx->scope, NULL, (Object*) args);
+                if (Function_isNativeFunction(fun)) {
+                    TupleObject *args = Tuple_fromList(pc->arg, stack - pc->arg);
+                    rv = fun->type->call(fun, ctx->scope, NULL, (Object*) args);
+                }
+                else {
+                    VmEvalContext call_ctx = (VmEvalContext) {
+                        .code = ((VmFunction*)fun)->code->code,
+                        .scope = ((VmFunction*)fun)->scope,
+                        .args = (VmCallArgs) {
+                            .values = stack - pc->arg,
+                            .count = pc->arg,
+                        },
+                    };
+                    rv = vmeval_eval(&call_ctx);
+                }
                 stack -= pc->arg; // POP_N, {pc->arg}
                 PUSH(stack, rv);
             }
