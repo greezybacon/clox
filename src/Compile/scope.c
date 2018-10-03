@@ -3,12 +3,12 @@
 
 #include "vm.h"
 #include "Objects/boolean.h"
-#include "Objects/garbage.h"
+#include "Vendor/bdwgc/include/gc.h"
 #include "Objects/hash.h"
 
 VmScope*
 VmScope_create(VmScope *outer, Object **locals, CodeContext *code) {
-    VmScope *scope = malloc(sizeof(VmScope));
+    VmScope *scope = GC_MALLOC(sizeof(VmScope));
     *scope = (VmScope) {
         .outer = outer,
         .code = code,
@@ -20,14 +20,10 @@ VmScope_create(VmScope *outer, Object **locals, CodeContext *code) {
 VmScope*
 VmScope_leave(VmScope* self) {
     VmScope* rv = self->outer;
-
-    free(self->locals);
-    free(self);
     return rv;
 }
 
 #include "Objects/string.h"
-#include "Objects/garbage.h"
 
 static Object*
 VmScope_lookup_local(VmScope* self, Object* name, hashval_t hash) {
@@ -87,10 +83,6 @@ VmScope_assign_local(VmScope* self, Object* name, Object* value, hashval_t hash)
             // Found it in the locals list
             Object *old = *(self->locals + index);
             *(self->locals + index) = value;
-            if (old != NULL) {
-                fprintf(stderr, "DECREF %p\n", old);
-                DECREF(old);
-            }
             return true;
         }
         index++;

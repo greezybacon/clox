@@ -3,7 +3,7 @@
 
 #include "tuple.h"
 #include "integer.h"
-#include "garbage.h"
+#include "Vendor/bdwgc/include/gc.h"
 
 static struct object_type TupleType;
 
@@ -11,7 +11,7 @@ TupleObject*
 Tuple_new(size_t count) {
     TupleObject* self = object_new(sizeof(TupleObject), &TupleType);
     self->count = count;
-    self->items = malloc(count * sizeof(Object*));
+    self->items = GC_MALLOC(count * sizeof(Object*));
     return self;      
 }
 
@@ -26,8 +26,7 @@ Tuple_fromArgs(size_t count, ...) {
         Object** pitem = self->items;
         Object* item;
         while (count--) {
-            *(pitem++) = item = va_arg(args, Object*);
-            INCREF(item);
+            *(pitem++) = va_arg(args, Object*);
         }
         va_end(args);
     }
@@ -35,15 +34,14 @@ Tuple_fromArgs(size_t count, ...) {
 }
 
 TupleObject*
-Tuple_fromList(size_t count, Object *first) {
+Tuple_fromList(size_t count, Object **first) {
     TupleObject* self = Tuple_new(count);
 
     if (count > 0) {
         Object** pitem = self->items;
         Object* item;
         while (count--) {
-            *(pitem++) = item = first++;
-            INCREF(item);
+            *(pitem++) = *(first++);
         }
     }
     return self;
@@ -64,7 +62,6 @@ Tuple_getItem(TupleObject* self, int index) {
 void
 Tuple_setItem(TupleObject* self, size_t index, Object* value) {
     if (self->count > index) {
-        INCREF(value);
         *(self->items + index) = value;
     }
     // Else raise error
@@ -90,22 +87,7 @@ tuple_getitem(Object* self, Object* index) {
     return Tuple_getItem((TupleObject*) self, idx);
 }
 
-static void
-tuple_cleanup(Object* self) {
-    assert(self->type == &TupleType);
-    
-    TupleObject* this = (TupleObject*) self;
-    int i = this->count;
-    while (i) {
-        i--;
-        DECREF(*(this->items + i));
-    }
-
-    free(this->items);
-}
-
 static struct object_type TupleType = (ObjectType) {
     .name = "tuple",
     .get_item = tuple_getitem,
-    .cleanup = tuple_cleanup,
 };

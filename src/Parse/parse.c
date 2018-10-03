@@ -10,6 +10,8 @@
 #include "parse.h"
 #include "Objects/string.h"
 
+#include "Vendor/bdwgc/include/gc.h"
+
 static ASTNode* parse_expression(Parser*);
 static ASTNode* parse_statement(Parser*);
 static ASTNode* parse_statement_or_block(Parser*);
@@ -88,7 +90,7 @@ parse_invoke(Parser* self, ASTNode* callable) {
     ASTNode* narg;
     size_t count = 0;
 
-    ASTInvoke* call = calloc(1, sizeof(ASTInvoke));
+    ASTInvoke* call = GC_MALLOC(sizeof(ASTInvoke));
     parser_node_init((ASTNode*) call, AST_INVOKE, func);
     call->callable = callable;
 
@@ -139,7 +141,7 @@ parse_arg_list(Parser* self) {
         }
         next = parse_expect(self, T_WORD);
 
-        param = calloc(1, sizeof(ASTFuncParam));
+        param = GC_MALLOC(sizeof(ASTFuncParam));
         parser_node_init((ASTNode*) param, AST_PARAM, next);
 
         param->name = next->text;
@@ -175,7 +177,7 @@ parse_TERM(Parser* self) {
         break;
 
     case T_WORD: {
-        ASTLookup *lookup = calloc(1, sizeof(ASTLookup));
+        ASTLookup *lookup = GC_MALLOC(sizeof(ASTLookup));
         parser_node_init((ASTNode*) lookup, AST_LOOKUP, next);
         lookup->name = (Object*) String_fromCharArrayAndSize(
             self->tokens->fetch_text(self->tokens, next),
@@ -214,14 +216,14 @@ parse_TERM(Parser* self) {
         }
 
         Object *value = eval_term(NULL, term);
-        ASTLiteral* literal = calloc(1, sizeof(ASTLiteral));
+        ASTLiteral* literal = GC_MALLOC(sizeof(ASTLiteral));
         parser_node_init((ASTNode*) literal, AST_LITERAL, next);
         literal->literal = value;
         result = (ASTNode*) literal;
         break;
     }
     case T_FUNCTION: {
-        ASTFunction* astfun = calloc(1, sizeof(ASTFunction));
+        ASTFunction* astfun = GC_MALLOC(sizeof(ASTFunction));
         parser_node_init((ASTNode*) astfun, AST_FUNCTION, next);
 
         if (T->peek(T)->type == T_WORD) {
@@ -343,13 +345,12 @@ static Object*
 parse_word2string(ASTNode* node) {
     assert(node->type == AST_LOOKUP);
     Object* rv = ((ASTLookup*)node)->name;
-    free(node);
     return rv;
 }
 
 static inline ASTNode*
 parse_expression_assign(Token *token, Stack *stack) {
-    ASTAssignment* assign = calloc(1, sizeof(ASTAssignment));
+    ASTAssignment* assign = GC_MALLOC(sizeof(ASTAssignment));
     parser_node_init((ASTNode*) assign, AST_ASSIGNMENT, token);
     assign->expression = (ASTNode*) stack_pop(stack);
     assign->name = parse_word2string(stack_pop(stack));
@@ -361,7 +362,7 @@ parse_expression_binop(Token* token, Stack* stack, int binop) {
     if (binop == T_OP_ASSIGN)
         return parse_expression_assign(token, stack);
 
-    ASTExpression* expr = calloc(1, sizeof(ASTExpression));
+    ASTExpression* expr = GC_MALLOC( sizeof(ASTExpression));
     parser_node_init((ASTNode*) expr, AST_EXPRESSION, token);
     expr->rhs = (ASTNode*) stack_pop(stack);
     expr->lhs = (ASTNode*) stack_pop(stack);
@@ -443,7 +444,7 @@ parse_statement(Parser* self) {
     switch (token->type) {
     // Statement
     case T_VAR: {
-        ASTVar* astvar = calloc(1, sizeof(ASTVar));
+        ASTVar* astvar = GC_MALLOC( sizeof(ASTVar));
         parser_node_init((ASTNode*) astvar, AST_VAR, token);
         token = parse_expect(self, T_WORD);
         astvar->name = self->tokens->fetch_text(self->tokens, token);
@@ -455,7 +456,7 @@ parse_statement(Parser* self) {
         break;
     }
     case T_IF: {
-        ASTIf* astif = calloc(1, sizeof(ASTIf));
+        ASTIf* astif = GC_MALLOC(sizeof(ASTIf));
         parser_node_init((ASTNode*) astif, AST_IF, token);
         parse_expect(self, T_OPEN_PAREN);
         astif->condition = parse_expression(self);
@@ -472,7 +473,7 @@ parse_statement(Parser* self) {
         break;
     }
     case T_WHILE: {
-        ASTWhile* astwhile = calloc(1, sizeof(ASTWhile));
+        ASTWhile* astwhile = GC_MALLOC(sizeof(ASTWhile));
         parser_node_init((ASTNode*) astwhile, AST_WHILE, token);
         parse_expect(self, T_OPEN_PAREN);
         astwhile->condition = parse_expression(self);
@@ -483,7 +484,7 @@ parse_statement(Parser* self) {
         break;
     }
     case T_FOR: {
-        ASTFor* astfor = calloc(1, sizeof(ASTFor));
+        ASTFor* astfor = GC_MALLOC(sizeof(ASTFor));
         parser_node_init((ASTNode*) astfor, AST_FOR, token);
         parse_expect(self, T_OPEN_PAREN);
         astfor->initializer = parse_expression(self);
@@ -498,7 +499,7 @@ parse_statement(Parser* self) {
         break;
     }
     case T_RETURN: {
-        ASTReturn* astreturn = calloc(1, sizeof(ASTReturn));
+        ASTReturn* astreturn = GC_MALLOC(sizeof(ASTReturn));
         parser_node_init((ASTNode*) astreturn, AST_RETURN, token);
         // XXX: The return expression is optional?
         astreturn->expression = parse_expression(self);

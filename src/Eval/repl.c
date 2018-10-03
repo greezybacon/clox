@@ -7,9 +7,10 @@
 #include "Compile/vm.h"
 #include "repl.h"
 #include "Include/Lox.h"
+#include "Vendor/bdwgc/include/gc.h"
 
 static bool
-eval_repl_isdangling(Interpreter* self, char* code, size_t length) {
+eval_repl_isdangling(CmdLoop* self, char* code, size_t length) {
     Stream _stream, *stream = &_stream;
     Tokenizer* tokens;
     bool rv = false;
@@ -37,7 +38,6 @@ eval_repl_isdangling(Interpreter* self, char* code, size_t length) {
             break;
         }
     }
-    free(tokens);
 
     // Ensure braces and parentheses are balanced
     rv = braces != 0 || parens != 0;
@@ -103,7 +103,7 @@ repl_loop(CmdLoop* self) {
 
 void
 repl_init(CmdLoop *loop, Interpreter* eval) {
-    VmScope *scope = malloc(sizeof(VmScope));
+    VmScope *scope = GC_MALLOC(sizeof(VmScope));
     *scope = (VmScope) { .globals = Hash_new() };
     *loop = (CmdLoop) {
         .prompt = "(Lox) ",

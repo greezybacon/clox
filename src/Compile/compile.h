@@ -7,6 +7,6 @@
 void print_codeblock(CodeContext*, CodeBlock*);
 void print_instructions(CodeContext*, Instruction*, int);
 CodeContext* compile_string(Compiler *self, const char * text, size_t length);
-CodeContext* compile_file(Compiler *self, const FILE * input);
+CodeContext* compile_file(Compiler *self, FILE *restrict input);
 
 #endif

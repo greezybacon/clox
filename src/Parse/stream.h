@@ -8,7 +8,7 @@ struct stream;
 typedef struct stream_ops {
     char        (*next)(struct stream*);
     char        (*peek)(struct stream*);
-    char*       (*read)(struct stream*, int start, int length);
+    const char* (*read)(struct stream*, int start, int length);
     void        (*cleanup)(struct stream*);
 } StreamOps;
 
@@ -23,7 +23,7 @@ typedef struct stream {
     char*       name;           // Name of the stream (STDIN or filename)
     char        (*next)(struct stream*);
     char        (*peek)(struct stream*);
-    char*       (*read)(struct stream*, int start, int length);
+    const char* (*read)(struct stream*, int start, int length);
     StreamOps*  ops;
 } Stream;
 
@@ -31,7 +31,7 @@ int
 stream_init(Stream*);
 
 int
-stream_init_file(Stream*, FILE*);
+stream_init_file(Stream*, FILE* restrict);
 
 int
 stream_init_buffer(Stream*, const char*, size_t);

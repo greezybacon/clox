@@ -4,6 +4,7 @@
 #include "vm.h"
 #include "compile.h"
 #include "Objects/function.h"
+#include "Vendor/bdwgc/include/gc.h"
 
 static unsigned compile_node(Compiler *self, ASTNode* ast);
 
@@ -29,24 +30,24 @@ compile_pop_context(Compiler* self) {
 
 static void
 compile_start_block(Compiler *self) {
-    CodeBlock *block = malloc(sizeof(CodeBlock));
+    CodeBlock *block = GC_MALLOC(sizeof(CodeBlock));
     *block = (CodeBlock) {
         .size = 32,
         .prev = self->context->block,
-        .instructions = calloc(32, sizeof(Instruction)),
+        .instructions = GC_MALLOC(32 * sizeof(Instruction)),
     };
     self->context->block = block;
 }
 
 static void
 compile_push_context(Compiler* self) {
-    CodeContext *context = malloc(sizeof(CodeContext));
+    CodeContext *context = GC_MALLOC(sizeof(CodeContext));
     *context = (CodeContext) {
-        .constants = malloc(8 * sizeof(Object*)),
+        .constants = GC_MALLOC(8 * sizeof(Object*)),
         .sizeConstants = 8,
         .locals = (LocalsList) {
             .size = 8,
-            .names = malloc(8 * sizeof(Constant)),
+            .names = GC_MALLOC(8 * sizeof(Constant)),
         },
         .prev = self->context,
     };
@@ -67,7 +68,7 @@ static inline void
 compile_block_ensure_size(CodeBlock *block, unsigned size) {
     while (block->size < size) {
         block->size *= 2;
-        block->instructions = realloc(block->instructions,
+        block->instructions = GC_REALLOC(block->instructions,
             block->size * sizeof(Instruction));
     }
 }
@@ -81,9 +82,6 @@ compile_merge_block(Compiler *self, CodeBlock* block) {
     unsigned rv = JUMP_LENGTH(block);
     for (; block->nInstructions--; i++)
         *(current->instructions + current->nInstructions++) = *i;
-
-    free(block->instructions);
-    free(block);
 
     return rv;
 }
@@ -104,7 +102,7 @@ compile_emit_constant(Compiler *self, Object *value) {
 
     if (context->nConstants == context->sizeConstants) {
         context->sizeConstants *= 2;
-        context->constants = realloc(context->constants,
+        context->constants = GC_REALLOC(context->constants,
             context->sizeConstants * sizeof(Constant));
     }
     index = context->nConstants++;
@@ -162,7 +160,7 @@ compile_locals_allocate(Compiler *self, Object *name) {
     // Ensure space in the index and locals
     if (locals->size < locals->count) {
         locals->size += 8;
-        locals->names = realloc(locals->names, sizeof(*locals->names) * locals->size);
+        locals->names = GC_REALLOC(locals->names, sizeof(*locals->names) * locals->size);
     }
 
     *(locals->names + locals->count) = (Constant) {
@@ -495,7 +493,7 @@ compile_string(Compiler *self, const char * text, size_t length) {
 }
 
 CodeContext*
-compile_file(Compiler *self, const FILE *input) {
+compile_file(Compiler *self, FILE *restrict input) {
     Stream _stream, *stream = &_stream;
     stream_init_file(stream, input);
 

@@ -13,16 +13,13 @@ builtin_print(VmScope* state, Object* self, Object* args) {
 
     for (; i < argc; i++) {
         arg = Tuple_getItem((TupleObject*) args, i);
-        INCREF(arg);
         if (!String_isString(arg)) {
             sarg = String_fromObject(arg);
-            DECREF(arg);
         }
         else
             sarg = (StringObject*) arg;
 
         fprintf(stdout, "%.*s", sarg->length, sarg->characters);
-        DECREF(arg);
     }
 
     fprintf(stdout, "\n");

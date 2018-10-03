@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "stream.h"
+#include "Vendor/bdwgc/include/gc.h"
 
 // File stream reader
 
@@ -15,7 +16,7 @@ typedef struct file_buffer_chunk {
 } FileBufferChunk;
 
 typedef struct {
-    FILE*   file;
+    FILE* restrict file;
     int     fp;
     int     chunk_pos;
     FileBufferChunk* chunks;
@@ -26,7 +27,7 @@ file_stream_readahead(Stream* stream) {
     FileStream* context = (FileStream*) stream->context;
     FileBufferChunk* chunk = context->chunks;
     if (!chunk || context->chunk_pos >= (chunk->start + chunk->length)) {
-        FileBufferChunk* chunk = calloc(1, sizeof(FileBufferChunk));
+        FileBufferChunk* chunk = GC_MALLOC(sizeof(FileBufferChunk));
         if (chunk == NULL)
             // PROBLEM
             ;
@@ -79,7 +80,7 @@ file_stream_peek(Stream* stream) {
     return chunk->buffer[context->chunk_pos];
 }
 
-static char*
+static const char*
 file_stream_readchunk(Stream* stream, int offset, int length) {
     FileStream* context = (FileStream*) stream->context;
     FileBufferChunk* chunk = context->chunks;
@@ -103,7 +104,7 @@ file_stream_readchunk(Stream* stream, int offset, int length) {
     // Allocate a buffer to return
     // TODO: Add a way to manage the pointer and indicate that it should 
     //       be freed later
-    char* buffer = calloc(1, length);
+    char* buffer = GC_MALLOC_ATOMIC(length);
 
     int copied = 0, requested = length;
     char* bstart = buffer;
@@ -137,7 +138,7 @@ stream_next(Stream* stream) {
     return stream->ops->next(stream);
 }
 
-static char*
+static const char*
 stream_read(Stream* stream, int offset, int length) {
     return stream->ops->read(stream, offset, length);
 }
@@ -154,16 +155,11 @@ stream_init(Stream* stream) {
     };
 }
 
-static void
-stream_cleanup(Stream *stream) {
-    free(stream->context);
-}
-
 int
-stream_init_file(Stream* stream, FILE* file) {
+stream_init_file(Stream* stream, FILE* restrict file) {
     stream_init(stream);
 
-    stream->context = calloc(1, sizeof(FileStream));
+    stream->context = GC_MALLOC(sizeof(FileStream));
     if (stream->context == NULL)
         // Do something...
         ;
@@ -219,7 +215,7 @@ buffer_stream_peek(Stream* stream) {
     return *(context->buffer + stream->pos);
 }
 
-static char*
+static const char*
 buffer_stream_read(Stream* stream, int offset, int length) {
     assert(offset >= 0);
     assert(length >= 0);
@@ -236,14 +232,13 @@ static StreamOps buffer_stream_ops = {
     .next = buffer_stream_next,
     .peek = buffer_stream_peek,
     .read = buffer_stream_read,
-    .cleanup = stream_cleanup,
 };
 
 int
 stream_init_buffer(Stream* stream, const char* buffer, size_t length) {
     stream_init(stream);
 
-    stream->context = calloc(1, sizeof(BufferStream));
+    stream->context = GC_MALLOC(sizeof(BufferStream));
     if (stream->context == NULL)
         // Do something...
         ;

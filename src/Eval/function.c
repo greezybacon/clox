@@ -34,17 +34,13 @@ eval_invoke(Interpreter* self, ASTInvoke* invoke) {
     for (; a != NULL; a = a->next) {
         T = eval_node(self, a);
         Tuple_setItem(args, i++, T);
-        DECREF(T);
     }
 
     // And transition to the new stack for the call
     self->stack = newstack;
 
     // Eval the function's code (AST)
-    Object* result = callable->type->call(callable, (void*) self, NULL, args);
-    // XXX: Why is this required?
-    INCREF(result);
-    DECREF(args);
+    Object* result = callable->type->call(callable, (void*) self, NULL, (Object*) args);
 
     StackFrame_pop(self);
 
@@ -62,7 +58,6 @@ eval_function(Interpreter* self, ASTFunction* callable) {
         Object* key = (Object*) String_fromCharArrayAndSize(callable->name,
             callable->name_length);
         StackFrame_assign_local(self->stack, key, (Object*) F);
-        DECREF(key);
     }
 
     return (Object*) F;

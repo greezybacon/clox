@@ -18,7 +18,7 @@ Bool_fromBool(bool value) {
 BoolObject*
 Bool_fromObject(Object* value) {
     if (value->type == &BooleanType)
-        return value;
+        return (BoolObject*) value;
     else if (value->type->as_bool)
         return value->type->as_bool(value);
     // TODO: If type has a len() method, compare > zero
@@ -39,13 +39,14 @@ Bool_isBool(Object* value) {
 bool
 Bool_isTrue(Object* value) {
     if (value->type != &BooleanType)
-        value = Bool_fromObject(value);
+        value = (Object*) Bool_fromObject(value);
     return value == (Object*) LoxTRUE;
 }
 
-static Object*
+static BoolObject*
 bool_self(Object* self) {
-    return self;
+    assert(self->type == &BooleanType);
+    return (BoolObject*) self;
 }
 
 static Object*
@@ -67,7 +68,7 @@ bool_op_eq(Object* self, Object* other) {
         if (!other->type->as_bool) {
             // Raise error
         }
-        other = other->type->as_bool(other);
+        other = (Object*) other->type->as_bool(other);
     }
     return (Object*) (((BoolObject*)self)->value == ((BoolObject*)other)->value
         ? LoxTRUE : LoxFALSE);
@@ -75,7 +76,7 @@ bool_op_eq(Object* self, Object* other) {
 
 static Object*
 bool_op_ne(Object* self, Object* other) {
-    return bool_op_eq(self, other) == (Object*) LoxTRUE ? LoxFALSE : LoxTRUE;
+    return (Object*) ((bool_op_eq(self, other) == (Object*) LoxTRUE) ? LoxFALSE : LoxTRUE);
 }
 
 static struct object_type BooleanType = (ObjectType) {
@@ -102,9 +103,9 @@ BoolObject *LoxFALSE = &_LoxFALSE;
 
 
 
-static Object*
+static BoolObject*
 null_asbool(Object* self) {
-    return (Object*) LoxFALSE;
+    return LoxFALSE;
 }
 
 static Object*

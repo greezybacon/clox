@@ -6,7 +6,6 @@
 #include "parse.h"
 
 #include "Objects/string.h"
-#include "Objects/garbage.h"
 
 static void
 print_expression(FILE* output, ASTExpression* node) {
@@ -39,7 +38,6 @@ static void
 print_literal(FILE* output, ASTLiteral* node) {
     StringObject* S = (StringObject*) node->literal->type->as_string(node->literal);
     fprintf(output, "(%.*s)", S->length, S->characters);
-    DECREF((Object*) S);
 }
 
 static void

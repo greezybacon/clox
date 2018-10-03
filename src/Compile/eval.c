@@ -5,12 +5,13 @@
 #include "compile.h"
 #include "Include/Lox.h"
 #include "Lib/builtin.h"
+#include "Vendor/bdwgc/include/gc.h"
 
-#define BINARY_METHOD(method) do { rhs = POP(stack); lhs = POP(stack); PUSH(stack, (Object*) lhs->type->method(lhs, rhs)); } while(0)
+#define STACK_SIZE 32
 
 Object*
 vmeval_eval(VmEvalContext *ctx) {
-    Object *lhs, *rhs, **local;
+    Object *lhs, *rhs, **local, *rv;
     Constant *C;
 
     // Setup storage for the stack and locals
@@ -74,7 +75,7 @@ vmeval_eval(VmEvalContext *ctx) {
             case OP_CLOSE_FUN: {
                 CodeObject *code = (CodeObject*) POP(stack);
                 // Copy the locals into a persistent storage
-                Object **closed_locals = malloc(ctx->code->locals.count * sizeof(Object*));
+                Object **closed_locals = GC_MALLOC(ctx->code->locals.count * sizeof(Object*));
                 memcpy((void*) closed_locals, locals, sizeof(_locals));
                 VmFunction *fun = CodeObject_makeFunction((Object*) code,
                     // XXX: Globals?
@@ -112,15 +113,13 @@ vmeval_eval(VmEvalContext *ctx) {
 
             case OP_STORE_LOCAL:
             assert(pc->arg < ctx->code->locals.count);
+            lhs = *(locals + pc->arg);
             *(locals + pc->arg) = POP(stack);
-            INCREF(*(locals + pc->arg));
-            // DECREF old value?
             break;
 
             case OP_STORE_ARG_LOCAL:
             assert(ctx->args.count);
-            *(locals + pc->arg) = *ctx->args.values++;
-            INCREF(*(locals + pc->arg));
+            *(locals + pc->arg) = *(ctx->args.values++);
             ctx->args.count--;
             break;
 
@@ -139,6 +138,8 @@ vmeval_eval(VmEvalContext *ctx) {
             C = ctx->code->constants + pc->arg;
             PUSH(stack, C->value);
             break;
+
+#define BINARY_METHOD(method) do { rhs = POP(stack); lhs = POP(stack); PUSH(stack, (Object*) lhs->type->method(lhs, rhs)); } while(0)
 
             // Comparison
             case OP_GT:
@@ -194,18 +195,10 @@ vmeval_eval(VmEvalContext *ctx) {
     }
 
 op_return:
-    // Garbage collect local vars
-    i = ctx->code->locals.count;
-    while (i--)
-        if (*(locals + i))
-            DECREF(*(locals + i));
+    rv = POP(stack);
 
-    Object *rv = POP(stack);
-
-    while (*stack != _stack[0]) {
-        DECREF(stack);
-        stack--;
-    }
+    assert(stack >= _stack);
+    assert(stack - _stack < STACK_SIZE);
 
     return rv;
 }

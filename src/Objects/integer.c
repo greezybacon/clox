@@ -6,7 +6,6 @@
 #include "object.h"
 #include "integer.h"
 #include "float.h"
-#include "garbage.h"
 #include "string.h"
 
 static struct object_type IntegerType;
@@ -131,8 +130,7 @@ integer_op_divide(Object* self, Object* other) {
     // Promote floating point operations
     if (other->type->code == TYPE_FLOAT) {
         FloatObject *F = self->type->as_float(self),
-                    *rv = F->base.type->op_slash(F, other);
-        DECREF(F);
+                    *rv = F->base.type->op_slash((Object*) F, other);
         return rv;
     }
     // Else coerce to integer

@@ -5,7 +5,6 @@
 #include "object.h"
 #include "boolean.h"
 #include "integer.h"
-#include "garbage.h"
 #include "string.h"
 
 static struct object_type StringType;
@@ -31,7 +30,7 @@ String_fromObject(Object* value) {
     assert(value->type);
 
     if (value->type->as_string)
-        return value->type->as_string(value);
+        return (StringObject*) value->type->as_string(value);
 
     char buffer[32];
     size_t length = snprintf(buffer, sizeof(buffer), "object@%p", value);
@@ -82,7 +81,6 @@ string_len(Object* self) {
 
 static Object*
 string_asstring(Object* self) {
-    INCREF(self);
     return self;
 }
 

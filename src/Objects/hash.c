@@ -11,9 +11,10 @@
 #include "boolean.h"
 #include "integer.h"
 #include "object.h"
-#include "garbage.h"
 #include "string.h"
 #include "tuple.h"
+
+#include "Vendor/bdwgc/include/gc.h"
 
 static struct object_type HashType;
 
@@ -32,11 +33,10 @@ HashObject *Hash_newWithSize(size_t size) {
     if (hashtable == NULL)
         return hashtable;
 
-    hashtable->table = calloc(size, sizeof(HashEntry));
-    if (hashtable->table == NULL) {
-        free(hashtable);
+    hashtable->table = GC_MALLOC(size * sizeof(HashEntry));
+    if (hashtable->table == NULL)
         return NULL;
-    }
+
     hashtable->size = size;
     hashtable->size_mask = size - 1;
 
@@ -66,7 +66,7 @@ hash_resize(HashObject* self, size_t newsize) {
         // TODO: Raise error -- it would be resized on new addition
         return 1;
 
-    HashEntry* table = calloc(newsize, sizeof(HashEntry));
+    HashEntry* table = GC_MALLOC(newsize * sizeof(HashEntry));
     if (table == NULL)
         return errno;
 
@@ -89,7 +89,6 @@ hash_resize(HashObject* self, size_t newsize) {
             entry->key = current->key;
         }
     }
-    free(self->table);
     self->table = table;
     self->size = newsize;
     self->size_mask = mask;
@@ -124,8 +123,6 @@ hash_set(HashObject *self, Object *key, Object *value) {
     while (entry->key != NULL) {
         if (LoxTRUE == entry->key->type->op_eq(entry->key, key)) {
 	        // There's something associated with this key. Let's replace it
-            DECREF(entry->value);
-            INCREF(value);
     		entry->value = value;
             return;
         }
@@ -133,8 +130,6 @@ hash_set(HashObject *self, Object *key, Object *value) {
         entry = self->table + slot;
 	}
 
-    INCREF(value);
-    INCREF(key);
     *entry = (HashEntry) {
         .value = value,
         .key = key,
@@ -227,8 +222,6 @@ hash_remove(Object* self, Object* key) {
         // TODO: Raise error
         ;
 
-    DECREF(entry->value);
-    DECREF(entry->key);
     ((HashObject*) self)->count--;
 
     entry->key = NULL;
@@ -267,8 +260,6 @@ hash_entries__next(Iterator* this) {
     HashObjectIterator *self = (HashObjectIterator*) this;
     int p;
     HashEntry* table = self->hash->table;
-    if (this->previous)
-        DECREF(this->previous);
     while (self->pos < self->hash->size) {
         p = self->pos++;
         if (table[p].key != NULL) {
@@ -316,30 +307,12 @@ hash_asstring(Object* self) {
         bytes = snprintf(position, remaining, "%.*s: %.*s, ",
             skey->length, skey->characters, svalue->length, svalue->characters);
         position += bytes, remaining -= bytes;
-        DECREF((Object*) skey);
-        DECREF((Object*) svalue);
     }
     position += snprintf(position, remaining, "}");
 
     free(it);
 
     return (Object*) String_fromCharArrayAndSize(buffer, position - buffer);
-}
-
-static void
-hash_free(Object* self) {
-    assert(self != NULL);
-    assert(self->type == &HashType);
-
-    int i;
-    HashObject *hash = (HashObject*) self;
-    HashEntry *entry;
-    for (entry = hash->table, i=hash->size; i; entry++, i--) {
-        if (entry->key != NULL) {
-            DECREF(entry->value);
-            DECREF(entry->key);
-        }
-    }
 }
 
 static struct object_type HashType = (ObjectType) {
@@ -354,6 +327,4 @@ static struct object_type HashType = (ObjectType) {
 
     .as_string = hash_asstring,
     .as_bool = hash_asbool,
-
-    .cleanup = hash_free,
 };

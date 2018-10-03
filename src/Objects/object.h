@@ -80,7 +80,7 @@ typedef struct object {
 void*
 object_new(size_t size, ObjectType*);
 
-#define HASHVAL(object) (hashval_t) ((object)->type->hash ? (object)->type->hash(object) : (unsigned int) (object))
+#define HASHVAL(object) (hashval_t) ((object)->type->hash ? (object)->type->hash(object) : (hashval_t) (object))
 
 static hashval_t MYADDRESS(Object *self) {
     Object **pself = &self;

@@ -2,7 +2,7 @@
 
 CC=gcc
 CFLAGS=-O2 -fPIC -m64 -mtune=generic -g
-LDFLAGS=
+LDFLAGS=-lgc -LVendor/bdwgc/.libs
 INC=-I ./
 DEPS=
 SOURCES=$(shell echo Parse/*.c Eval/*.c Objects/*.c Lib/*.c Compile/*.c)

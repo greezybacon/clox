@@ -6,7 +6,6 @@
 #endif
 
 #include "Objects/object.h"
-#include "Objects/garbage.h"
 
 // Basic objects
 #include "Objects/boolean.h"

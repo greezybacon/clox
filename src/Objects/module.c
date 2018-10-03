@@ -3,7 +3,6 @@
 
 #include "boolean.h"
 #include "function.h"
-#include "garbage.h"
 #include "hash.h"
 #include "module.h"
 #include "object.h"
@@ -24,8 +23,6 @@ Module_init(ModuleDescription* desc) {
         name = String_fromCharArrayAndSize(M->name, strlen(M->name));
         method = (Object*) NativeFunction_new(M->method);
         Hash_setItem(self->properties, (Object*) name, method);
-        DECREF(name);
-        DECREF(method);
         M++;
     }
 

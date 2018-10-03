@@ -102,6 +102,11 @@ static struct object_type FunctionType = (ObjectType) {
 
 static struct object_type NativeFunctionType;
 
+bool
+Function_isNativeFunction(Object* object) {
+    return object->type == &NativeFunctionType;
+}
+
 Object*
 NativeFunction_new(NativeFunctionCall callable) {
     NFunctionObject* self = object_new(sizeof(NFunctionObject), &NativeFunctionType);
@@ -162,20 +167,11 @@ code_asstring(Object* self) {
     return (Object*) String_fromCharArrayAndSize(buffer, bytes);
 }
 
-static void
-code_cleanup(Object* self) {
-    assert(self->type == &CodeObjectType);
-
-    if (((CodeObject*) self)->name)
-        DECREF(((CodeObject*) self)->name);
-}
-
 static struct object_type CodeObjectType = (ObjectType) {
     .name = "code",
     .hash = MYADDRESS,
     .op_eq = IDENTITY,
     .as_string = code_asstring,
-    .cleanup = code_cleanup,
 };
 
 

@@ -3,7 +3,6 @@
 
 #include "scope.h"
 #include "Objects/boolean.h"
-#include "Objects/garbage.h"
 #include "Objects/hash.h"
 
 Scope*
@@ -13,15 +12,11 @@ Scope_create(Scope* outer, HashObject* locals) {
         .outer = outer,
         .locals = locals,
     };
-    if (locals)
-        INCREF(locals);
     return scope;
 }
 
 Scope*
 Scope_leave(Scope* self) {
-    if (self->locals)
-        DECREF(self->locals);
     Scope* rv = self->outer;
     free(self);
     return rv;

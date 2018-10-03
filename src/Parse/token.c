@@ -1,10 +1,12 @@
 #include <ctype.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 
 #include "token.h"
 #include "stream.h"
 #include "debug_token.h"
+
+#include "Vendor/bdwgc/include/gc.h"
 
 static Token next = { 0 };
 
@@ -254,7 +256,7 @@ read_from_token(Tokenizer *self, Token* token) {
 
 Tokenizer*
 tokenizer_init(Stream* stream) {
-    Tokenizer * self = calloc(1, sizeof(Tokenizer));
+    Tokenizer * self = GC_MALLOC(sizeof(Tokenizer));
     *self = (Tokenizer) {
         .stream = stream,
         .next = next_token,
