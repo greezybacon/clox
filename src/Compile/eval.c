@@ -19,7 +19,7 @@ vmeval_eval(VmEvalContext *ctx) {
 
     // TODO: Add estimate for MAX_STACK in the compile phase
     // XXX: Program could overflow 32-slot stack
-    static Object *_stack[64], **stack = &_stack[0];
+    Object *_stack[STACK_SIZE], **stack = &_stack[0];
 
     Instruction *pc = ctx->code->block->instructions;
     Instruction *end = pc + ctx->code->block->nInstructions;
