@@ -449,8 +449,13 @@ parse_statement(Parser* self) {
         token = parse_expect(self, T_WORD);
         astvar->name = self->tokens->fetch_text(self->tokens, token);
         astvar->name_length = token->length;
-        parse_expect(self, T_OP_ASSIGN);
-        astvar->expression = parse_expression(self);
+
+        // Initial value is not required
+        peek = self->tokens->peek(self->tokens);
+        if (peek->type == T_OP_ASSIGN) {
+            parse_expect(self, T_OP_ASSIGN);
+            astvar->expression = parse_expression(self);
+        }
 
         result = (ASTNode*) astvar;
         break;
