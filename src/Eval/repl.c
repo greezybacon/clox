@@ -91,10 +91,11 @@ repl_loop(CmdLoop* self) {
             continue;
         }
 
-        stop = self->onecmd(self, line);
+        stop = self->onecmd(self, buffer);
         if (self->postcmd)
             stop = self->postcmd(self, stop, line);
 
+        pbuffer = buffer;
         prompt = self->prompt;
     }
     free(buffer);
