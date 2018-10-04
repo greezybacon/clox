@@ -185,6 +185,8 @@ next_token(Tokenizer *self) {
         case 3:
             if (0 == strncmp(token_text, "for", 3))
                 token->type = T_FOR;
+            else if (0 == strncasecmp(token_text, "fun", 3))
+                token->type = T_FUNCTION;
             else if (0 == strncmp(token_text, "var", 3))
                 token->type = T_VAR;
             else if (0 == strncasecmp(token_text, "and", 3))
