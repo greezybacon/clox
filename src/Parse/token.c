@@ -171,7 +171,7 @@ next_token(Tokenizer *self) {
 
     // Words (start with a letter or _, allow _ and digits thereafter)
     if (isalpha(c) || c == '_') {
-        while (isalnum(peek_char(self)))
+        while (isalnum(peek_char(self)) || peek_char(self) == '_')
             next_char(self);
 
         char* token_text = self->fetch_text(self, token);
