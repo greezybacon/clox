@@ -104,7 +104,6 @@ eval_unary_op(Interpreter *self, enum token_type unary_op, Object* value) {
         // Bitwise NOT?
         case T_BANG:
             rv = value->type->as_bool(value);
-            DECREF(value);
             return (rv == (Object*) LoxFALSE) ? LoxTRUE : LoxFALSE;
         case T_OP_MINUS:
         case T_OP_PLUS:

@@ -76,8 +76,6 @@ print_opcode(const CodeContext *context, const Instruction *op) {
             StringObject *S = (StringObject*) T->type->as_string(T);
             assert(String_isString((Object*) S));
             printf(" (%.*s)", S->length, S->characters);
-            if (!String_isString(T))
-                DECREF(S);
         }
     }
     break;
@@ -89,8 +87,6 @@ print_opcode(const CodeContext *context, const Instruction *op) {
             StringObject *S = (StringObject*) T->type->as_string(T);
             assert(String_isString((Object*) S));
             printf(" (%.*s)", S->length, S->characters);
-            if (!String_isString(T))
-                DECREF(S);
         }
     }
     default:

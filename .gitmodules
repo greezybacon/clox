@@ -1,0 +1,3 @@
+[submodule "src/Vendor/bdwgc"]
+	path = src/Vendor/bdwgc
+	url = https://github.com/ivmai/bdwgc.git

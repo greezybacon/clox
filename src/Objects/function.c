@@ -81,22 +81,11 @@ function_asstring(Object* self) {
     return (Object*) String_fromCharArrayAndSize(buffer, bytes);
 }
 
-static void
-function_cleanup(Object* self) {
-    assert(self->type == &FunctionType);
-    FunctionObject* F = (FunctionObject*) self;
-
-    if (F->name)
-        DECREF(F->name);
-}
-
 static struct object_type FunctionType = (ObjectType) {
     .code = TYPE_FUNCTION,
     .name = "function",
 
     .as_string = function_asstring,
-
-    .cleanup = function_cleanup,
 };
 
 

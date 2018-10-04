@@ -5,10 +5,11 @@
 #include "scope.h"
 
 #include "Include/Lox.h"
+#include "Vendor/bdwgc/include/gc.h"
 
 StackFrame*
 StackFrame_create(StackFrame* previous) {
-    StackFrame* frame = malloc(sizeof(StackFrame));
+    StackFrame* frame = GC_MALLOC(sizeof(StackFrame));
     *frame = (StackFrame) {
         .prev = previous,
     };
@@ -38,7 +39,6 @@ StackFrame_lookup(StackFrame *self, Object *key) {
 
     StringObject* skey = (StringObject*) key->type->as_string(key);
     eval_error(NULL, "%.*s: Variable has not yet been set in this scope\n", skey->length, skey->characters);
-    DECREF((Object*) skey);
 
     return NULL;
 }
@@ -70,9 +70,5 @@ StackFrame_push(Interpreter* self) {
 void
 StackFrame_pop(Interpreter* self) {
     assert(self->stack != NULL);
-
-    if (self->stack->locals)
-        DECREF(self->stack->locals);
-    free(self->stack);
     self->stack = self->stack->prev;
 }

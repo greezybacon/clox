@@ -13,7 +13,6 @@ eval_if(Interpreter *self, ASTIf *node) {
     Object *condition = eval_node(self, node->condition);
     if (!Bool_isBool(condition)) {
         Object* T = Bool_fromObject(condition);
-        DECREF(condition);
         condition = T;
     }
 
@@ -26,7 +25,6 @@ eval_if(Interpreter *self, ASTIf *node) {
         rv = eval_node(self, node->otherwise);
     }
 
-    DECREF(condition);
     return rv;
 }
 
@@ -41,7 +39,6 @@ eval_while(Interpreter *self, ASTWhile* node) {
         condition = eval_node(self, node->condition);
         if (!Bool_isBool(condition)) {
             Object* T = Bool_fromObject(condition);
-            DECREF(condition);
             condition = T;
         }
 
@@ -49,11 +46,8 @@ eval_while(Interpreter *self, ASTWhile* node) {
             break;
 
         // Execute the associated block
-        if (rv) DECREF(rv);
         rv = eval_node(self, node->block);
-        DECREF(condition);
     }
 
-    DECREF(condition);
     return rv;
 }

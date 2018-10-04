@@ -62,7 +62,6 @@ repl_onecmd(CmdLoop *self, const char* line) {
         Hash_setItem(self->scope->globals, _, result);
         StringObject *S = (StringObject*) result->type->as_string(result);
         printf("%.*s\n", S->length, S->characters);
-        DECREF(S);
     }
     return false;
 }
