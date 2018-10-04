@@ -61,7 +61,7 @@ bool_asstring(Object* self) {
     return (Object*) String_fromCharArrayAndSize(((BoolObject*)self)->value ? "true:" : "false", 5);
 }
 
-static Object*
+static BoolObject*
 bool_op_eq(Object* self, Object* other) {
     assert(self->type == &BooleanType);
     if (other->type != self->type) {
@@ -70,13 +70,13 @@ bool_op_eq(Object* self, Object* other) {
         }
         other = (Object*) other->type->as_bool(other);
     }
-    return (Object*) (((BoolObject*)self)->value == ((BoolObject*)other)->value
+    return (((BoolObject*)self)->value == ((BoolObject*)other)->value
         ? LoxTRUE : LoxFALSE);
 }
 
-static Object*
+static BoolObject*
 bool_op_ne(Object* self, Object* other) {
-    return (Object*) ((bool_op_eq(self, other) == (Object*) LoxTRUE) ? LoxFALSE : LoxTRUE);
+    return (bool_op_eq(self, other) == LoxTRUE) ? LoxFALSE : LoxTRUE;
 }
 
 static struct object_type BooleanType = (ObjectType) {
@@ -86,6 +86,9 @@ static struct object_type BooleanType = (ObjectType) {
     .as_bool = bool_self,
     .as_int = bool_asint,
     .as_string = bool_asstring,
+
+    .op_eq = bool_op_eq,
+    .op_ne = bool_op_ne,
 };
 
 static BoolObject _LoxTRUE = (BoolObject) {
