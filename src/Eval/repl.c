@@ -82,13 +82,15 @@ repl_loop(CmdLoop* self) {
             printf("%s", prompt);
 
         line = fgets(pbuffer, (2048 - (pbuffer - buffer)) * sizeof(char), stdin);
-        if (!line)
-            line = "EOF";
-
-        pbuffer += strlen(line);
-        if (eval_repl_isdangling(self, buffer, pbuffer - buffer)) {
-            prompt = self->prompt2;
-            continue;
+        if (!line) {
+            strcpy(buffer, "EOF");
+        }
+        else {
+            pbuffer += strlen(line);
+            if (eval_repl_isdangling(self, buffer, pbuffer - buffer)) {
+                prompt = self->prompt2;
+                continue;
+            }
         }
 
         stop = self->onecmd(self, buffer);
@@ -96,6 +98,7 @@ repl_loop(CmdLoop* self) {
             stop = self->postcmd(self, stop, line);
 
         pbuffer = buffer;
+        buffer[0] = '\0';
         prompt = self->prompt;
     }
     free(buffer);
