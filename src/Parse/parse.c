@@ -354,11 +354,11 @@ parse_expression_assign(Token *token, Stack *stack) {
     parser_node_init((ASTNode*) assign, AST_ASSIGNMENT, token);
     assign->expression = (ASTNode*) stack_pop(stack);
     assign->name = parse_word2string(stack_pop(stack));
-    return (ASTNode*) assign;       
+    return (ASTNode*) assign;
 }
 
 static inline ASTNode*
-parse_expression_binop(Token* token, Stack* stack, int binop) {
+parse_expression_binop(Token* token, Stack* stack, enum token_type binop) {
     if (binop == T_OP_ASSIGN)
         return parse_expression_assign(token, stack);
 
@@ -378,7 +378,7 @@ parse_expression(Parser* self) {
      * TERM = PAREN | FUNCTION | WORD | NUMBER | STRING | TRUE | FALSE | NULL
      * CALL = INVOKE | SLICE
      * PAREN = "(" EXPR ")"
-     * OP = T_EQUAL | T_GT | T_GTE | T_LT | T_LTE | T_AND | T_OR
+     * OP = T_EQUAL | T_GT | T_GTE | T_LT | T_LTE | T_AND | T_OR | T_ASSIGN
      * UNARY = T_BANG | T_PLUS | T_MINUS
      * FUNCTION = "fun" [ WORD ] "(" [ EXPR ( "," EXPR )* ] ")" BLOCK
      * INVOKE = T_OPEN_PAREN [ EXPR ( ',' EXPR )* ] T_CLOSE_PAREN
@@ -390,10 +390,10 @@ parse_expression(Parser* self) {
     ASTNode * result;
     ASTExpression *expr;
 
-    Stack _values, *values = &_values;
+    Stack _values, *values = &_values, _ops, *ops = &_ops;
+    enum token_type binop;
     stack_init(values);
-    enum token_type operators[16], binop, *prevop = operators;
-    operators[0] = 0;
+    stack_init(ops);
 
     for (;;) {
         // Capture unary operator
@@ -410,15 +410,15 @@ parse_expression(Parser* self) {
             break;
 
         precedence = get_precedence(next->type);
-        for (;;) {
-            binop = *prevop;
-            if (!binop || get_precedence(binop) < precedence)
+        while ((binop = (enum token_type) stack_peek(ops)) != 0) {
+            if (get_precedence(binop) <= precedence)
                 break;
 
-            stack_push(values, parse_expression_binop(next, values, *prevop--));
+            stack_pop(ops);
+            stack_push(values, parse_expression_binop(next, values, binop));
         }
+        stack_push(ops, (void*) next->type);
 
-        *++prevop = next->type;
         T->next(T); // Consume the operator token
 
         // Continue to the following token
@@ -426,9 +426,9 @@ parse_expression(Parser* self) {
     }
 
     // Empty the operator stack
-    while (*prevop > 0) {
-        stack_push(values, parse_expression_binop(next, values, *prevop--));
-    }
+    while ((binop = (enum token_type) stack_peek(ops)) != 0)
+        stack_push(values, parse_expression_binop(next, values,
+            (enum token_type) stack_pop(ops)));
 
     result = (ASTNode*) stack_pop(values);
     assert(values->index == 0);
