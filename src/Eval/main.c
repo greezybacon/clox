@@ -63,7 +63,7 @@ main(int argc, char** argv) {
             arguments->input_file = argv[index];
             break;
         }
-    }    
+    }
 
     Object *result = NULL;
     if (arguments->input_file) {

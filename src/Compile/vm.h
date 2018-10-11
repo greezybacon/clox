@@ -18,6 +18,7 @@ enum opcode {
     OP_CALL_FUN,
     OP_RETURN,
 
+    // Scope
     OP_LOOKUP,
     OP_LOOKUP_LOCAL,
     OP_STORE,
@@ -43,6 +44,10 @@ enum opcode {
     OP_BINARY_MINUS,
     OP_BINARY_STAR,
     OP_BINARY_SLASH,
+
+    // Classes
+    OP_BUILD_CLASS,
+    OP_GET_ATTR,
 }
 __attribute__((packed));
 

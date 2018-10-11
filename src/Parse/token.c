@@ -204,7 +204,9 @@ next_token(Tokenizer *self) {
             if (0 == strncasecmp(token_text, "false", 5))
                 token->type = T_FALSE;            
             else if (0 == strncmp(token_text, "while", 5))
-                token->type = T_WHILE;  
+                token->type = T_WHILE;
+            else if (0 == strncmp(token_text, "class", 5))
+                token->type = T_CLASS;
             break;          
         case 6:
             if (0 == strncmp(token_text, "return", 6))

@@ -7,10 +7,14 @@ enum base_type {
     TYPE_NIL=1,
     TYPE_BOOL,
     TYPE_STRING,
+    TYPE_STRINGTREE,
     TYPE_INTEGER,
     TYPE_FLOAT,
     TYPE_HASH,
     TYPE_FUNCTION,
+    TYPE_CLASS,
+    TYPE_OBJECT,
+    TYPE_BOUND_METHOD,
 };
 
 typedef struct object Object;
@@ -67,6 +71,8 @@ typedef struct object_type {
 
     // TODO: Methods (stuff unique to each type)
     ObjectMethod* methods;
+    Object* (*getattr)(Object*, Object*);
+    void (*setattr)(Object*, Object*, Object*);
 
     // TODO: Garbage collection cooperation
     void (*cleanup)(Object*);
@@ -85,6 +91,13 @@ object_new(size_t size, ObjectType*);
 static hashval_t MYADDRESS(Object *self) {
     Object **pself = &self;
     return (hashval_t) *pself;
+}
+
+#include "boolean.h"
+struct bool_object *LoxTRUE;
+struct bool_object *LoxFALSE;
+static inline BoolObject *IDENTITY(Object *self, Object *other) {
+    return self == other ? LoxTRUE : LoxFALSE;
 }
 
 #endif

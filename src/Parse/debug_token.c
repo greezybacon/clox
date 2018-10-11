@@ -69,6 +69,7 @@ OperatorChars[] = {
     { T_BANG, "!" },
     { T_AND, "and" },
     { T_OR, "or" },
+    { T_DOT, "." },
 };
 static const int cOperatorChars = sizeof(OperatorChars) / sizeof(OperatorChars[0]);
 

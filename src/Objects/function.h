@@ -24,6 +24,7 @@ typedef struct function_object {
 
 bool Function_isFunction(Object*);
 bool Function_isCallable(Object*);
+bool CodeObject_isCodeObject(Object *); 
 
 Object* Function_fromAST(ASTFunction*);
 

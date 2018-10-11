@@ -162,7 +162,7 @@ static ASTNode*
 parse_TERM(Parser* self) {
     Tokenizer* T = self->tokens;
     Token* next = self->tokens->current;
-    ASTNode* result;
+    ASTNode* result = NULL;
 
     switch (next->type) {
     case T_OPEN_PAREN:
@@ -242,27 +242,7 @@ parse_TERM(Parser* self) {
 
         result = (ASTNode*) astfun;
         break;
-    }
-    default: {
-        char buffer[255];
-        snprintf(buffer, sizeof(buffer), "Unexpected token type in TERM, got %s",
-            get_token_type(next->type));
-        parse_syntax_error(self, buffer);
     }}
-
-    // Read ahead for invoke or slice
-    for (;;) {
-        next = T->peek(T);
-        if (next->type == T_OPEN_PAREN) {
-            result = parse_invoke(self, result);
-        }
-        else if (next->type == T_OPEN_BRACKET) {
-            result = parse_slice(self, result);
-        }
-        else {
-            break;
-        }
-    }
 
     return (ASTNode*) result;
 }
@@ -326,6 +306,7 @@ static struct operator_precedence {
     { T_OP_MINUS, 50 },
     { T_OP_STAR, 60 },
     { T_OP_SLASH, 60 },
+    { T_DOT, 70 },
     { 0, 0 },
 };
 
@@ -358,34 +339,46 @@ parse_expression_assign(Token *token, Stack *stack) {
 }
 
 static inline ASTNode*
-parse_expression_binop(Token* token, Stack* stack, enum token_type binop) {
-    if (binop == T_OP_ASSIGN)
-        return parse_expression_assign(token, stack);
+parse_expression_attr(Token *token, Stack *stack) {
+    ASTAttribute* attr = GC_MALLOC(sizeof(ASTAttribute));
+    parser_node_init((ASTNode*) attr, AST_ATTRIBUTE, token);
+    attr->attribute = (ASTNode*) parse_word2string(stack_pop(stack));
+    attr->object = (ASTNode*) stack_pop(stack);
+    return (ASTNode*) attr;
+}
 
-    ASTExpression* expr = GC_MALLOC( sizeof(ASTExpression));
-    parser_node_init((ASTNode*) expr, AST_EXPRESSION, token);
-    expr->rhs = (ASTNode*) stack_pop(stack);
-    expr->lhs = (ASTNode*) stack_pop(stack);
-    expr->binary_op = binop;
-    return (ASTNode*) expr;
+static inline ASTNode*
+parse_expression_binop(Token* token, Stack* stack, enum token_type binop) {
+    switch (binop) {
+    case T_OP_ASSIGN:
+        return parse_expression_assign(token, stack);
+    case T_DOT:
+        return parse_expression_attr(token, stack);
+    default: {
+        ASTExpression* expr = GC_MALLOC(sizeof(ASTExpression));
+        parser_node_init((ASTNode*) expr, AST_EXPRESSION, token);
+        expr->rhs = (ASTNode*) stack_pop(stack);
+        expr->lhs = (ASTNode*) stack_pop(stack);
+        expr->binary_op = binop;
+        return (ASTNode*) expr;
+    }}
 }
 
 static ASTNode*
 parse_expression(Parser* self) {
     /* General expression grammar
-     * EXPR = UNARY? COMPONENT [ OP EXPR ]
-     * COMPONENT = TERM [ CALL ]*
+     * EXPR = UNARY? TERM [ OP EXPR ]* [ CALL ]*
      * TERM = PAREN | FUNCTION | WORD | NUMBER | STRING | TRUE | FALSE | NULL
      * CALL = INVOKE | SLICE
      * PAREN = "(" EXPR ")"
-     * OP = T_EQUAL | T_GT | T_GTE | T_LT | T_LTE | T_AND | T_OR | T_ASSIGN
+     * OP = T_EQUAL | T_GT | T_GTE | T_LT | T_LTE | T_AND | T_OR | T_ASSIGN | T_DOT
      * UNARY = T_BANG | T_PLUS | T_MINUS
      * FUNCTION = "fun" [ WORD ] "(" [ EXPR ( "," EXPR )* ] ")" BLOCK
      * INVOKE = T_OPEN_PAREN [ EXPR ( ',' EXPR )* ] T_CLOSE_PAREN
      * SLICE = T_OPEN_BRACKET [ EXPR [ ':' EXPR [ ':' EXPR ] ] ] T_CLOSE_BRACKET
      */
     Tokenizer* T = self->tokens;
-    Token* next = T->next(T), *prev;
+    Token* next, *prev;
     int precedence;
     ASTNode * result;
     ASTExpression *expr;
@@ -395,40 +388,54 @@ parse_expression(Parser* self) {
     stack_init(values);
     stack_init(ops);
 
+    // Capture unary operator
     for (;;) {
-        // Capture unary operator
+        next = T->next(T);
         if (next->type == T_BANG || next->type == T_OP_PLUS || next->type == T_OP_MINUS) {
             expr->unary_op = next->type;
             T->next(T);
         }
 
-        stack_push(values, parse_TERM(self));
-
-        // Peek for (binary) operator
-        next = T->peek(T);
-        if (next->type < T__OP_MIN || next->type > T__OP_MAX)
+        result = parse_TERM(self);
+        if (result == NULL)
             break;
 
-        precedence = get_precedence(next->type);
-        while ((binop = (enum token_type) stack_peek(ops)) != 0) {
-            if (get_precedence(binop) <= precedence)
-                break;
+        stack_push(values, result);
 
-            stack_pop(ops);
-            stack_push(values, parse_expression_binop(next, values, binop));
+        // TODO: If ToS is an ASTLiteral, then resolve the unary op here
+
+        // Peek for (binary) operator (prefer over () and [] operations)
+        next = T->peek(T);
+        if (next->type > T__OP_MIN && next->type < T__OP_MAX) {
+            precedence = get_precedence(next->type);
+            while ((binop = (enum token_type) stack_peek(ops)) != 0) {
+                if (get_precedence(binop) <= precedence)
+                    break;
+
+                stack_pop(ops);
+                stack_push(values, parse_expression_binop(next, values, binop));
+            }
+            stack_push(ops, (void*) next->type);
+
+            // Consume the operator token
+            T->next(T);
         }
-        stack_push(ops, (void*) next->type);
-
-        T->next(T); // Consume the operator token
-
-        // Continue to the following token
-        next = T->next(T);
+        else {
+            break;
+        }
     }
 
     // Empty the operator stack
     while ((binop = (enum token_type) stack_peek(ops)) != 0)
         stack_push(values, parse_expression_binop(next, values,
             (enum token_type) stack_pop(ops)));
+
+    if (next->type == T_OPEN_PAREN) {
+        stack_push(values, parse_invoke(self, stack_pop(values)));
+    }
+    else if (next->type == T_OPEN_BRACKET) {
+        stack_push(values, parse_slice(self, stack_pop(values)));
+    }
 
     result = (ASTNode*) stack_pop(values);
     assert(values->index == 0);
@@ -438,7 +445,7 @@ parse_expression(Parser* self) {
 
 static ASTNode*
 parse_statement(Parser* self) {
-    Token* token = self->tokens->current, *peek;
+    Token* token = self->tokens->current, *peek, *next;
     ASTNode* result = NULL;
 
     switch (token->type) {
@@ -512,6 +519,50 @@ parse_statement(Parser* self) {
         result = (ASTNode*) astreturn;
         break;
     }
+    case T_CLASS: {
+        ASTClass* astclass = GC_NEW(ASTClass);
+        parser_node_init((ASTNode*) astclass, AST_CLASS, token);
+
+        next = parse_expect(self, T_WORD);
+        astclass->name = String_fromCharArrayAndSize(
+            self->tokens->fetch_text(self->tokens, next),
+            next->length);
+
+        if (self->tokens->peek(self->tokens)->type == T_OP_LT) {
+            self->tokens->next(self->tokens);
+            next = parse_expect(self, T_WORD);
+            astclass->extends = String_fromCharArrayAndSize(
+                self->tokens->fetch_text(self->tokens, next),
+                next->length);
+        }
+
+        parse_expect(self, T_OPEN_BRACE);
+        while (self->tokens->peek(self->tokens)->type != T_CLOSE_BRACE) {
+            next = parse_expect(self, T_WORD);
+
+            ASTFunction* astfun = GC_MALLOC(sizeof(ASTFunction));
+            parser_node_init((ASTNode*) astfun, AST_FUNCTION, next);
+
+            // XXX: Use a StringObject for better memory management
+            astfun->name = GC_STRNDUP(
+                self->tokens->fetch_text(self->tokens, next),
+                next->length
+            );
+            astfun->name_length = next->length;
+
+            astfun->arglist = parse_arg_list(self);
+            parse_expect(self, T_CLOSE_PAREN);
+            astfun->block = parse_block(self);
+
+            if (astclass->body != NULL)
+                astclass->body->next = (ASTNode*) astfun;
+            else
+                astclass->body = (ASTNode*) astfun;
+        }
+        parse_expect(self, T_CLOSE_BRACE);
+        result = (ASTNode*) astclass;
+        break;
+    }
     default:
         // This shouldn't happen ...
         result = NULL;
@@ -549,6 +600,7 @@ parser_parse_next(Parser* self) {
     case T_FOR:
     case T_WHILE:
     case T_RETURN:
+    case T_CLASS:
         self->tokens->next(self->tokens);
         rv = parse_statement(self);
         break;

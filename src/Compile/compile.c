@@ -335,14 +335,14 @@ compile_if(Compiler *self, ASTIf *node) {
 }
 
 static unsigned
-compile_function(Compiler *self, ASTFunction *node) {
+compile_function_inner(Compiler *self, ASTFunction *node) {
     // Create a new compiler context for the function's code (with new constants)
     compile_push_context(self);
 
     ASTNode *p;
     ASTFuncParam *param;
     unsigned index, length = 0;
-    
+
     // (When the function is executed), load the arguments off the args list
     // Into local variables. The arguments will be in the proper order already,
     // so no need to reverse.
@@ -353,7 +353,7 @@ compile_function(Compiler *self, ASTFunction *node) {
             (Object*) String_fromCharArrayAndSize(param->name, param->name_length));
         length += compile_emit(self, OP_STORE_ARG_LOCAL, index);
     }
-    
+
     // Compile the function's code in the new context
     // Local vars are welcome inside the function
     Compiler nested = (Compiler) {
@@ -367,7 +367,16 @@ compile_function(Compiler *self, ASTFunction *node) {
         CodeObject_fromContext(node, compile_pop_context(self)));
 
     // (Meanwhile, back in the original context)
-    length += compile_emit(self, OP_CONSTANT, index);
+    return length + compile_emit(self, OP_CONSTANT, index);
+}
+
+static unsigned
+compile_function(Compiler *self, ASTFunction *node) {
+    size_t length;
+    unsigned index;
+    length = compile_function_inner(self, node);
+
+    // Create closure and stash in context
     length += compile_emit(self, OP_CLOSE_FUN, 0);
 
     // Store the named function?
@@ -385,12 +394,12 @@ compile_invoke(Compiler* self, ASTInvoke *node) {
     // Push the function / callable / lookup
     unsigned length = 0;
 
+    // Make the function
+    length += compile_node(self, node->callable);
+
     // Push all the arguments
     if (node->nargs && node->args != NULL)
         length += compile_node(self, node->args);
-
-    // Make the function
-    length += compile_node(self, node->callable);
 
     // Call the function
     return length + compile_emit(self, OP_CALL_FUN, node->nargs);
@@ -410,6 +419,52 @@ compile_var(Compiler *self, ASTVar *node) {
     }
 
     return length;
+}
+
+static unsigned
+compile_class(Compiler *self, ASTClass *node) {
+    // PLAN: Build the class, build hashtable of methods, stash by name
+    size_t length = 0, count = 0;
+    unsigned index;
+
+    // Build the methods
+    ASTNode *body = node->body;
+    ASTFunction *method;
+    while (body) {
+        assert(body->type == AST_FUNCTION);
+        method = (ASTFunction*) body;
+        compile_function_inner(self, method);
+        
+        // Anonymous methods?
+        if (method->name_length) {
+            index = compile_emit_constant(self,
+                (Object*) String_fromCharArrayAndSize(method->name, method->name_length));
+            length += compile_emit(self, OP_CONSTANT, index);
+            count++;
+        }
+
+        body = body->next;
+    }
+    
+    length += compile_emit(self, OP_BUILD_CLASS, count);
+
+    // Support anonymous classes?
+    if (node->name) {
+        index = compile_emit_constant(self, node->name);
+        // Push the STORE
+        length += compile_emit(self, OP_STORE, index);
+    }
+    
+    return length;
+}
+
+static unsigned
+compile_attribute(Compiler *self, ASTAttribute *attr) {
+    unsigned index,
+             length = compile_node(self, attr->object);
+
+    index = compile_emit_constant(self, attr->attribute);
+    return length + compile_emit(self, OP_GET_ATTR, index);
 }
 
 static unsigned
@@ -436,6 +491,10 @@ _compile_node(Compiler* self, ASTNode* ast) {
         return compile_invoke(self, (ASTInvoke*) ast);
     case AST_LOOKUP:
         return compile_lookup(self, (ASTLookup*) ast);
+    case AST_CLASS:
+        return compile_class(self, (ASTClass*) ast);
+    case AST_ATTRIBUTE:
+        return compile_attribute(self, (ASTAttribute*) ast);
 
     default:
         compile_error(self, "Unexpected AST node type");

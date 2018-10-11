@@ -19,8 +19,4 @@ bool Bool_isTrue(Object*);
 BoolObject *LoxTRUE, *LoxFALSE;
 Object *LoxNIL;
 
-static inline BoolObject *IDENTITY(Object *self, Object *other) {
-    return self == other ? LoxTRUE : LoxFALSE;
-}
-
 #endif

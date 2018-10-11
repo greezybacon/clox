@@ -137,6 +137,13 @@ CodeObject_fromContext(ASTFunction *fun, CodeContext *code) {
     return (Object*) O;
 }
 
+bool
+CodeObject_isCodeObject(Object *callable) {
+    assert(callable);
+    assert(callable->type);
+    return callable->type == &CodeObjectType;
+}
+
 Object*
 code_asstring(Object* self) {
     assert(self->type == &CodeObjectType);
@@ -156,11 +163,28 @@ code_asstring(Object* self) {
     return (Object*) String_fromCharArrayAndSize(buffer, bytes);
 }
 
+static Object*
+codeobject_call(Object* self, VmScope *scope, Object *object, Object *args) {
+    assert(self->type == &CodeObjectType);
+    assert(Tuple_isTuple(args));
+
+    VmEvalContext call_ctx = (VmEvalContext) {
+        .code = ((CodeObject*) self)->code,
+        .scope = scope->outer,
+        .args = (VmCallArgs) {
+            .values = ((TupleObject*) args)->items,
+            .count = ((TupleObject*) args)->count,
+        },
+    };
+    return vmeval_eval(&call_ctx);
+}
+
 static struct object_type CodeObjectType = (ObjectType) {
     .name = "code",
     .hash = MYADDRESS,
     .op_eq = IDENTITY,
     .as_string = code_asstring,
+    .call = codeobject_call,
 };
 
 

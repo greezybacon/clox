@@ -22,11 +22,12 @@ enum ast_type {
     AST_LOOKUP,
     AST_INVOKE,
     AST_CLASS,
+    AST_ATTRIBUTE,
 };
 
 typedef struct ast_node {
     enum ast_type   type;
-    int             line, offset;
+    unsigned        line, offset;
     struct ast_node *next;
 } ASTNode;
 
@@ -96,8 +97,8 @@ typedef struct ast_slice {
 
 typedef struct ast_class {
     ASTNode             node;
-    char *              name;
-    struct ast_node*    extends;
+    Object              *name;
+    Object              *extends;
     struct ast_node*    body;
 } ASTClass;
 
@@ -136,6 +137,12 @@ typedef struct ast_var {
     size_t              name_length;
     struct ast_node*    expression;
 } ASTVar;
+
+typedef struct ast_attribute {
+    ASTNode             node;
+    ASTNode             *object;
+    ASTNode             *attribute;
+} ASTAttribute;
 
 typedef struct parser_context {
     Tokenizer *     tokens;

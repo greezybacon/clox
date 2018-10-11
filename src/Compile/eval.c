@@ -7,6 +7,9 @@
 #include "Lib/builtin.h"
 #include "Vendor/bdwgc/include/gc.h"
 
+#include "Objects/hash.h"
+#include "Objects/class.h"
+
 #define STACK_SIZE 32
 
 Object*
@@ -85,14 +88,10 @@ vmeval_eval(VmEvalContext *ctx) {
             break;
 
             case OP_CALL_FUN: {
-                Object *fun = POP(stack);
+                Object *fun = *(stack - pc->arg - 1);
                 assert(Function_isCallable(fun));
                 
-                if (Function_isNativeFunction(fun)) {
-                    TupleObject *args = Tuple_fromList(pc->arg, stack - pc->arg);
-                    rv = fun->type->call(fun, ctx->scope, NULL, (Object*) args);
-                }
-                else {
+                if (CodeObject_isCodeObject(fun)) {
                     VmEvalContext call_ctx = (VmEvalContext) {
                         .code = ((VmFunction*)fun)->code->code,
                         .scope = ((VmFunction*)fun)->scope,
@@ -103,13 +102,35 @@ vmeval_eval(VmEvalContext *ctx) {
                     };
                     rv = vmeval_eval(&call_ctx);
                 }
-                stack -= pc->arg; // POP_N, {pc->arg}
+                else {
+                    TupleObject *args = Tuple_fromList(pc->arg, stack - pc->arg);
+                    rv = fun->type->call(fun, ctx->scope, NULL, (Object*) args);
+                }
+
+                stack -= pc->arg + 1; // POP_N, {pc->arg}
                 PUSH(stack, rv);
             }
             break;
 
             case OP_RETURN:
             goto op_return;
+            break;
+
+            case OP_BUILD_CLASS: {
+                size_t count = pc->arg;
+                HashObject *attributes = Hash_newWithSize(pc->arg);
+                while (count--) {
+                    lhs = POP(stack);
+                    Hash_setItem(attributes, lhs, POP(stack));
+                }
+                PUSH(stack, (Object*) Class_build(attributes));
+            }
+            break;
+            
+            case OP_GET_ATTR:
+            C = ctx->code->constants + pc->arg;
+            lhs = POP(stack);
+            PUSH(stack, lhs->type->getattr(lhs, C->value));
             break;
 
             case OP_LOOKUP:

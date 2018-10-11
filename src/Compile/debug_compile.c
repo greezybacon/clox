@@ -51,6 +51,10 @@ static struct named_opcode OpcodeNames[] = {
     { OP_BINARY_MINUS,  "MINUS (-)" },
     { OP_BINARY_STAR,   "STAR (*)" },
     { OP_BINARY_SLASH,  "SLASH (/)" },
+
+    // Classes
+    { OP_BUILD_CLASS,   "BUILD_CLASS" },
+    { OP_GET_ATTR,      "GET_ATTRIBUTE" },
 };
 
 static int cmpfunc (const void * a, const void * b) {
@@ -67,6 +71,7 @@ print_opcode(const CodeContext *context, const Instruction *op) {
 
     // For opcodes which use constants, print the constant value too
     switch (op->op) {
+    case OP_GET_ATTR:
     case OP_CONSTANT:
     case OP_STORE:
     case OP_LOOKUP: {

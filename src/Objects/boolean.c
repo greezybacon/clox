@@ -22,7 +22,8 @@ Bool_fromObject(Object* value) {
     else if (value->type->as_bool)
         return value->type->as_bool(value);
     // TODO: If type has a len() method, compare > zero
-    // TODO: NULL should be false
+    else if (value == LoxNIL)
+        return LoxFALSE;
     else
         // XXX: FIXME
         eval_error(NULL, "Cannot represent value as Boolean");
