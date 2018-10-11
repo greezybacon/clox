@@ -54,6 +54,7 @@ typedef struct ast_assignment {
 typedef struct ast_lookup {
     ASTNode             node;
     Object              *name;
+    hashval_t           hash;
 } ASTLookup;
 
 typedef struct ast_term {

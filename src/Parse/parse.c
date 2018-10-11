@@ -183,6 +183,7 @@ parse_TERM(Parser* self) {
             self->tokens->fetch_text(self->tokens, next),
             next->length
         );
+        lookup->hash = lookup->name->type->hash(lookup->name);
         result = (ASTNode*) lookup;
         break;
     }

@@ -48,6 +48,7 @@ TokenDescriptions[] = {
     { T_CLOSE_BRACKET, "T_CLOSE_BRACKET" },
     { T_COMMA, "T_COMMA" },
     { T_RETURN, "T_RETURN" },
+    { T_COMMENT, "T_COMMENT" },
 };
 static const int cTokenDescriptions = sizeof(TokenDescriptions) / sizeof(TokenDescriptions[0]);
 
