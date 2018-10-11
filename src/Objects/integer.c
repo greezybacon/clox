@@ -58,9 +58,10 @@ integer_asstring(Object* self) {
     assert(self->type == &IntegerType);
 
     char buffer[32];
+    int length;
 
-    snprintf(buffer, sizeof(buffer), "%lld", ((IntegerObject*) self)->value);
-    return (Object*) String_fromCharArrayAndSize(buffer, sizeof(buffer));
+    length = snprintf(buffer, sizeof(buffer), "%lld", ((IntegerObject*) self)->value);
+    return (Object*) String_fromCharArrayAndSize(buffer, length);
 }
 
 static BoolObject*
