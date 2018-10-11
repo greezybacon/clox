@@ -23,24 +23,25 @@ static struct object_type HashType;
 
 /* Create a new hashtable. */
 HashObject *Hash_newWithSize(size_t size) {
-	HashObject *hashtable = NULL;
-    // XXX: Check size is a power of 2
+    HashObject *hashtable = NULL;
 
-	if ( size < 1 )
-        return NULL;
+    // Check size is a power of 2, and at least 8
+    size_t newsize = 8;
+    while (newsize < size)
+        newsize <<= 1;
 
     hashtable = object_new(sizeof(HashObject), &HashType);
     if (hashtable == NULL)
         return hashtable;
 
-    hashtable->table = GC_MALLOC(size * sizeof(HashEntry));
+    hashtable->table = GC_MALLOC(newsize * sizeof(HashEntry));
     if (hashtable->table == NULL)
         return NULL;
 
-    hashtable->size = size;
-    hashtable->size_mask = size - 1;
+    hashtable->size = newsize;
+    hashtable->size_mask = newsize - 1;
 
-	return hashtable;
+    return hashtable;
 }
 
 // My implementation as a table which will auto resize
@@ -106,7 +107,7 @@ hash_set(HashObject *self, Object *key, Object *value) {
     HashEntry *entry;
 
     // If the table is over half full, double the size
-    if (self->count >= self->size / 2) {
+    if (self->count >= self->size - 2) {
         if (0 != hash_resize(self, self->size * 2))
             // TODO: Raise error?
             ;
@@ -122,13 +123,13 @@ hash_set(HashObject *self, Object *key, Object *value) {
     entry = self->table + slot;
     while (entry->key != NULL) {
         if (LoxTRUE == entry->key->type->op_eq(entry->key, key)) {
-	        // There's something associated with this key. Let's replace it
-    		entry->value = value;
+            // There's something associated with this key. Let's replace it
+            entry->value = value;
             return;
         }
         slot = (slot + 1) & self->size_mask;
         entry = self->table + slot;
-	}
+    }
 
     *entry = (HashEntry) {
         .value = value,
@@ -143,20 +144,20 @@ hash_lookup_fast(HashObject* self, Object* key, hashval_t hash) {
     int slot = hash & self->size_mask;
     HashEntry *entry = self->table + slot;
 
-	/* Step through the table, looking for our value. */
-	while (entry->key != NULL
+    /* Step through the table, looking for our value. */
+    while (entry->key != NULL
         && (entry->hash != hash
         || !Bool_ISTRUE(entry->key->type->op_eq(entry->key, key))
     )) {
         slot = (slot + 1) & self->size_mask;
         entry = self->table + slot;
-	}
+    }
 
-	/* Did we actually find anything? */
-	if (entry->key == NULL) {
+    /* Did we actually find anything? */
+    if (entry->key == NULL) {
         return NULL;
     }
-	return entry;
+    return entry;
 }
 
 static HashEntry*
@@ -168,7 +169,7 @@ hash_lookup(HashObject *self, Object *key) {
 static Object*
 hash_get(Object *self, Object *key) {
     assert(self->type == &HashType);
-	HashEntry *entry = hash_lookup((HashObject*) self, key);
+    HashEntry *entry = hash_lookup((HashObject*) self, key);
 
     if (entry == NULL)
         // TODO: Raise error
@@ -180,7 +181,7 @@ hash_get(Object *self, Object *key) {
 static BoolObject*
 hash_contains(Object *self, Object *key) {
     assert(self->type == &HashType);
-	HashEntry *entry = hash_lookup((HashObject*) self, key);
+    HashEntry *entry = hash_lookup((HashObject*) self, key);
     return (entry == NULL) ? LoxFALSE : LoxTRUE;
 }
 
@@ -209,14 +210,14 @@ Hash_setItem(HashObject* self, Object* key, Object* value) {
 bool
 Hash_contains(HashObject* self, Object* key) {
     assert(self);
-	HashEntry *entry = hash_lookup((HashObject*) self, key);
+    HashEntry *entry = hash_lookup((HashObject*) self, key);
     return entry != NULL;
 }
 
 static void
 hash_remove(Object* self, Object* key) {
     assert(self->type == &HashType);
-	HashEntry *entry = hash_lookup((HashObject*) self, key);
+    HashEntry *entry = hash_lookup((HashObject*) self, key);
 
     if (entry == NULL)
         // TODO: Raise error
