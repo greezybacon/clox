@@ -1,8 +1,10 @@
 #include <assert.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "tuple.h"
 #include "integer.h"
+#include "string.h"
 #include "Vendor/bdwgc/include/gc.h"
 
 static struct object_type TupleType;
@@ -12,7 +14,7 @@ Tuple_new(size_t count) {
     TupleObject* self = object_new(sizeof(TupleObject), &TupleType);
     self->count = count;
     self->items = GC_MALLOC(count * sizeof(Object*));
-    return self;      
+    return self;
 }
 
 TupleObject*
@@ -87,7 +89,45 @@ tuple_getitem(Object* self, Object* index) {
     return Tuple_getItem((TupleObject*) self, idx);
 }
 
+static Object*
+tuple_len(Object* self) {
+    assert(self->type == &TupleType);
+    return (Object*) Integer_fromLongLong(((TupleObject*) self)->count);
+}
+
+static Object*
+tuple_asstring(Object* self) {
+    assert(self->type == &TupleType);
+
+    char buffer[1024];  // TODO: Use the + operator of StringObject
+    char* position = buffer;
+    int remaining = sizeof(buffer) - 1, bytes;
+
+    bytes = snprintf(position, remaining, "(");
+    position += bytes, remaining -= bytes;
+
+    Object *value;
+    StringObject *svalue;
+    TupleObject *this = (TupleObject*) self;
+
+    int k = this->count, j = k - 1, i = 0;
+    for (; i < k; i++) {
+        value = *(this->items + i);
+        svalue = (StringObject*) value->type->as_string(value);
+        bytes = snprintf(position, remaining, "%.*s%s",
+            svalue->length, svalue->characters,
+            i == j ? "" : ", ");
+        position += bytes, remaining -= bytes;
+    }
+    position += snprintf(position, remaining, ")");
+
+    return (Object*) String_fromCharArrayAndSize(buffer, position - buffer);
+}
+
 static struct object_type TupleType = (ObjectType) {
     .name = "tuple",
+    .len = tuple_len,
     .get_item = tuple_getitem,
+
+    .as_string = tuple_asstring,
 };
