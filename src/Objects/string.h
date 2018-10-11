@@ -19,4 +19,14 @@ bool String_isString(Object*);
 StringObject* String_fromObject(Object*);
 StringObject* String_fromLiteral(char*, size_t);
 
+typedef struct stringtree_object {
+    // Inherits from Object
+    Object  base;
+
+    Object  *left;
+    Object  *right;
+} StringTreeObject;
+
+StringTreeObject* StringTree_fromStrings(Object*, Object*);
+
 #endif
