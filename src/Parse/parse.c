@@ -223,6 +223,15 @@ parse_TERM(Parser* self) {
         result = (ASTNode*) literal;
         break;
     }
+    case T_THIS:
+    case T_SUPER: {
+        ASTMagic *lookup = GC_NEW(ASTMagic);
+        parser_node_init((ASTNode*) lookup, AST_MAGIC, next);
+        lookup->this = next->type == T_THIS ? 1 : 0;
+        lookup->super = next->type == T_SUPER ? 1 : 0;
+        result = (ASTNode*) lookup;
+        break;
+    }
     case T_FUNCTION: {
         ASTFunction* astfun = GC_MALLOC(sizeof(ASTFunction));
         parser_node_init((ASTNode*) astfun, AST_FUNCTION, next);
@@ -332,18 +341,30 @@ parse_word2string(ASTNode* node) {
 
 static inline ASTNode*
 parse_expression_assign(Token *token, Stack *stack) {
-    ASTAssignment* assign = GC_MALLOC(sizeof(ASTAssignment));
-    parser_node_init((ASTNode*) assign, AST_ASSIGNMENT, token);
-    assign->expression = (ASTNode*) stack_pop(stack);
-    assign->name = parse_word2string(stack_pop(stack));
-    return (ASTNode*) assign;
+    ASTNode *rhs = (ASTNode*) stack_pop(stack);
+    ASTNode *lhs = stack_pop(stack);
+    
+    ASTNode *rv;
+    if (lhs->type == AST_LOOKUP) {
+        ASTAssignment* assign = GC_MALLOC(sizeof(ASTAssignment));
+        parser_node_init((ASTNode*) assign, AST_ASSIGNMENT, token);
+        assign->expression = rhs;
+        assign->name = parse_word2string(lhs);
+        rv = (ASTNode*) assign;
+    }
+    else if (lhs->type == AST_ATTRIBUTE) {
+        ((ASTAttribute*) lhs)->value = rhs;
+        rv = lhs;
+    }
+
+    return rv;
 }
 
 static inline ASTNode*
 parse_expression_attr(Token *token, Stack *stack) {
     ASTAttribute* attr = GC_MALLOC(sizeof(ASTAttribute));
     parser_node_init((ASTNode*) attr, AST_ATTRIBUTE, token);
-    attr->attribute = (ASTNode*) parse_word2string(stack_pop(stack));
+    attr->attribute = parse_word2string(stack_pop(stack));
     attr->object = (ASTNode*) stack_pop(stack);
     return (ASTNode*) attr;
 }
@@ -525,14 +546,14 @@ parse_statement(Parser* self) {
         parser_node_init((ASTNode*) astclass, AST_CLASS, token);
 
         next = parse_expect(self, T_WORD);
-        astclass->name = String_fromCharArrayAndSize(
+        astclass->name = (Object*) String_fromCharArrayAndSize(
             self->tokens->fetch_text(self->tokens, next),
             next->length);
 
         if (self->tokens->peek(self->tokens)->type == T_OP_LT) {
             self->tokens->next(self->tokens);
             next = parse_expect(self, T_WORD);
-            astclass->extends = String_fromCharArrayAndSize(
+            astclass->extends = (Object*) String_fromCharArrayAndSize(
                 self->tokens->fetch_text(self->tokens, next),
                 next->length);
         }

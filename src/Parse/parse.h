@@ -23,6 +23,7 @@ enum ast_type {
     AST_INVOKE,
     AST_CLASS,
     AST_ATTRIBUTE,
+    AST_MAGIC,
 };
 
 typedef struct ast_node {
@@ -56,6 +57,14 @@ typedef struct ast_lookup {
     Object              *name;
     hashval_t           hash;
 } ASTLookup;
+
+typedef struct ast_magic {
+    ASTNode             node;
+    struct {
+        unsigned        this:1;
+        unsigned        super:1;
+    };
+} ASTMagic;
 
 typedef struct ast_term {
     ASTNode             node;
@@ -142,7 +151,8 @@ typedef struct ast_var {
 typedef struct ast_attribute {
     ASTNode             node;
     ASTNode             *object;
-    ASTNode             *attribute;
+    Object              *attribute;
+    ASTNode             *value;
 } ASTAttribute;
 
 typedef struct parser_context {

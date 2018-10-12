@@ -48,6 +48,9 @@ enum opcode {
     // Classes
     OP_BUILD_CLASS,
     OP_GET_ATTR,
+    OP_SET_ATTR,
+    OP_THIS,
+    OP_SUPER,
 }
 __attribute__((packed));
 
@@ -130,6 +133,7 @@ typedef struct vmeval_context {
     CodeContext     *code;
     VmScope         *scope;
     VmCallArgs      args;
+    Object          *this;
 } VmEvalContext;
 
 Object *vmeval_eval(VmEvalContext*);

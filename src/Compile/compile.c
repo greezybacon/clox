@@ -289,6 +289,14 @@ compile_lookup(Compiler *self, ASTLookup *node) {
 }
 
 static unsigned
+compile_magic(Compiler *self, ASTMagic *node) {
+    if (node->this)
+        return compile_emit(self, OP_THIS, 0);
+    else if (node->super)
+        return compile_emit(self, OP_SUPER, 0);
+}
+
+static unsigned
 compile_while(Compiler* self, ASTWhile *node) {
     // Emit the condition
     unsigned length = 0;
@@ -464,6 +472,11 @@ compile_attribute(Compiler *self, ASTAttribute *attr) {
              length = compile_node(self, attr->object);
 
     index = compile_emit_constant(self, attr->attribute);
+    if (attr->value) {
+        length += compile_node(self, attr->value);
+        return length + compile_emit(self, OP_SET_ATTR, index);
+    }
+
     return length + compile_emit(self, OP_GET_ATTR, index);
 }
 
@@ -489,6 +502,8 @@ _compile_node(Compiler* self, ASTNode* ast) {
         return compile_literal(self, (ASTLiteral*) ast);
     case AST_INVOKE:
         return compile_invoke(self, (ASTInvoke*) ast);
+    case AST_MAGIC:
+        return compile_magic(self, (ASTMagic*) ast);
     case AST_LOOKUP:
         return compile_lookup(self, (ASTLookup*) ast);
     case AST_CLASS:

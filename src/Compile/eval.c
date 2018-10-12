@@ -133,6 +133,17 @@ vmeval_eval(VmEvalContext *ctx) {
             PUSH(stack, lhs->type->getattr(lhs, C->value));
             break;
 
+            case OP_SET_ATTR:
+            C = ctx->code->constants + pc->arg;
+            rhs = POP(stack);
+            lhs = POP(stack);
+            lhs->type->setattr(lhs, C->value, rhs);
+            break;
+
+            case OP_THIS:
+            PUSH(stack, ctx->this);
+            break;
+
             case OP_LOOKUP:
             C = ctx->code->constants + pc->arg;
             assert(ctx->scope);

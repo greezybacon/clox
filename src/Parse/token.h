@@ -45,6 +45,8 @@ enum token_type {
     T_COMMA,
     T_RETURN,
     T_COMMENT,
+    T_THIS,
+    T_SUPER,
 };
 
 typedef struct token {

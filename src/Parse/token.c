@@ -199,6 +199,8 @@ next_token(Tokenizer *self) {
                 token->type = T_NULL;
             else if (0 == strncasecmp(token_text, "true", 4))
                 token->type = T_TRUE;
+            else if (0 == strncasecmp(token_text, "this", 4))
+                token->type = T_THIS;
             break;
         case 5:
             if (0 == strncasecmp(token_text, "false", 5))
@@ -207,6 +209,8 @@ next_token(Tokenizer *self) {
                 token->type = T_WHILE;
             else if (0 == strncmp(token_text, "class", 5))
                 token->type = T_CLASS;
+            else if (0 == strncmp(token_text, "super", 5))
+                token->type = T_SUPER;
             break;          
         case 6:
             if (0 == strncmp(token_text, "return", 6))

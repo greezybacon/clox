@@ -171,6 +171,7 @@ codeobject_call(Object* self, VmScope *scope, Object *object, Object *args) {
     VmEvalContext call_ctx = (VmEvalContext) {
         .code = ((CodeObject*) self)->code,
         .scope = scope->outer,
+        .this = object,
         .args = (VmCallArgs) {
             .values = ((TupleObject*) args)->items,
             .count = ((TupleObject*) args)->count,
@@ -208,6 +209,7 @@ vmfun_call(Object* self, VmScope *ignored, Object *object, Object *args) {
     VmEvalContext call_ctx = (VmEvalContext) {
         .code = ((VmFunction*) self)->code->code,
         .scope = ((VmFunction*) self)->scope,
+        .this = object,
         .args = (VmCallArgs) {
             .values = ((TupleObject*) args)->items,
             .count = ((TupleObject*) args)->count,

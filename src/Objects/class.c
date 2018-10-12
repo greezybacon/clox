@@ -26,11 +26,24 @@ static Object*
 class_instanciate(Object* self, VmScope *scope, Object* object, Object* args) {
     assert(self);
     assert(self->type == &ClassType);
-    // TODO: Create/return a object with (self) as the class
+    // Create/return a object with (self) as the class
     InstanceObject *O = object_new(sizeof(InstanceObject), &InstanceType);
     
     O->class = (ClassObject*) self;
-    // TODO: Call constructor with args
+
+    // Call constructor with args
+    static Object *init = NULL;
+    if (!init)
+        init = (Object*) String_fromCharArrayAndSize("init", 4);
+
+    Object *constructor;
+    if (O->class->attributes
+        && ((constructor = Hash_getItem(O->class->attributes, init)))
+    ) {
+        assert(Function_isCallable(constructor));
+        constructor->type->call(constructor, scope, (Object*) O, args);
+    }
+
     return (Object*) O;
 }
 
@@ -64,14 +77,32 @@ instance_getattr(Object *self, Object *name) {
     InstanceObject *this = (InstanceObject*) self;
     assert(this->class);
 
-    Object *method;
+    Object *attr;
 
-    if ((this->attributes && (method = Hash_getItem(this->attributes, name)) != NULL)
-        || (method = Hash_getItem(this->class->attributes, name)) != NULL)
-        return BoundMethod_create(method, self);
+    if (this->attributes && (attr = Hash_getItem(this->attributes, name)) != NULL)
+        return attr;
+
+    if ((attr = Hash_getItem(this->class->attributes, name)) != NULL)
+        return BoundMethod_create(attr, self);
 
     // OOPS. Log something!
     return LoxNIL;
+}
+
+static void
+instance_setattr(Object *self, Object *name, Object *value) {
+    assert(self);
+    assert(self->type == &InstanceType);
+
+    InstanceObject *this = (InstanceObject*) self;
+    assert(this->class);
+
+    Object *method;
+
+    if (!this->attributes)
+        this->attributes = Hash_new();
+
+    Hash_setItem(this->attributes, name, value);
 }
 
 static struct object_type InstanceType = (ObjectType) {
@@ -81,6 +112,7 @@ static struct object_type InstanceType = (ObjectType) {
     .op_eq = IDENTITY,
     
     .getattr = instance_getattr,
+    .setattr = instance_setattr,
 };
 
 
