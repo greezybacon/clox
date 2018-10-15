@@ -298,35 +298,41 @@ stack_init(Stack* stack) {
 }
 
 // Operator precedence listing (XXX: Maybe place in a header?)
-
-static struct operator_precedence {
-    enum token_type operator;
-    int             precedence;
+typedef struct operator_info OperatorInfo;
+static struct operator_info {
+    enum token_type     operator;
+    enum associativity  assoc;
+    int                 precedence;
 } OperatorPrecedence[] = {
-    { T_OP_ASSIGN, 10 },
-    { T_OP_GT, 20 },
-    { T_OP_GTE, 20 },
-    { T_OP_LT, 20 },
-    { T_OP_LTE, 20 },
-    { T_BANG, 30 },
-    { T_AND, 30 },
-    { T_OR, 30 },
-    { T_OP_EQUAL, 40 },
-    { T_OP_PLUS, 50 },
-    { T_OP_MINUS, 50 },
-    { T_OP_STAR, 60 },
-    { T_OP_SLASH, 60 },
-    { T_DOT, 70 },
-    { 0, 0 },
+    { T_OP_ASSIGN,  ASSOC_RIGHT,    10 },
+    { T_OP_IPLUS,   ASSOC_RIGHT,    10 },
+    { T_OP_IMINUS,  ASSOC_RIGHT,    10 },
+    { T_OP_ISTAR,   ASSOC_RIGHT,    10 },
+    { T_OP_ISLASH,  ASSOC_RIGHT,    10 },
+    { T_AND,        ASSOC_LEFT,     20 },
+    { T_OR,         ASSOC_LEFT,     20 },
+    { T_OP_GT,      ASSOC_LEFT,     30 },
+    { T_OP_GTE,     ASSOC_LEFT,     30 },
+    { T_OP_LT,      ASSOC_LEFT,     30 },
+    { T_OP_LTE,     ASSOC_LEFT,     30 },
+    { T_OP_EQUAL,   ASSOC_LEFT,     40 },
+    { T_BANG,       ASSOC_LEFT,     45 },
+    { T_OP_PLUS,    ASSOC_LEFT,     50 },
+    { T_OP_MINUS,   ASSOC_LEFT,     50 },
+    { T_OP_STAR,    ASSOC_LEFT,     60 },
+    { T_OP_SLASH,   ASSOC_LEFT,     60 },
+    { T_OPEN_PAREN, ASSOC_RIGHT,    70 },
+    { T_OPEN_BRACKET, ASSOC_RIGHT,  70 },
+    { T_DOT,        ASSOC_LEFT,     80 },
+    { 0, 0, 0 },
 };
 
-static inline int
-get_precedence(enum token_type op) {
-    struct operator_precedence *P = OperatorPrecedence,
-        *Pl = NULL;
+static inline const OperatorInfo*
+get_operator_info(enum token_type op) {
+    struct operator_info *P = OperatorPrecedence;
     for (; P->operator != 0; P++) {
         if (P->operator == op)
-            return P->precedence;
+            return P;
     }
     fprintf(stdout, ">Huh %d\n", op);
     return 0;
@@ -389,7 +395,7 @@ parse_expression_binop(Token* token, Stack* stack, enum token_type binop) {
 static ASTNode*
 parse_expression(Parser* self) {
     /* General expression grammar
-     * EXPR = UNARY? TERM [ OP EXPR ]* [ CALL ]*
+     * EXPR = UNARY? TERM [ CALL ]* [ OP EXPR ]*
      * TERM = PAREN | FUNCTION | WORD | NUMBER | STRING | TRUE | FALSE | NULL
      * CALL = INVOKE | SLICE
      * PAREN = "(" EXPR ")"
@@ -401,12 +407,11 @@ parse_expression(Parser* self) {
      */
     Tokenizer* T = self->tokens;
     Token* next, *prev;
-    int precedence;
     ASTNode * result;
-    ASTExpression *expr;
+    enum token_type unary_op;
 
     Stack _values, *values = &_values, _ops, *ops = &_ops;
-    enum token_type binop;
+    const OperatorInfo *stack_op, *current_op;
     stack_init(values);
     stack_init(ops);
 
@@ -426,19 +431,42 @@ parse_expression(Parser* self) {
 
         // TODO: If ToS is an ASTLiteral, then resolve the unary op here
 
-        // Peek for (binary) operator (prefer over () and [] operations)
+        // Peek for CALL (INVOKE / SLICE)
         next = T->peek(T);
+        while (next->type == T_OPEN_PAREN || next->type == T_OPEN_BRACKET) {
+            // Flush operator stack for higher precedence things
+            current_op = get_operator_info(next->type);
+            while (((stack_op = (OperatorInfo*) stack_peek(ops)) != 0)
+                && stack_op->precedence > current_op->precedence
+            ) {
+                stack_pop(ops);
+                result = parse_expression_binop(next, values, stack_op->operator);
+                stack_push(values, result);
+            }
+
+            if (next->type == T_OPEN_PAREN) {
+                stack_push(values, parse_invoke(self, stack_pop(values)));
+            }
+            else { // T_OPEN_BRACKET?
+                stack_push(values, parse_slice(self, stack_pop(values)));
+            }
+
+            // Look ahead for another INVOKE / SLICE
+            next = T->peek(T);
+        }
+
+        // Continue with binary operators (there can be only one)
         if (next->type > T__OP_MIN && next->type < T__OP_MAX) {
-            precedence = get_precedence(next->type);
-            while ((binop = (enum token_type) stack_peek(ops)) != 0) {
-                if (get_precedence(binop) <= precedence)
+            current_op = get_operator_info(next->type);
+            while ((stack_op = (OperatorInfo*) stack_peek(ops)) != 0) {
+                if (stack_op->precedence <= current_op->precedence)
                     break;
 
                 stack_pop(ops);
-                stack_push(values, parse_expression_binop(next, values, binop));
+                result = parse_expression_binop(next, values, stack_op->operator);
+                stack_push(values, result);
             }
-            stack_push(ops, (void*) next->type);
-
+            stack_push(ops, (void*) current_op);
             // Consume the operator token
             T->next(T);
         }
@@ -448,19 +476,13 @@ parse_expression(Parser* self) {
     }
 
     // Empty the operator stack
-    while ((binop = (enum token_type) stack_peek(ops)) != 0)
+    while ((stack_op = (OperatorInfo*) stack_peek(ops)) != 0)
         stack_push(values, parse_expression_binop(next, values,
-            (enum token_type) stack_pop(ops)));
-
-    if (next->type == T_OPEN_PAREN) {
-        stack_push(values, parse_invoke(self, stack_pop(values)));
-    }
-    else if (next->type == T_OPEN_BRACKET) {
-        stack_push(values, parse_slice(self, stack_pop(values)));
-    }
+            ((OperatorInfo*) stack_pop(ops))->operator));
 
     result = (ASTNode*) stack_pop(values);
     assert(values->index == 0);
+    assert(ops->index == 0);
 
     return result;
 }

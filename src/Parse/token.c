@@ -204,14 +204,14 @@ next_token(Tokenizer *self) {
             break;
         case 5:
             if (0 == strncasecmp(token_text, "false", 5))
-                token->type = T_FALSE;            
+                token->type = T_FALSE;
             else if (0 == strncmp(token_text, "while", 5))
                 token->type = T_WHILE;
             else if (0 == strncmp(token_text, "class", 5))
                 token->type = T_CLASS;
             else if (0 == strncmp(token_text, "super", 5))
                 token->type = T_SUPER;
-            break;          
+            break;
         case 6:
             if (0 == strncmp(token_text, "return", 6))
                 token->type = T_RETURN;
@@ -220,7 +220,7 @@ next_token(Tokenizer *self) {
             if (0 == strncmp(token_text, "function", 8))
                 token->type = T_FUNCTION;
         }
-        
+
         // Otherwise its a plain old word
         if (token->type == T_EOF) {
             token->type = T_WORD;

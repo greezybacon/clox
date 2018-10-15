@@ -26,6 +26,11 @@ enum ast_type {
     AST_MAGIC,
 };
 
+enum associativity {
+    ASSOC_LEFT,
+    ASSOC_RIGHT,
+};
+
 typedef struct ast_node {
     enum ast_type   type;
     unsigned        line, offset;
