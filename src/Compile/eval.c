@@ -90,8 +90,8 @@ vmeval_eval(VmEvalContext *ctx) {
             case OP_CALL_FUN: {
                 Object *fun = *(stack - pc->arg - 1);
                 assert(Function_isCallable(fun));
-                
-                if (CodeObject_isCodeObject(fun)) {
+
+                if (VmFunction_isVmFunction(fun)) {
                     VmEvalContext call_ctx = (VmEvalContext) {
                         .code = ((VmFunction*)fun)->code->code,
                         .scope = ((VmFunction*)fun)->scope,
@@ -126,7 +126,7 @@ vmeval_eval(VmEvalContext *ctx) {
                 PUSH(stack, (Object*) Class_build(attributes));
             }
             break;
-            
+
             case OP_GET_ATTR:
             C = ctx->code->constants + pc->arg;
             lhs = POP(stack);
