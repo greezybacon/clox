@@ -19,9 +19,9 @@ bool
 Function_isCallable(Object* object) {
     if (!object)
         return false;
-    
+
     assert(object->type);
-    
+
     return object->type->call != NULL;
 }
 
@@ -36,10 +36,10 @@ Object*
 Function_fromAST(ASTFunction* fun) {
     FunctionObject* O = object_new(sizeof(FunctionObject), &FunctionType);
     O->code = fun->block;
-        
+
     ASTNode *p;
     ASTFuncParam *param;
-    
+
     int count = 0;
     for (p = fun->arglist; p != NULL; p = p->next)
         count++;
@@ -232,6 +232,13 @@ CodeObject_makeFunction(Object *code, VmScope *scope) {
     O->scope = scope;
 
     return O;
+}
+
+bool
+VmFunction_isVmFunction(Object *callable) {
+    assert(callable);
+    assert(callable->type);
+    return callable->type == &VmFunctionObjectType;
 }
 
 static struct object_type VmFunctionObjectType = (ObjectType) {
