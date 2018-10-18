@@ -137,7 +137,7 @@ vmeval_eval(VmEvalContext *ctx) {
             case OP_GET_ATTR:
             C = ctx->code->constants + pc->arg;
             lhs = POP(stack);
-            PUSH(stack, lhs->type->getattr(lhs, C->value));
+            PUSH(stack, object_getattr(lhs, C->value));
             break;
 
             case OP_SET_ATTR:

@@ -22,9 +22,11 @@ typedef unsigned long int hashval_t;
 typedef struct bool_object BoolObject;
 typedef struct vmeval_scope VmScope;
 
+typedef Object* (*NativeFunctionCall)(VmScope*, Object*, Object*);
+
 typedef struct object_method {
     char*       name;
-    Object*     (*method)(VmScope*, Object*, Object*);
+    NativeFunctionCall method;
 } ObjectMethod;
 
 typedef struct object_type {
@@ -83,8 +85,8 @@ typedef struct object {
     unsigned    refcount;
 } Object;
 
-void*
-object_new(size_t size, ObjectType*);
+void* object_new(size_t size, ObjectType*);
+Object* object_getattr(Object*, Object*);
 
 #define HASHVAL(object) (hashval_t) ((object)->type->hash ? (object)->type->hash(object) : (hashval_t) (object))
 

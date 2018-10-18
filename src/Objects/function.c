@@ -103,10 +103,19 @@ NativeFunction_new(NativeFunctionCall callable) {
     return (Object*) self;
 }
 
+Object*
+NativeFunction_bind(Object *self, Object *object) {
+    assert(self->type == &NativeFunctionType);
+    NFunctionObject* this = object_new(sizeof(NFunctionObject), &NativeFunctionType);
+    this->callable = ((NFunctionObject*)self)->callable;
+    this->self = object;
+    return (Object*) this;
+}
+
 static Object*
 nfunction_call(Object* self, VmScope *scope, Object* object, Object* args) {
     assert(self->type == &NativeFunctionType);
-    return ((NFunctionObject*) self)->callable(scope, object, args);
+    return ((NFunctionObject*) self)->callable(scope, ((NFunctionObject*)self)->self, args);
 }
 
 static Object*

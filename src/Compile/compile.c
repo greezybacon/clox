@@ -353,7 +353,8 @@ compile_function_inner(Compiler *self, ASTFunction *node) {
 
     // (When the function is executed), load the arguments off the args list
     // Into local variables. The arguments will be in the proper order already,
-    // so no need to reverse.
+    // so no need to reverse. The unpacking is actually done by the interpreter,
+    // but here we need to allocate the local variables for the parameters.
     for (p = node->arglist; p != NULL; p = p->next) {
         assert(p->type == AST_PARAM);
         param = (ASTFuncParam*) p;

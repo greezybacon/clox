@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 
+#include "object.h"
 #include "tuple.h"
 #include "Parse/parse.h"
 #include "Eval/scope.h"
@@ -47,12 +48,11 @@ typedef struct vmfunction_object {
 
 VmFunction* CodeObject_makeFunction(Object*, VmScope*);
 
-typedef Object* (*NativeFunctionCall)(VmScope*, Object*, Object*) ;
-
 typedef struct nfunction_object {
     // Inherits from Object
     Object          base;
     NativeFunctionCall callable;
+    Object          *self;
 } NFunctionObject;
 
 Object* NativeFunction_new(NativeFunctionCall);

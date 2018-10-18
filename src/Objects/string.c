@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -134,19 +135,33 @@ string_op_plus(Object* self, Object* other) {
     assert(self->type == &StringType);
 
     if (other->type == &StringTreeType)
-        return StringTree_fromStrings(self, other);
+        return (Object*) StringTree_fromStrings(self, other);
     if (!String_isString(other))
         other = other->type->as_string(other);
 
-    return (Object*) StringTree_fromStrings((StringObject*) self, other);
+    return (Object*) StringTree_fromStrings(self, other);
 }
 
 static Object*
 string_getitem(Object* self, Object* index) {
     assert(self != NULL);
     assert(self->type == &StringType);
+}
 
-    
+// METHODS ----------------------------------
+
+Object*
+string_upper(VmScope *state, Object *self, Object *args) {
+    assert(self);
+    assert(self->type == &StringType);
+
+    StringObject *S = (StringObject*) self;
+    char *upper = GC_STRNDUP(S->characters, S->length), *eupper = upper;
+    int i;
+    for (i=0; i<S->length; i++)
+        *eupper++ = toupper(upper[i]);
+
+    return (Object*) String_fromMalloc(upper, S->length);
 }
 
 static struct object_type StringType = (ObjectType) {
@@ -163,6 +178,11 @@ static struct object_type StringType = (ObjectType) {
     .op_ne = string_op_ne,
 
     .op_plus = string_op_plus,
+
+    .methods = (ObjectMethod[]) {
+        {"upper", string_upper},
+        {0, 0},
+    },
 };
 
 bool
@@ -172,7 +192,6 @@ String_isString(Object* value) {
 
     return false;
 }
-
 
 
 StringTreeObject*
