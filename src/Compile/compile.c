@@ -307,7 +307,7 @@ compile_while(Compiler* self, ASTWhile *node) {
     // Do the block
     length += compile_merge_block(self, block);
     // Check the condition
-    length += compile_node(self, node->condition); 
+    length += compile_node(self, node->condition);
     // Jump back if TRUE
     // XXX: This assumes size of JUMP is the same as POP_JUMP_IF_TRUE (probably safe)
     length += compile_emit(self, OP_POP_JUMP_IF_TRUE, -length);
@@ -334,7 +334,7 @@ compile_if(Compiler *self, ASTIf *node) {
     // If there's an otherwise, then emit it
     if (node->otherwise) {
         block = compile_block(self, node->otherwise);
-        // (As part of the positive/previous block), skip the ELSE part. 
+        // (As part of the positive/previous block), skip the ELSE part.
         // TODO: If the last line was RETURN, this could be ignored
         length += compile_emit(self, OP_JUMP, JUMP_LENGTH(block));
         length += compile_merge_block(self, block);
@@ -357,9 +357,8 @@ compile_function_inner(Compiler *self, ASTFunction *node) {
     for (p = node->arglist; p != NULL; p = p->next) {
         assert(p->type == AST_PARAM);
         param = (ASTFuncParam*) p;
-        index = compile_locals_allocate(self, 
+        compile_locals_allocate(self,
             (Object*) String_fromCharArrayAndSize(param->name, param->name_length));
-        length += compile_emit(self, OP_STORE_ARG_LOCAL, index);
     }
 
     // Compile the function's code in the new context
@@ -418,7 +417,7 @@ compile_var(Compiler *self, ASTVar *node) {
     unsigned length = 0, index;
 
     // Make room in the locals for the name
-    index = compile_locals_allocate(self, 
+    index = compile_locals_allocate(self,
         (Object*) String_fromCharArrayAndSize(node->name, node->name_length));
 
     if (node->expression) {
@@ -442,7 +441,7 @@ compile_class(Compiler *self, ASTClass *node) {
         assert(body->type == AST_FUNCTION);
         method = (ASTFunction*) body;
         compile_function_inner(self, method);
-        
+
         // Anonymous methods?
         if (method->name_length) {
             index = compile_emit_constant(self,
@@ -453,7 +452,7 @@ compile_class(Compiler *self, ASTClass *node) {
 
         body = body->next;
     }
-    
+
     length += compile_emit(self, OP_BUILD_CLASS, count);
 
     // Support anonymous classes?
@@ -462,7 +461,7 @@ compile_class(Compiler *self, ASTClass *node) {
         // Push the STORE
         length += compile_emit(self, OP_STORE, index);
     }
-    
+
     return length;
 }
 
@@ -554,7 +553,7 @@ _compile_init_stream(Compiler *self, Stream *stream) {
 
     parser_init(parser, stream);
     compile_init(self);
-    compile_compile(self, parser);    
+    compile_compile(self, parser);
 }
 
 CodeContext*

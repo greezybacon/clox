@@ -12,14 +12,23 @@
 
 #define STACK_SIZE 32
 
+static void
+eval_raise_error(VmEvalContext *ctx, const char *characters, ...) {
+    // TODO: Make the characters a real Exception object
+}
+
 Object*
 vmeval_eval(VmEvalContext *ctx) {
     Object *lhs, *rhs, **local, *rv;
     Constant *C;
 
-    // Setup storage for the stack and locals
     Object *_locals[ctx->code->locals.count], **locals = &_locals[0];
-    memset(&_locals, 0, sizeof(_locals));
+
+    // Store parameters in the local variables
+    int i=ctx->args.count;
+    assert(ctx->code->locals.count >= ctx->args.count);
+    while (i--)
+        *(locals + i) = *(ctx->args.values + i);
 
     // TODO: Add estimate for MAX_STACK in the compile phase
     // XXX: Program could overflow 32-slot stack
@@ -30,8 +39,6 @@ vmeval_eval(VmEvalContext *ctx) {
 
     // Default result is NIL
     PUSH(stack, LoxNIL);
-
-    int i;
 
     while (pc < end) {
 #if DEBUG
@@ -262,7 +269,7 @@ vmeval_inscope(CodeContext *code, VmScope *scope) {
         .globals = Hash_new(),
         .outer = &superglobals,
     };
- 
+
     VmScope final;
     if (scope) {
         final = *scope;
@@ -284,12 +291,12 @@ Object*
 vmeval_string_inscope(const char * text, size_t length, VmScope* scope) {
     Compiler compiler = { .flags = 0 };
     CodeContext *context;
-    
+
     context = compile_string(&compiler, text, length);
 
     print_codeblock(context, context->block);
     printf("------\n");
-    
+
     return vmeval_inscope(context, scope);
 }
 
@@ -302,7 +309,7 @@ Object*
 vmeval_file(FILE *input) {
     Compiler compiler = { .flags = 0 };
     CodeContext *context;
-    
+
     context = compile_file(&compiler, input);
 
     print_codeblock(context, context->block);

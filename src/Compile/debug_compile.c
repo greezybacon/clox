@@ -19,7 +19,7 @@ static struct named_opcode OpcodeNames[] = {
     { OP_JUMP_IF_FALSE, "JUMP_IF_FALSE" },
     { OP_DUP_TOP,       "DUP_TOP" },
     { OP_POP_TOP,       "POP_TOP" },
-    
+
     // Functions
     { OP_CALL_FUN,      "CALL_FUNCTION" },
     { OP_CLOSE_FUN,     "CLOSE_FUNCTION" },
@@ -67,7 +67,7 @@ static int cmpfunc (const void * a, const void * b) {
 static inline void
 print_opcode(const CodeContext *context, const Instruction *op) {
     struct named_opcode* T, key = { .code = op->op };
-    T = bsearch(&key, OpcodeNames, sizeof(OpcodeNames) / sizeof(struct named_opcode), 
+    T = bsearch(&key, OpcodeNames, sizeof(OpcodeNames) / sizeof(struct named_opcode),
         sizeof(struct named_opcode), cmpfunc);
 
     printf("%-20s %d", T->name, op->arg);
