@@ -121,7 +121,7 @@ nfunction_call(Object* self, VmScope *scope, Object* object, Object* args) {
 static Object*
 nfunction_asstring(Object* self) {
     assert(self->type == &NativeFunctionType);
-    return (Object*) String_fromCharArrayAndSize("native code {}", 14);
+    return (Object*) String_fromCharArrayAndSize("function() { native code }", 26);
 }
 
 static struct object_type NativeFunctionType = (ObjectType) {

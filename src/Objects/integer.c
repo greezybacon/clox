@@ -190,7 +190,7 @@ static struct object_type IntegerType = (ObjectType) {
     .code = TYPE_INTEGER,
     .name = "int",
     .hash = integer_hash,
-    
+
     // coercion
     .as_int = integer_asint,
     .as_float = integer_asfloat,

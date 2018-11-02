@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "Include/Lox.h"
+#include "builtin.h"
 
 static Object*
 builtin_print(VmScope* state, Object* self, Object* args) {
@@ -88,6 +89,18 @@ builtin_tuple(VmScope *state, Object *self, Object *args) {
     return args;
 }
 
+static Object*
+builtin_open(VmScope *state, Object *self, Object *args) {
+    assert(Tuple_isTuple(args));
+
+    size_t argc = Tuple_getSize(args);
+
+    char *filename, *flags;
+    Lox_ParseArgs(args, "ss", &filename, &flags);
+
+    return (Object*) Lox_FileOpen(filename, flags);
+}
+
 static ModuleDescription
 builtins_module_def = {
     .name = "__builtins__",
@@ -97,6 +110,7 @@ builtins_module_def = {
         { "len", builtin_len },
         { "eval", builtin_eval },
         { "tuple", builtin_tuple },
+        { "open", builtin_open },
         { 0 },
     }
 };

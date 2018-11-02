@@ -265,19 +265,16 @@ vmeval_inscope(CodeContext *code, VmScope *scope) {
         .globals = builtins->properties,
     };
 
-    VmScope module = (VmScope) {
-        .globals = Hash_new(),
-        .outer = &superglobals,
-    };
-
     VmScope final;
     if (scope) {
         final = *scope;
-        final.outer = &module;
     }
     else {
-        final = module;
+        final = (VmScope) {
+            .globals = Hash_new(),
+        };
     }
+    final.outer = &superglobals;
 
     VmEvalContext ctx = (VmEvalContext) {
         .code = code,

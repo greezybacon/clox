@@ -109,7 +109,7 @@ compile_emit_constant(Compiler *self, Object *value) {
     *(context->constants + index) = (Constant) {
         .value = value,
         .hash = (value->type->hash) ? value->type->hash(value) : 0,
-    };  
+    };
     return index;
 }
 
