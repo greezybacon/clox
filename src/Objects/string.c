@@ -193,6 +193,15 @@ String_isString(Object* value) {
     return false;
 }
 
+int
+String_compare(StringObject* left, const char* right) {
+    assert(left);
+    assert(right);
+    assert(left->base.type == &StringType);
+
+    return strncmp(left->characters, right, left->length);
+}
+
 
 StringTreeObject*
 StringTree_fromStrings(Object *a, Object *b) {
