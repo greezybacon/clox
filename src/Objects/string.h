@@ -11,7 +11,7 @@ typedef struct string_object {
 
     unsigned length;
     unsigned char_count;
-    unsigned char *characters;
+    const unsigned char *characters;
 } StringObject;
 
 StringObject* String_fromCharArrayAndSize(char*, size_t);
@@ -19,7 +19,7 @@ bool String_isString(Object*);
 StringObject* String_fromObject(Object*);
 StringObject* String_fromLiteral(char*, size_t);
 StringObject* String_fromConstant(const char *);
-bool String_compare(Object*, const char *);
+StringObject* String_fromMalloc(const char *, size_t);
 size_t String_getLength(Object* self);
 
 typedef struct stringtree_object {

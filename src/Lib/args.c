@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdarg.h>
 
 #include "Include/Lox.h"

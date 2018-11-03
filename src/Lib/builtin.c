@@ -4,6 +4,8 @@
 #include "Include/Lox.h"
 #include "builtin.h"
 
+#include "Objects/file.h"
+
 static Object*
 builtin_print(VmScope* state, Object* self, Object* args) {
     assert(Tuple_isTuple(args));

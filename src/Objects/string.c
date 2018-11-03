@@ -21,8 +21,8 @@ String_fromCharArrayAndSize(char *characters, size_t size) {
     return O;
 }
 
-static StringObject*
-String_fromMalloc(char *characters, size_t size) {
+StringObject*
+String_fromMalloc(const char *characters, size_t size) {
     StringObject* O = object_new(sizeof(StringObject), &StringType);
     O->length = size;
     O->characters = characters;
