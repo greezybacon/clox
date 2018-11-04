@@ -51,6 +51,11 @@ enum opcode {
     OP_SET_ATTR,
     OP_THIS,
     OP_SUPER,
+
+    // Hash and list types
+    OP_GET_ITEM,
+    OP_SET_ITEM,
+    OP_DEL_ITEM,
 }
 __attribute__((packed));
 

@@ -146,6 +146,43 @@ static Object*
 string_getitem(Object* self, Object* index) {
     assert(self != NULL);
     assert(self->type == &StringType);
+
+    // This will be the same algorithm as the len method; however, it will
+    // scan to the appropriate, requested spot
+    if (!Integer_isInteger(index)) {
+        if (!index->type->as_int) {
+            // TODO: Raise exception
+            return LoxNIL;
+        }
+        index = index->type->as_int(index);
+    }
+
+    int i = Integer_toInt(index);
+    StringObject *S = (StringObject*) self;
+    int length = S->length, j = 0;
+
+    if (length <= i)
+        // TODO: Raise exception
+        return LoxNIL;
+
+    while (i < 0)
+        i += S->length;
+
+    const char *s = S->characters;
+    while (i) {
+        if ((*s++ & 0xc0) != 0x80)
+            i--;
+    }
+
+    // So, `s` points at the unicode character requested. But we should
+    // include all the bytes in the response.
+    length = 1;
+    const char *t = s;
+    while (((*t++ & 0xc0) == 0x80))
+        length++;
+
+    // TODO: Maybe this could be a StringSlice object?
+    return String_fromMalloc(s, length);
 }
 
 // METHODS ----------------------------------
@@ -178,6 +215,8 @@ static struct object_type StringType = (ObjectType) {
     .op_ne = string_op_ne,
 
     .op_plus = string_op_plus,
+
+    .get_item = string_getitem,
 
     .methods = (ObjectMethod[]) {
         {"upper", string_upper},

@@ -58,6 +58,11 @@ static struct named_opcode OpcodeNames[] = {
     { OP_SET_ATTR,      "SET_ATTRIBUTE" },
     { OP_THIS,          "THIS" },
     { OP_SUPER,         "SUPER" },
+
+    // Hash and list types
+    { OP_GET_ITEM,      "GET_ITEM" },
+    { OP_SET_ITEM,      "SET_ITEM" },
+    { OP_DEL_ITEM,      "DEL_ITEM" },
 };
 
 static int cmpfunc (const void * a, const void * b) {

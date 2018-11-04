@@ -238,6 +238,13 @@ vmeval_eval(VmEvalContext *ctx) {
             BINARY_METHOD(op_slash);
             break;
 
+            case OP_GET_ITEM:
+            rhs = POP(stack);
+            lhs = POP(stack);
+            if (lhs->type->get_item)
+                PUSH(stack, lhs->type->get_item(lhs, rhs));
+            break;
+
             default:
             printf("Unexpected OPCODE (%d)\n", pc->op);
             case OP_NOOP:

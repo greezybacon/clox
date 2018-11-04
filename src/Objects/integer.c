@@ -30,6 +30,12 @@ Integer_toInt(Object* value) {
     return I->value;
 }
 
+bool
+Integer_isInteger(Object *value) {
+    assert(value);
+    return value->type == &IntegerType;
+}
+
 static hashval_t
 integer_hash(Object* self) {
     assert(self != NULL);

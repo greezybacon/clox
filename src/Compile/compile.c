@@ -481,6 +481,17 @@ compile_attribute(Compiler *self, ASTAttribute *attr) {
 }
 
 static unsigned
+compile_slice(Compiler *self, ASTSlice *node) {
+    unsigned length = compile_node(self, node->object),
+             index;
+
+    if (!node->end && !node->step) {
+        length += compile_node(self, node->start);
+    }
+    return length + compile_emit(self, OP_GET_ITEM, 0);
+}
+
+static unsigned
 _compile_node(Compiler* self, ASTNode* ast) {
     switch (ast->type) {
     case AST_ASSIGNMENT:
@@ -510,7 +521,8 @@ _compile_node(Compiler* self, ASTNode* ast) {
         return compile_class(self, (ASTClass*) ast);
     case AST_ATTRIBUTE:
         return compile_attribute(self, (ASTAttribute*) ast);
-
+    case AST_SLICE:
+        return compile_slice(self, (ASTSlice*) ast);
     default:
         compile_error(self, "Unexpected AST node type");
     }

@@ -24,6 +24,7 @@ enum ast_type {
     AST_CLASS,
     AST_ATTRIBUTE,
     AST_MAGIC,
+    AST_SLICE,
 };
 
 enum associativity {

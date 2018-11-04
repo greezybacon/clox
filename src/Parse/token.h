@@ -47,6 +47,7 @@ enum token_type {
     T_COMMENT,
     T_THIS,
     T_SUPER,
+    T_COLON,
 };
 
 typedef struct token {

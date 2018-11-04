@@ -10,11 +10,9 @@ typedef struct integer_object {
     long long value;
 } IntegerObject;
 
-IntegerObject*
-Integer_fromLongLong(long long value);
-
-long long
-Integer_toInt(Object*);
+IntegerObject* Integer_fromLongLong(long long value);
+long long Integer_toInt(Object*);
+bool Integer_isInteger(Object*);
 
 #endif
 

@@ -78,7 +78,32 @@ parse_block(Parser* self) {
 
 static ASTNode*
 parse_slice(Parser* self, ASTNode* object) {
-    return object;
+    Tokenizer* T = self->tokens;
+    Token* peek;
+
+    ASTSlice *result = GC_MALLOC(sizeof(ASTSlice));
+    parser_node_init((ASTNode*) result, AST_SLICE, T->peek(T));
+    result->object = object;
+
+    do {
+        // Comsume the open bracket or the colon
+        T->next(T);
+
+        if (!result->start)
+            result->start = parse_expression(self);
+        else if (!result->end)
+            result->end = parse_expression(self);
+        else if (!result->step)
+            result->step = parse_expression(self);
+        else
+            parse_syntax_error(self, "Too many colons in slice");
+
+        peek = T->peek(T);
+    }
+    while (peek->type == T_COLON);
+    parse_expect(self, T_CLOSE_BRACKET);
+
+    return (ASTNode*) result;
 }
 
 static ASTNode*
