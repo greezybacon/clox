@@ -94,7 +94,8 @@ compile_emit_constant(Compiler *self, Object *value) {
     // Short-circuit this process for emitting repeat constants
     Constant *C = context->constants;
     while (index < context->nConstants) {
-        if (LoxTRUE == value->type->op_eq(value, C->value))
+        if (C->value->type == value->type
+                && LoxTRUE == value->type->op_eq(value, C->value))
             return index;
         index++;
         C++;
