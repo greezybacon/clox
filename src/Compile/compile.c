@@ -1,8 +1,10 @@
 #include <assert.h>
 #include <stdio.h>
+#include <strings.h>
 
 #include "vm.h"
 #include "compile.h"
+#include "Parse/debug_parse.h"
 #include "Objects/function.h"
 #include "Vendor/bdwgc/include/gc.h"
 

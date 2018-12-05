@@ -371,10 +371,7 @@ parse_word2string(ASTNode* node) {
 }
 
 static inline ASTNode*
-parse_expression_assign(Token *token, Stack *stack) {
-    ASTNode *rhs = (ASTNode*) stack_pop(stack);
-    ASTNode *lhs = stack_pop(stack);
-    
+parse_expression_assign(Token *token, ASTNode *lhs, ASTNode *rhs) {
     ASTNode *rv;
     if (lhs->type == AST_LOOKUP) {
         ASTAssignment* assign = GC_MALLOC(sizeof(ASTAssignment));
@@ -392,33 +389,16 @@ parse_expression_assign(Token *token, Stack *stack) {
 }
 
 static inline ASTNode*
-parse_expression_attr(Token *token, Stack *stack) {
+parse_expression_attr(Token *token, ASTNode *lhs, ASTNode *rhs) {
     ASTAttribute* attr = GC_MALLOC(sizeof(ASTAttribute));
     parser_node_init((ASTNode*) attr, AST_ATTRIBUTE, token);
-    attr->attribute = parse_word2string(stack_pop(stack));
-    attr->object = (ASTNode*) stack_pop(stack);
+    attr->attribute = parse_word2string(lhs);
+    attr->object = (ASTNode*) rhs;
     return (ASTNode*) attr;
 }
 
-static inline ASTNode*
-parse_expression_binop(Token* token, Stack* stack, enum token_type binop) {
-    switch (binop) {
-    case T_OP_ASSIGN:
-        return parse_expression_assign(token, stack);
-    case T_DOT:
-        return parse_expression_attr(token, stack);
-    default: {
-        ASTExpression* expr = GC_MALLOC(sizeof(ASTExpression));
-        parser_node_init((ASTNode*) expr, AST_EXPRESSION, token);
-        expr->rhs = (ASTNode*) stack_pop(stack);
-        expr->lhs = (ASTNode*) stack_pop(stack);
-        expr->binary_op = binop;
-        return (ASTNode*) expr;
-    }}
-}
-
 static ASTNode*
-parse_expression(Parser* self) {
+parse_expression_r(Parser* self, const OperatorInfo *previous) {
     /* General expression grammar
      * EXPR = UNARY? TERM [ CALL ]* [ OP EXPR ]*
      * TERM = PAREN | FUNCTION | WORD | NUMBER | STRING | TRUE | FALSE | NULL
@@ -431,85 +411,95 @@ parse_expression(Parser* self) {
      * SLICE = T_OPEN_BRACKET [ EXPR [ ':' EXPR [ ':' EXPR ] ] ] T_CLOSE_BRACKET
      */
     Tokenizer* T = self->tokens;
-    Token* next, *prev;
-    ASTNode * result;
+    Token* next;
+    const OperatorInfo *operator;
+    ASTNode *lhs = NULL, *term, *rhs;
+    ASTExpression *expr;
     enum token_type unary_op;
 
-    Stack _values, *values = &_values, _ops, *ops = &_ops;
-    const OperatorInfo *stack_op, *current_op;
-    stack_init(values);
-    stack_init(ops);
+    next = T->next(T);
 
-    // Capture unary operator
-    for (;;) {
+    if (next->type == T_BANG || next->type == T_OP_PLUS || next->type == T_OP_MINUS) {
+        unary_op = next->type;
         next = T->next(T);
-        if (next->type == T_BANG || next->type == T_OP_PLUS || next->type == T_OP_MINUS) {
-            expr->unary_op = next->type;
-            T->next(T);
-        }
+    }
+    else {
+        unary_op = 0;
+    }
 
-        result = parse_TERM(self);
-        if (result == NULL)
-            break;
+    term = parse_TERM(self);
+    if (term == NULL)
+        return NULL;
 
-        stack_push(values, result);
+    // If there is no current expression, then this becomes the LHS
+    lhs = term;
 
-        // TODO: If ToS is an ASTLiteral, then resolve the unary op here
+    // Peek for CALL and INVOKE
 
-        // Peek for CALL (INVOKE / SLICE)
-        next = T->peek(T);
-        while (next->type == T_OPEN_PAREN || next->type == T_OPEN_BRACKET) {
-            // Flush operator stack for higher precedence things
-            current_op = get_operator_info(next->type);
-            while (((stack_op = (OperatorInfo*) stack_peek(ops)) != 0)
-                && stack_op->precedence > current_op->precedence
-            ) {
-                stack_pop(ops);
-                result = parse_expression_binop(next, values, stack_op->operator);
-                stack_push(values, result);
-            }
+
+    // Peek for (binary) operator(s)
+    for (;;) {
+        for (;;) {
+            next = T->peek(T);
+
+            if (next->type != T_OPEN_PAREN && next->type != T_OPEN_BRACKET)
+                break;
+
+            if (previous)
+                return lhs;
 
             if (next->type == T_OPEN_PAREN) {
-                stack_push(values, parse_invoke(self, stack_pop(values)));
+                lhs = parse_invoke(self, lhs);
             }
             else { // T_OPEN_BRACKET?
-                stack_push(values, parse_slice(self, stack_pop(values)));
+                lhs = parse_slice(self, lhs);
             }
-
-            // Look ahead for another INVOKE / SLICE
-            next = T->peek(T);
         }
 
-        // Continue with binary operators (there can be only one)
-        if (next->type > T__OP_MIN && next->type < T__OP_MAX) {
-            current_op = get_operator_info(next->type);
-            while ((stack_op = (OperatorInfo*) stack_peek(ops)) != 0) {
-                if (stack_op->precedence <= current_op->precedence)
-                    break;
-
-                stack_pop(ops);
-                result = parse_expression_binop(next, values, stack_op->operator);
-                stack_push(values, result);
-            }
-            stack_push(ops, (void*) current_op);
-            // Consume the operator token
-            T->next(T);
-        }
-        else {
+        if (next->type < T__OP_MIN || next->type > T__OP_MAX)
             break;
+
+        operator = get_operator_info(next->type);
+        if (operator->assoc == ASSOC_LEFT
+            && previous && previous->precedence > operator->precedence
+        ) {
+            // Don't process this here. Unwind the recursion back to where
+            // the precedence is lower and continue building the expression
+            // there.
+            break;
+        }
+
+        // Consume the operator token
+        T->next(T);
+
+        // Parse RHS first (before continuing LHS expression)
+        rhs = parse_expression_r(self, operator);
+
+        if (operator->operator == T_OP_ASSIGN)
+            lhs = parse_expression_assign(next, lhs, rhs);
+        else if (operator->operator == T_DOT)
+            lhs = parse_expression_attr(next, rhs, lhs);
+        else {
+            expr = GC_NEW(ASTExpression);
+            parser_node_init((ASTNode*) expr, AST_EXPRESSION, next);
+
+            expr->lhs = lhs;
+            expr->binary_op = operator->operator;
+            expr->rhs = rhs;
+
+            // Roll the expression forward as the new LHS
+            lhs = (ASTNode*) expr;
         }
     }
 
-    // Empty the operator stack
-    while ((stack_op = (OperatorInfo*) stack_peek(ops)) != 0)
-        stack_push(values, parse_expression_binop(next, values,
-            ((OperatorInfo*) stack_pop(ops))->operator));
+    // TODO: Apply unary_op here to current LHS
 
-    result = (ASTNode*) stack_pop(values);
-    assert(values->index == 0);
-    assert(ops->index == 0);
+    return lhs;
+}
 
-    return result;
+static ASTNode*
+parse_expression(Parser* self) {
+    return parse_expression_r(self, 0);
 }
 
 static ASTNode*
