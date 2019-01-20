@@ -104,10 +104,15 @@ compile_emit_constant(Compiler *self, Object *value) {
     }
 
     if (context->nConstants == context->sizeConstants) {
-        context->sizeConstants *= 2;
-        context->constants = GC_REALLOC(context->constants,
-            context->sizeConstants * sizeof(Constant));
+        unsigned new_size = context->sizeConstants + 8;
+        C = GC_MALLOC(new_size * sizeof(Constant));
+        if (!C)
+            // TODO: Raise compiler error?
+            return 0;
+        bcopy(context->constants, C, context->sizeConstants * sizeof(Constant));
+        context->sizeConstants = new_size;
     }
+
     index = context->nConstants++;
     *(context->constants + index) = (Constant) {
         .value = value,
