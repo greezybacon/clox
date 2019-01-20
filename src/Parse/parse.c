@@ -183,6 +183,28 @@ parse_arg_list(Parser* self) {
     return result;
 }
 
+static Object*
+parse_word2string(ASTNode* node) {
+    printf("Type of node is %d\n", node->type);
+    assert(node->type == AST_LOOKUP);
+    Object* rv = ((ASTLookup*)node)->name;
+    return rv;
+}
+
+static ASTNode* parse_TERM(Parser*);
+
+static inline ASTNode*
+parse_expression_attr(Parser *self, ASTNode *lhs) {
+    Tokenizer* T = self->tokens;
+    Token* next = T->next(T);
+
+    ASTAttribute* attr = GC_MALLOC(sizeof(ASTAttribute));
+    parser_node_init((ASTNode*) attr, AST_ATTRIBUTE, next);
+    attr->attribute = parse_word2string(parse_TERM(self));
+    attr->object = lhs;
+    return (ASTNode*) attr;
+}
+
 static ASTNode*
 parse_TERM(Parser* self) {
     Tokenizer* T = self->tokens;
@@ -277,49 +299,26 @@ parse_TERM(Parser* self) {
 
         result = (ASTNode*) astfun;
         break;
-    }}
+    }
+    default:
+        fprintf(stderr, "Parse error: Unexpected statement token: %d\n", next->type);
+    }
+
+    // Peek for DOT, CALL and INVOKE
+    for (;;) {
+        next = T->peek(T);
+
+        if (next->type == T_DOT) {
+            // Consume the T_DOT
+            T->next(T);
+            result = parse_expression_attr(self, result);
+        }
+        else {
+            break;
+        }
+    }
 
     return (ASTNode*) result;
-}
-
-typedef struct stack_thingy {
-    unsigned            index;
-    void**              head[16];
-} Stack;
-
-static void*
-stack_pop(Stack* self) {
-    assert(self->index > 0);
-    return *(self->head + --self->index);
-}
-
-static void*
-stack_peek(Stack* self) {
-    if (self->index == 0)
-        return NULL;
-
-    return *(self->head + self->index - 1);
-}
-
-static void
-stack_push(Stack* self, void* object) {
-    assert(self->index < 15);
-
-    // TODO: Resize stack on items larger than 15
-
-    *(self->head + self->index++) = object;
-}
-
-static unsigned
-stack_depth(Stack* self) {
-    return self->index;
-}
-
-static void
-stack_init(Stack* stack) {
-    *stack = (Stack) {
-        .index = 0,
-    };
 }
 
 // Operator precedence listing (XXX: Maybe place in a header?)
@@ -363,13 +362,6 @@ get_operator_info(enum token_type op) {
     return 0;
 }
 
-static Object*
-parse_word2string(ASTNode* node) {
-    assert(node->type == AST_LOOKUP);
-    Object* rv = ((ASTLookup*)node)->name;
-    return rv;
-}
-
 static inline ASTNode*
 parse_expression_assign(Token *token, ASTNode *lhs, ASTNode *rhs) {
     ASTNode *rv;
@@ -386,15 +378,6 @@ parse_expression_assign(Token *token, ASTNode *lhs, ASTNode *rhs) {
     }
 
     return rv;
-}
-
-static inline ASTNode*
-parse_expression_attr(Token *token, ASTNode *lhs, ASTNode *rhs) {
-    ASTAttribute* attr = GC_MALLOC(sizeof(ASTAttribute));
-    parser_node_init((ASTNode*) attr, AST_ATTRIBUTE, token);
-    attr->attribute = parse_word2string(lhs);
-    attr->object = (ASTNode*) rhs;
-    return (ASTNode*) attr;
 }
 
 static ASTNode*
@@ -434,28 +417,22 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
     // If there is no current expression, then this becomes the LHS
     lhs = term;
 
-    // Peek for CALL and INVOKE
-
+    // Handle CALL and SLICE
+    for (;;) {
+        next = T->peek(T);
+        if (next->type == T_OPEN_PAREN) {
+            lhs = parse_invoke(self, lhs);
+        }
+        else if (next->type == T_OPEN_BRACKET) {
+            lhs = parse_slice(self, lhs);
+        }
+        else {
+            break;
+        }
+    }
 
     // Peek for (binary) operator(s)
     for (;;) {
-        for (;;) {
-            next = T->peek(T);
-
-            if (next->type != T_OPEN_PAREN && next->type != T_OPEN_BRACKET)
-                break;
-
-            if (previous)
-                return lhs;
-
-            if (next->type == T_OPEN_PAREN) {
-                lhs = parse_invoke(self, lhs);
-            }
-            else { // T_OPEN_BRACKET?
-                lhs = parse_slice(self, lhs);
-            }
-        }
-
         if (next->type < T__OP_MIN || next->type > T__OP_MAX)
             break;
 
@@ -475,10 +452,9 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
         // Parse RHS first (before continuing LHS expression)
         rhs = parse_expression_r(self, operator);
 
-        if (operator->operator == T_OP_ASSIGN)
+        if (operator->operator == T_OP_ASSIGN) {
             lhs = parse_expression_assign(next, lhs, rhs);
-        else if (operator->operator == T_DOT)
-            lhs = parse_expression_attr(next, rhs, lhs);
+        }
         else {
             expr = GC_NEW(ASTExpression);
             parser_node_init((ASTNode*) expr, AST_EXPRESSION, next);
@@ -487,7 +463,7 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
             expr->binary_op = operator->operator;
             expr->rhs = rhs;
 
-            // Roll the expression forward as the new LHS
+            // Roll the expession forward as the new LHS
             lhs = (ASTNode*) expr;
         }
     }
@@ -510,7 +486,7 @@ parse_statement(Parser* self) {
     switch (token->type) {
     // Statement
     case T_VAR: {
-        ASTVar* astvar = GC_MALLOC( sizeof(ASTVar));
+        ASTVar* astvar = GC_MALLOC(sizeof(ASTVar));
         parser_node_init((ASTNode*) astvar, AST_VAR, token);
         token = parse_expect(self, T_WORD);
         astvar->name = self->tokens->fetch_text(self->tokens, token);

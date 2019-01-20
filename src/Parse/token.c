@@ -96,6 +96,10 @@ next_token(Tokenizer *self) {
         token->type = T_BANG;
         break;
 
+    case ':':
+        token->type = T_COLON;
+        break;
+
     case '>':
         if (peek_char(self) == '=') {
             next_char(self);
