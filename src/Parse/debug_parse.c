@@ -46,7 +46,7 @@ print_invoke(FILE* output, ASTInvoke* node) {
     print_node(output, node->callable);
     fprintf(output, ", args=(");
     print_node(output, node->args);
-    fprintf(output, ")");
+    fprintf(output, "))");
 }
 
 static void
@@ -103,6 +103,12 @@ print_lookup(FILE* output, ASTLookup* node) {
     fprintf(output, "@%.*s", S->length, S->characters);
 }
 
+static void
+print_return(FILE *output, ASTReturn* node) {
+    fprintf(output, "Return ");
+    print_node(output, node->expression);
+}
+
 void
 print_node_list(FILE* output, ASTNode* node, const char * separator) {
     ASTNode* current = node;
@@ -146,6 +152,9 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
             break;
         case AST_LOOKUP:
             print_lookup(output, (ASTLookup*) current);
+            break;
+        case AST_RETURN:
+            print_return(output, (ASTReturn*) current);
             break;
         default:
             fprintf(output, "Unexpected AST type: %d", current->type);

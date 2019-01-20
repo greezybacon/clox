@@ -23,7 +23,6 @@ parser_node_init(ASTNode* node, int type, Token* token) {
         .type = type,
         .line = token->line,
         .offset = token->pos,
-        .next = NULL,
     };
 }
 
@@ -32,7 +31,7 @@ parse_syntax_error(Parser* self, char* message) {
     Tokenizer* tokens = self->tokens;
     Token* next = tokens->peek(tokens);
 
-    fprintf(stderr, "Parse Error: line %d, at %d: %s\n",
+    fprintf(stderr, "Syntax Error: line %d, at %d: %s\n",
         tokens->stream->line, tokens->stream->offset, message);
     exit(-1);
 }
@@ -44,8 +43,9 @@ parse_expect(Parser* self, enum token_type type) {
 
     if (next->type != type) {
         char buffer[255];
-        snprintf(buffer, sizeof(buffer), "Expected %s(%d), got %.*s",
-            get_token_type(type), type, next->length, next->text);
+        snprintf(buffer, sizeof(buffer), "Expected %s(%d), got %s(%d) >%.*s<",
+            get_token_type(type), type, get_token_type(next->type), next->type,
+            next->length, next->text);
         parse_syntax_error(self, buffer);
     }
 
