@@ -1,0 +1,16 @@
+print(0 == 3 + -3)
+print(0 == -3 + 3)
+
+// And without whitespace
+print(0==3+-3)
+print(0==-3+3)
+
+// Simple variable negations
+var a = 3
+print(0 == 3 + -a)
+print(0 == -a + 3)
+
+// Negation of compound expressions
+var b = 7
+print(63 == b * -(3 * -a))
+print(63 == -b * -(3 * a))
