@@ -256,11 +256,11 @@ compile_expression(Compiler* self, ASTExpression *expr) {
     switch (expr->unary_op) {
         // Bitwise NOT?
         case T_BANG:
-        length += compile_emit(self, OP_BANG, 0, (ASTNode*) expr);
+        length += compile_emit(self, OP_BANG, 0);
         break;
 
         case T_OP_MINUS:
-        length += compile_emit(self, OP_NEG, 0, (ASTNode*) expr);
+        length += compile_emit(self, OP_NEG, 0);
         break;
 
         case T_OP_PLUS:

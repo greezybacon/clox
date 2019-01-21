@@ -326,10 +326,6 @@ static struct operator_info {
     int                 precedence;
 } OperatorPrecedence[] = {
     { T_OP_ASSIGN,  ASSOC_RIGHT,    10 },
-    { T_OP_IPLUS,   ASSOC_RIGHT,    10 },
-    { T_OP_IMINUS,  ASSOC_RIGHT,    10 },
-    { T_OP_ISTAR,   ASSOC_RIGHT,    10 },
-    { T_OP_ISLASH,  ASSOC_RIGHT,    10 },
     { T_AND,        ASSOC_LEFT,     20 },
     { T_OR,         ASSOC_LEFT,     20 },
     { T_OP_GT,      ASSOC_LEFT,     30 },
