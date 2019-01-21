@@ -82,7 +82,7 @@ static inline Object*
 coerce_integer(Object* value) {
     if (value->type != &IntegerType) {
        if (value->type->as_int == NULL) {
-           eval_error(NULL, "Value cannot be coerced to int");
+           eval_error(NULL, "Type %s cannot be coerced to int", value->type->name);
            return value;
        }
        value = value->type->as_int(value);
@@ -114,7 +114,15 @@ integer_op_minus(Object* self, Object* other) {
     }
     // Else coerce to integer
     else other = coerce_integer(other);
+
     return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value - ((IntegerObject*) other)->value);
+}
+
+static struct object*
+integer_op_neg(Object* self) {
+    assert(self->type == &IntegerType);
+
+    return (Object*) Integer_fromLongLong(- ((IntegerObject*) self)->value);
 }
 
 static struct object*
@@ -208,6 +216,7 @@ static struct object_type IntegerType = (ObjectType) {
 	.op_minus = integer_op_minus,
 	.op_star = integer_op_multiply,
 	.op_slash = integer_op_divide,
+    .op_neg = integer_op_neg,
 
     // comparison
     .op_lt = integer_op_lt,

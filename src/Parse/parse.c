@@ -213,10 +213,7 @@ parse_TERM(Parser* self) {
 
     switch (next->type) {
     case T_OPEN_PAREN:
-        // XXX: This indicates CALL if it is not the first token in the
-        // expression or if it is not preceeded by an operator
-
-        // parse_TERM -- PARENthensized TERM
+        // This would be a nested expression
         if (T->peek(T)->type != T_CLOSE_PAREN) {
             result = (ASTNode*) parse_expression(self);
         }
@@ -398,16 +395,13 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
     const OperatorInfo *operator;
     ASTNode *lhs = NULL, *term, *rhs;
     ASTExpression *expr;
-    enum token_type unary_op;
+    enum token_type unary_op = 0;
 
+    // Read next token and handle unary operations
     next = T->next(T);
-
     if (next->type == T_BANG || next->type == T_OP_PLUS || next->type == T_OP_MINUS) {
         unary_op = next->type;
         next = T->next(T);
-    }
-    else {
-        unary_op = 0;
     }
 
     term = parse_TERM(self);
@@ -417,9 +411,20 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
     // If there is no current expression, then this becomes the LHS
     lhs = term;
 
+    // Apply unary_op here to current LHS
+    if (unary_op) {
+        if (lhs->type != AST_EXPRESSION) {
+            expr = GC_NEW(ASTExpression);
+            parser_node_init((ASTNode*) expr, AST_EXPRESSION, next);
+            expr->lhs = lhs;
+            lhs = (ASTNode*) expr;
+        }
+
+        ((ASTExpression*) lhs)->unary_op = unary_op;
+    }
+
     // Handle CALL and SLICE
     for (;;) {
-        next = T->peek(T);
         if (next->type == T_OPEN_PAREN) {
             lhs = parse_invoke(self, lhs);
         }
@@ -429,6 +434,7 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
         else {
             break;
         }
+        next = T->peek(T);
     }
 
     // Peek for (binary) operator(s)
@@ -467,8 +473,6 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
             lhs = (ASTNode*) expr;
         }
     }
-
-    // TODO: Apply unary_op here to current LHS
 
     return lhs;
 }

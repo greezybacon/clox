@@ -44,6 +44,7 @@ enum opcode {
     OP_BINARY_MINUS,
     OP_BINARY_STAR,
     OP_BINARY_SLASH,
+    OP_NEG,
 
     // Classes
     OP_BUILD_CLASS,

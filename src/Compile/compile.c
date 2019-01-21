@@ -204,21 +204,6 @@ compile_expression(Compiler* self, ASTExpression *expr) {
     // Push the LHS
     unsigned length = compile_node(self, expr->lhs);
 
-    // Perform the unary op
-    switch (expr->unary_op) {
-        // Bitwise NOT?
-        case T_BANG:
-        length += compile_emit(self, OP_BANG, 0);
-        break;
-
-        case T_OP_MINUS:
-
-        case T_OP_PLUS:
-        default:
-        // This is really a noop
-        break;
-    }
-
     // Perform the binary op
     if (expr->binary_op) {
         length += compile_node(self, expr->rhs);
@@ -263,6 +248,25 @@ compile_expression(Compiler* self, ASTExpression *expr) {
             default:
             compile_error(self, "Parser error ...");
         }
+    }
+
+    // Perform the unary op. Note that if binary and unary operations are
+    // combined, then it is assumed to have been compiled from something like
+    // -(a * b)
+    switch (expr->unary_op) {
+        // Bitwise NOT?
+        case T_BANG:
+        length += compile_emit(self, OP_BANG, 0, (ASTNode*) expr);
+        break;
+
+        case T_OP_MINUS:
+        length += compile_emit(self, OP_NEG, 0, (ASTNode*) expr);
+        break;
+
+        case T_OP_PLUS:
+        default:
+        // This is really a noop
+        break;
     }
 
     return length;

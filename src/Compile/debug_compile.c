@@ -51,6 +51,7 @@ static struct named_opcode OpcodeNames[] = {
     { OP_BINARY_MINUS,  "MINUS (-)" },
     { OP_BINARY_STAR,   "STAR (*)" },
     { OP_BINARY_SLASH,  "SLASH (/)" },
+    { OP_NEG,           "NEG (-)" },
 
     // Classes
     { OP_BUILD_CLASS,   "BUILD_CLASS" },

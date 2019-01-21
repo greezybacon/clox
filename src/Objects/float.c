@@ -28,7 +28,7 @@ Float_fromLongLong(long long value) {
 
 hashval_t
 float_hash(Object* self) {
-    assert(self->type->code == TYPE_FLOAT);
+    assert(self->type == &FloatType);
 
     FloatObject* S = (FloatObject*) self;
     unsigned long long value = (unsigned long long) S->value;
@@ -37,19 +37,19 @@ float_hash(Object* self) {
 
 static Object*
 float_asint(Object* self) {
-    assert(self->type->code == TYPE_FLOAT);
+    assert(self->type == &FloatType);
     return (Object*) Integer_fromLongLong((long long) ((FloatObject*) self)->value);
 }
 
 static Object*
 float_asfloat(Object* self) {
-    assert(self->type->code == TYPE_FLOAT);
+    assert(self->type == &FloatType);
     return (Object*) self;
 }
 
 static Object*
 float_asstring(Object* self) {
-    assert(self->type->code == TYPE_FLOAT);
+    assert(self->type == &FloatType);
 
     char buffer[40];
     snprintf(buffer, sizeof(buffer), "%Lg", ((FloatObject*) self)->value);
@@ -58,7 +58,7 @@ float_asstring(Object* self) {
 
 static struct object*
 float_op_plus(Object* self, Object* other) {
-    assert(self->type->code == TYPE_FLOAT);
+    assert(self->type == &FloatType);
 
     if (other->type->code != TYPE_FLOAT) {
         if (other->type->as_float == NULL) {
@@ -71,7 +71,7 @@ float_op_plus(Object* self, Object* other) {
 
 static struct object*
 float_op_minus(Object* self, Object* other) {
-    assert(self->type->code == TYPE_FLOAT);
+    assert(self->type == &FloatType);
 
     if (other->type->code != TYPE_FLOAT) {
         if (other->type->as_float == NULL) {
@@ -80,6 +80,13 @@ float_op_minus(Object* self, Object* other) {
         other = other->type->as_float(other);
     }
     return (Object*) Float_fromLongDouble(((FloatObject*) self)->value - ((FloatObject*) other)->value);
+}
+
+static struct object*
+float_op_neg(Object* self) {
+    assert(self->type == &FloatType);
+
+    return (Object*) Float_fromLongDouble(- ((FloatObject*) self)->value);
 }
 
 static struct object*
@@ -164,6 +171,7 @@ static struct object_type FloatType = (ObjectType) {
     .op_minus = float_op_minus,
     .op_star = float_op_star,
     .op_slash = float_op_slash,
+    .op_neg = float_op_neg,
 
     .op_eq = float_op_eq,
     .op_ne = float_op_ne,

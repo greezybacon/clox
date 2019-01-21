@@ -238,6 +238,11 @@ vmeval_eval(VmEvalContext *ctx) {
             BINARY_METHOD(op_slash);
             break;
 
+            case OP_NEG:
+            lhs = POP(stack);
+            PUSH(stack, (Object*) lhs->type->op_neg(lhs));
+            break;
+
             case OP_GET_ITEM:
             rhs = POP(stack);
             lhs = POP(stack);
