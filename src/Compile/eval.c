@@ -84,12 +84,9 @@ vmeval_eval(VmEvalContext *ctx) {
 
             case OP_CLOSE_FUN: {
                 CodeObject *code = (CodeObject*) POP(stack);
-                // Copy the locals into a persistent storage
-                Object **closed_locals = GC_MALLOC(ctx->code->locals.count * sizeof(Object*));
-                memcpy((void*) closed_locals, locals, sizeof(_locals));
                 VmFunction *fun = CodeObject_makeFunction((Object*) code,
                     // XXX: Globals?
-                    VmScope_create(ctx->scope, closed_locals, ctx->code));
+                    VmScope_create(ctx->scope, code->code, locals, ctx->code->locals.count));
                 PUSH(stack, (Object*) fun);
             }
             break;
@@ -152,12 +149,23 @@ vmeval_eval(VmEvalContext *ctx) {
             break;
 
             case OP_LOOKUP:
+            case OP_LOOKUP_GLOBAL:
             C = ctx->code->constants + pc->arg;
             assert(ctx->scope);
-            PUSH(stack, VmScope_lookup(ctx->scope, C->value, C->hash));
+            PUSH(stack, VmScope_lookup_global(ctx->scope, C->value, C->hash));
+            break;
+
+            case OP_LOOKUP_CLOSED:
+            if (ctx->scope) {
+                lhs = VmScope_lookup_local(ctx->scope, pc->arg);
+            }
+            else
+                lhs = LoxNIL;
+            PUSH(stack, lhs);
             break;
 
             case OP_STORE:
+            case OP_STORE_GLOBAL:
             C = ctx->code->constants + pc->arg;
             assert(ctx->scope);
             VmScope_assign(ctx->scope, C->value, POP(stack), C->hash);
@@ -165,7 +173,6 @@ vmeval_eval(VmEvalContext *ctx) {
 
             case OP_STORE_LOCAL:
             assert(pc->arg < ctx->code->locals.count);
-            lhs = *(locals + pc->arg);
             *(locals + pc->arg) = POP(stack);
             break;
 
@@ -180,7 +187,10 @@ vmeval_eval(VmEvalContext *ctx) {
             lhs = *(locals + pc->arg);
             if (lhs == NULL) {
                 // RAISE RUNTIME ERROR
-                fprintf(stderr, "WARNING: `%hd` accessed before assignment", pc->arg);
+                fprintf(stderr, "WARNING: `%.*s` (%hd) accessed before assignment",
+                    ((StringObject*) (ctx->code->locals.names + pc->arg)->value)->length,
+                    ((StringObject*) (ctx->code->locals.names + pc->arg)->value)->characters,
+                    pc->arg);
                 lhs = LoxNIL;
             }
             PUSH(stack, lhs);

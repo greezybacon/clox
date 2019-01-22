@@ -21,8 +21,12 @@ enum opcode {
     // Scope
     OP_LOOKUP,
     OP_LOOKUP_LOCAL,
+    OP_LOOKUP_GLOBAL,
+    OP_LOOKUP_CLOSED,
     OP_STORE,
     OP_STORE_LOCAL,
+    OP_STORE_GLOBAL,
+    OP_STORE_CLOSED,
     OP_STORE_ARG_LOCAL,
     OP_CONSTANT,
 
@@ -109,13 +113,15 @@ typedef struct compiler_object {
 typedef struct vmeval_scope {
     struct vmeval_scope *outer;
     Object              **locals;
+    size_t              locals_count;
     CodeContext         *code;
     HashObject          *globals;
 } VmScope;
 
-VmScope* VmScope_create(VmScope*, Object**, CodeContext*);
+VmScope* VmScope_create(VmScope*, CodeContext*, Object**, unsigned);
 void VmScope_assign(VmScope*, Object*, Object*, hashval_t);
-Object* VmScope_lookup(VmScope*, Object*, hashval_t);
+Object* VmScope_lookup_global(VmScope*, Object*, hashval_t);
+Object* VmScope_lookup_local(VmScope*, unsigned);
 VmScope* VmScope_leave(VmScope*);
 
 // Run-time args passing between calls to vmeval_eval

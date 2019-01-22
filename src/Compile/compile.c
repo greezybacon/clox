@@ -134,9 +134,9 @@ compile_emit(Compiler* self, enum opcode op, short argument) {
 }
 
 static int
-compile_locals_islocal(Compiler *self, Object *name, hashval_t hash) {
+compile_locals_islocal(CodeContext *context, Object *name, hashval_t hash) {
     int index = 0;
-    LocalsList *locals = &self->context->locals;
+    LocalsList *locals = &context->locals;
 
     // Direct search through the locals list
     while (index < locals->count) {
@@ -152,6 +152,23 @@ compile_locals_islocal(Compiler *self, Object *name, hashval_t hash) {
     return -1;
 }
 
+/**
+ * Returns 0-based local slot of local variable in the immediately-outer closed
+ * context. Returns -1 if the context is not nested or the variable is not
+ * closed in the outer context.
+ */
+static int
+compile_locals_isclosed(Compiler *self, Object *name) {
+    if (!self->context->prev)
+        return -1;
+
+    hashval_t hash = HASHVAL(name);
+    return compile_locals_islocal(self->context->prev, name, hash);
+
+    // TODO: Recurse through further nesting?
+}
+
+
 static unsigned
 compile_locals_allocate(Compiler *self, Object *name) {
     assert(name->type);
@@ -161,7 +178,7 @@ compile_locals_allocate(Compiler *self, Object *name) {
     LocalsList *locals = &self->context->locals;
 
     hashval_t hash = HASHVAL(name);
-    if (-1 != (index = compile_locals_islocal(self, name, hash))) {
+    if (-1 != (index = compile_locals_islocal(self->context, name, hash))) {
         return index;
     }
 
@@ -183,8 +200,9 @@ compile_assignment(Compiler *self, ASTAssignment *assign) {
     // Push the expression
     unsigned length = compile_node(self, assign->expression);
     unsigned index;
-    
+
     if (self->flags & CFLAG_LOCAL_VARS) {
+        // XXX: Consider assignment to non-local (closed) vars?
         // Lookup or allocate a local variable
         index = compile_locals_allocate(self, assign->name);
         length += compile_emit(self, OP_STORE_LOCAL, index);
@@ -194,7 +212,7 @@ compile_assignment(Compiler *self, ASTAssignment *assign) {
         // Find the name in the constant stack
         index = compile_emit_constant(self, assign->name);
         // Push the STORE
-        length += compile_emit(self, OP_STORE, index);
+        length += compile_emit(self, OP_STORE_GLOBAL, index);
     }
     return length;
 }
@@ -292,12 +310,15 @@ static unsigned
 compile_lookup(Compiler *self, ASTLookup *node) {
     // See if the name is in the locals list
     int index;
-    if (-1 != (index = compile_locals_islocal(self, node->name, HASHVAL(node->name)))) {
+    if (-1 != (index = compile_locals_islocal(self->context, node->name, HASHVAL(node->name)))) {
         return compile_emit(self, OP_LOOKUP_LOCAL, index);
+    }
+    else if (-1 != (index = compile_locals_isclosed(self, node->name))) {
+        return compile_emit(self, OP_LOOKUP_CLOSED, index);
     }
     // Fetch the index of the name constant
     index = compile_emit_constant(self, node->name);
-    return compile_emit(self, OP_LOOKUP, index);
+    return compile_emit(self, OP_LOOKUP_GLOBAL, index);
 }
 
 static unsigned
@@ -472,7 +493,7 @@ compile_class(Compiler *self, ASTClass *node) {
     if (node->name) {
         index = compile_emit_constant(self, node->name);
         // Push the STORE
-        length += compile_emit(self, OP_STORE, index);
+        length += compile_emit(self, OP_STORE_GLOBAL, index);
     }
 
     return length;

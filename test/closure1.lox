@@ -1,0 +1,13 @@
+fun returnFunction() {
+  var outside = "outside";
+
+  fun inner() {
+    print("Hello from inner");
+    print(outside);
+  }
+
+  return inner;
+}
+
+var fn = returnFunction();
+fn();

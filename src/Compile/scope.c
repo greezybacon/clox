@@ -7,14 +7,20 @@
 #include "Objects/hash.h"
 
 VmScope*
-VmScope_create(VmScope *outer, Object **locals, CodeContext *code) {
-    VmScope *scope = GC_MALLOC(sizeof(VmScope));
-    *scope = (VmScope) {
+VmScope_create(VmScope *outer, CodeContext *code, Object **locals, unsigned locals_count) {
+    VmScope *self = GC_MALLOC(sizeof(VmScope));
+    *self = (VmScope) {
         .outer = outer,
+        .globals = outer->globals,
         .code = code,
-        .locals = locals,
     };
-    return scope;
+    if (locals_count) {
+        self->locals_count = locals_count,
+        self->locals = GC_MALLOC(sizeof(Object*) * locals_count);
+        while (locals_count--)
+            *(self->locals + locals_count) = *(locals + locals_count);
+    }
+    return self;
 }
 
 VmScope*
@@ -25,85 +31,37 @@ VmScope_leave(VmScope* self) {
 
 #include "Objects/string.h"
 
-static Object*
-VmScope_lookup_local(VmScope* self, Object* name, hashval_t hash) {
-    int index = 0;
-    if (!self->code || !self->locals)
-        return NULL;
-
-    LocalsList *locals = &self->code->locals;
-
-    // Direct search through the locals list
-    while (index < locals->count) {
-        if ((locals->names + index)->hash == hash
-            && LoxTRUE == name->type->op_eq(name, (locals->names + index)->value)
-        ) {
-            // Found it in the locals list
-            return *(self->locals + index);
-        }
-        index++;
-    }
-
-    // Search outer scope(s)
-    if (self->outer)
-        return VmScope_lookup_local(self->outer, name, hash);
-
-    return NULL;
-}
-
 Object*
-VmScope_lookup(VmScope* self, Object* name, hashval_t hash) {
-    Object *rv;
-    if (self->locals && (rv = VmScope_lookup_local(self, name, hash)))
-        return rv;
-
+VmScope_lookup_global(VmScope* self, Object* name, hashval_t hash) {
     // Search globals
+    assert(self);
+
+    Object *rv;
     if (self->globals && (rv = Hash_getItemEx(self->globals, name, hash)))
         return rv;
 
     if (self->outer)
-        return VmScope_lookup(self->outer, name, hash);
+        return VmScope_lookup_global(self->outer, name, hash);
 
     return LoxNIL;
 
 }
 
-static bool
-VmScope_assign_local(VmScope* self, Object* name, Object* value, hashval_t hash) {
-    // See if the variable is in the immediately outer scope (stack)
-    int index = 0;
-    LocalsList *locals = &self->code->locals;
-    Object *old;
+Object*
+VmScope_lookup_local(VmScope *self, unsigned index) {
+    assert(self);
 
-    // Direct search through the locals list
-    while (index < locals->count) {
-        if ((locals->names + index)->hash == hash
-            && LoxTRUE == name->type->op_eq(name, (locals->names + index)->value)
-        ) {
-            // Found it in the locals list
-            Object *old = *(self->locals + index);
-            *(self->locals + index) = value;
-            return true;
-        }
-        index++;
-    }
-    
-    // ???: Unable to find in this scope -- look further out
-    if (self->outer)
-        return VmScope_assign_local(self->outer, name, value, hash);
+    if (index >= self->locals_count)
+        return LoxNIL;
 
-    return false;
+    return *(self->locals + index);
 }
 
 void
 VmScope_assign(VmScope* self, Object* name, Object* value, hashval_t hash) {
-    Object *rv;
-    if (self->locals && VmScope_assign_local(self, name, value, hash))
-        return;
-
-    // TODO: Assign global?
+    // TODO: Assign local?
     if (self->globals)
-        return Hash_setItem(self->globals, name, value);
+        return Hash_setItemEx(self->globals, name, value, hash);
 
     // Trigger fatal error
     printf("Unable to find variable\n");

@@ -99,11 +99,10 @@ hash_resize(HashObject* self, size_t newsize) {
 
 /* Insert a key-value pair into a hash table. */
 static void
-hash_set(HashObject *self, Object *key, Object *value) {
+hash_set_fast(HashObject *self, Object *key, Object *value, hashval_t hash) {
     assert(((Object*)self)->type == &HashType);
 
     int slot;
-    hashval_t hash = 0;
     HashEntry *entry;
 
     // If the table is over half full, double the size
@@ -117,7 +116,6 @@ hash_set(HashObject *self, Object *key, Object *value) {
     // must be at least one empty slot or lookups for missing items would
     // loop forever.
 
-    hash = ht_hashval(key);
     slot = hash & self->size_mask;
 
     entry = self->table + slot;
@@ -137,6 +135,14 @@ hash_set(HashObject *self, Object *key, Object *value) {
         .hash = hash,
     };
     self->count++;
+}
+
+static void
+hash_set(HashObject *self, Object *key, Object *value) {
+    hashval_t hash = 0;
+    hash = ht_hashval(key);
+
+    return hash_set_fast(self, key, value, hash);
 }
 
 static HashEntry*
@@ -205,6 +211,12 @@ void
 Hash_setItem(HashObject* self, Object* key, Object* value) {
     assert(self);
     hash_set(self, key, value);
+}
+
+void
+Hash_setItemEx(HashObject* self, Object* key, Object* value, hashval_t hash) {
+    assert(self);
+    hash_set_fast(self, key, value, hash);
 }
 
 bool

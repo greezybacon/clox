@@ -46,6 +46,7 @@ Object* Hash_getItem(HashObject*, Object*);
 Object* Hash_getItemEx(HashObject*, Object*, hashval_t);
 bool Hash_contains(HashObject*, Object*);
 void Hash_setItem(HashObject*, Object*, Object*);
+void Hash_setItemEx(HashObject*, Object*, Object*, hashval_t);
 
 #endif
 

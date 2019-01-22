@@ -28,8 +28,12 @@ static struct named_opcode OpcodeNames[] = {
     // Variables
     { OP_LOOKUP,        "LOOKUP" },
     { OP_LOOKUP_LOCAL,  "LOOKUP_LOCAL" },
+    { OP_LOOKUP_GLOBAL, "LOOKUP_GLOBAL" },
+    { OP_LOOKUP_CLOSED, "LOOKUP_CLOSED" },
     { OP_STORE,         "STORE" },
     { OP_STORE_LOCAL,   "STORE_LOCAL" },
+    { OP_STORE_GLOBAL,  "STORE_GLOBAL" },
+    { OP_STORE_CLOSED,  "STORE_CLOSED" },
     { OP_STORE_ARG_LOCAL, "STORE_ARG_LOCAL" },
     { OP_CONSTANT,      "CONSTANT" },
 
@@ -84,7 +88,9 @@ print_opcode(const CodeContext *context, const Instruction *op) {
     case OP_SET_ATTR:
     case OP_CONSTANT:
     case OP_STORE:
-    case OP_LOOKUP: {
+    case OP_LOOKUP:
+    case OP_LOOKUP_GLOBAL:
+    case OP_STORE_GLOBAL: {
         Constant *C = context->constants + op->arg;
         Object *T = C->value;
         if (T && T->type && T->type->as_string) {
@@ -104,6 +110,21 @@ print_opcode(const CodeContext *context, const Instruction *op) {
             printf(" (%.*s)", S->length, S->characters);
         }
     }
+    break;
+
+    case OP_STORE_CLOSED:
+    case OP_LOOKUP_CLOSED: {
+        CodeContext *outer = context->prev;
+        if (outer) {
+            Object *T = (outer->locals.names + op->arg)->value;
+            if (T && T->type && T->type->as_string) {
+                StringObject *S = (StringObject*) T->type->as_string(T);
+                assert(String_isString((Object*) S));
+                printf(" (%.*s)", S->length, S->characters);
+            }
+        }
+    }
+
     default:
         break;
     }
