@@ -23,6 +23,7 @@ enum token_type {
     T_OP_GTE,
     T_OP_EQUAL,
     T_OP_ASSIGN,
+    T_OP_IN,
     T_BANG,
     T_AND,
     T_OR,

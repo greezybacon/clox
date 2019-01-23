@@ -263,6 +263,10 @@ compile_expression(Compiler* self, ASTExpression *expr) {
             length += compile_emit(self, OP_GTE, 0);
             break;
 
+            case T_OP_IN:
+            length += compile_emit(self, OP_IN, 0);
+            break;
+
             default:
             compile_error(self, "Parser error ...");
         }
@@ -521,7 +525,13 @@ compile_slice(Compiler *self, ASTSlice *node) {
     if (!node->end && !node->step) {
         length += compile_node(self, node->start);
     }
-    return length + compile_emit(self, OP_GET_ITEM, 0);
+    if (node->value) {
+        length += compile_node(self, node->value);
+        return length + compile_emit(self, OP_SET_ITEM, 0);
+    }
+    else {
+        return length + compile_emit(self, OP_GET_ITEM, 0);
+    }
 }
 
 static unsigned

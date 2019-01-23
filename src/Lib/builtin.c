@@ -92,6 +92,14 @@ builtin_tuple(VmScope *state, Object *self, Object *args) {
 }
 
 static Object*
+builtin_hash(VmScope *state, Object *self, Object *args) {
+    assert(Tuple_isTuple(args));
+
+    // TODO: Consider value of args as list of two-item tuples?
+    return (Object*) Hash_new();
+}
+
+static Object*
 builtin_open(VmScope *state, Object *self, Object *args) {
     assert(Tuple_isTuple(args));
 
@@ -112,6 +120,7 @@ builtins_module_def = {
         { "len", builtin_len },
         { "eval", builtin_eval },
         { "tuple", builtin_tuple },
+        { "hash", builtin_hash, },
         { "open", builtin_open },
         { 0 },
     }

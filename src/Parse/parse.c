@@ -185,7 +185,6 @@ parse_arg_list(Parser* self) {
 
 static Object*
 parse_word2string(ASTNode* node) {
-    printf("Type of node is %d\n", node->type);
     assert(node->type == AST_LOOKUP);
     Object* rv = ((ASTLookup*)node)->name;
     return rv;
@@ -324,23 +323,25 @@ static struct operator_info {
     enum token_type     operator;
     enum associativity  assoc;
     int                 precedence;
+    const char          *symbol;
 } OperatorPrecedence[] = {
-    { T_OP_ASSIGN,  ASSOC_RIGHT,    10 },
-    { T_AND,        ASSOC_LEFT,     20 },
-    { T_OR,         ASSOC_LEFT,     20 },
-    { T_OP_GT,      ASSOC_LEFT,     30 },
-    { T_OP_GTE,     ASSOC_LEFT,     30 },
-    { T_OP_LT,      ASSOC_LEFT,     30 },
-    { T_OP_LTE,     ASSOC_LEFT,     30 },
-    { T_OP_EQUAL,   ASSOC_LEFT,     40 },
-    { T_BANG,       ASSOC_LEFT,     45 },
-    { T_OP_PLUS,    ASSOC_LEFT,     50 },
-    { T_OP_MINUS,   ASSOC_LEFT,     50 },
-    { T_OP_STAR,    ASSOC_LEFT,     60 },
-    { T_OP_SLASH,   ASSOC_LEFT,     60 },
-    { T_OPEN_PAREN, ASSOC_RIGHT,    70 },
-    { T_OPEN_BRACKET, ASSOC_RIGHT,  70 },
-    { T_DOT,        ASSOC_LEFT,     80 },
+    { T_OP_ASSIGN,  ASSOC_RIGHT,    10, ":=" },
+    { T_AND,        ASSOC_LEFT,     20, "and" },
+    { T_OR,         ASSOC_LEFT,     20, "or" },
+    { T_OP_GT,      ASSOC_LEFT,     30, ">" },
+    { T_OP_GTE,     ASSOC_LEFT,     30, ">=" },
+    { T_OP_LT,      ASSOC_LEFT,     30, "<" },
+    { T_OP_LTE,     ASSOC_LEFT,     30, "<=" },
+    { T_OP_EQUAL,   ASSOC_LEFT,     40, "==" },
+    { T_BANG,       ASSOC_LEFT,     45, "!" },
+    { T_OP_IN,      ASSOC_LEFT,     45, "in" },
+    { T_OP_PLUS,    ASSOC_LEFT,     50, "+" },
+    { T_OP_MINUS,   ASSOC_LEFT,     50, "-" },
+    { T_OP_STAR,    ASSOC_LEFT,     60, "*" },
+    { T_OP_SLASH,   ASSOC_LEFT,     60, "/" },
+    { T_OPEN_PAREN, ASSOC_RIGHT,    70, "(" },
+    { T_OPEN_BRACKET, ASSOC_RIGHT,  70, "[" },
+    { T_DOT,        ASSOC_LEFT,     80, "." },
     { 0, 0, 0 },
 };
 
@@ -365,9 +366,16 @@ parse_expression_assign(Token *token, ASTNode *lhs, ASTNode *rhs) {
         assign->name = parse_word2string(lhs);
         rv = (ASTNode*) assign;
     }
+    else if (lhs->type == AST_SLICE) {
+        ((ASTSlice*) lhs)->value = rhs;
+        rv = lhs;
+    }
     else if (lhs->type == AST_ATTRIBUTE) {
         ((ASTAttribute*) lhs)->value = rhs;
         rv = lhs;
+    }
+    else {
+        assert(!"Unexpected assignment LHS");
     }
 
     return rv;
@@ -407,18 +415,6 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
     // If there is no current expression, then this becomes the LHS
     lhs = term;
 
-    // Apply unary_op here to current LHS
-    if (unary_op) {
-        if (lhs->type != AST_EXPRESSION) {
-            expr = GC_NEW(ASTExpression);
-            parser_node_init((ASTNode*) expr, AST_EXPRESSION, next);
-            expr->lhs = lhs;
-            lhs = (ASTNode*) expr;
-        }
-
-        ((ASTExpression*) lhs)->unary_op = unary_op;
-    }
-
     // Handle CALL and SLICE
     for (;;) {
         if (next->type == T_OPEN_PAREN) {
@@ -431,6 +427,18 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
             break;
         }
         next = T->peek(T);
+    }
+
+    // Apply unary_op here to current LHS
+    if (unary_op) {
+        if (lhs->type != AST_EXPRESSION) {
+            expr = GC_NEW(ASTExpression);
+            parser_node_init((ASTNode*) expr, AST_EXPRESSION, next);
+            expr->lhs = lhs;
+            lhs = (ASTNode*) expr;
+        }
+
+        ((ASTExpression*) lhs)->unary_op = unary_op;
     }
 
     // Peek for (binary) operator(s)

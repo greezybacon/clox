@@ -109,6 +109,7 @@ typedef struct ast_slice {
     struct ast_node     *start;
     struct ast_node     *end;
     struct ast_node     *step;
+    struct ast_node     *value;         // Used for item assignment
 } ASTSlice;
 
 typedef struct ast_class {

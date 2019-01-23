@@ -42,6 +42,7 @@ enum opcode {
     OP_BINARY_AND,
     OP_BINARY_OR,
     OP_BANG,
+    OP_IN,
 
     // Expressions
     OP_BINARY_PLUS,

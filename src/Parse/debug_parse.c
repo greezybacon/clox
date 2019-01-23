@@ -21,6 +21,18 @@ print_expression(FILE* output, ASTExpression* node) {
 }
 
 static void
+print_object(FILE* output, Object *object) {
+    StringObject* S;
+    if (object->type->as_string) {
+        S = (StringObject*) object->type->as_string(object);
+        fprintf(output, "%.*s", S->length, S->characters);
+    }
+    else {
+        fprintf(output, "object<%s>@%p", object->type->name, object);
+    }
+}
+
+static void
 print_assignment(FILE* output, ASTAssignment* node) {
     assert(String_isString(node->name));
     StringObject* S = (StringObject*) node->name;
@@ -109,6 +121,39 @@ print_return(FILE *output, ASTReturn* node) {
     print_node(output, node->expression);
 }
 
+static void
+print_attribute(FILE *output, ASTAttribute *node) {
+    print_node(output, node->object);
+    fprintf(output, ".");
+    print_object(output, node->attribute);
+    if (node->value) {
+        fprintf(output, " := ");
+        print_node(output, node->value);
+    }
+}
+
+static void
+print_slice(FILE *output, ASTSlice *node) {
+    print_node(output, node->object);
+    fprintf(output, " [ ");
+    print_node(output, node->start);
+    if (node->end) {
+        fprintf(output, " : ");
+        print_node(output, node->end);
+        if (node->step) {
+            fprintf(output, " : ");
+            print_node(output, node->step);
+        }
+    }
+
+    fprintf(output, " ] ");
+
+    if (node->value) {
+        fprintf(output, ":= ");
+        print_node(output, node->value);
+    }
+}
+
 void
 print_node_list(FILE* output, ASTNode* node, const char * separator) {
     ASTNode* current = node;
@@ -155,6 +200,12 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
             break;
         case AST_RETURN:
             print_return(output, (ASTReturn*) current);
+            break;
+        case AST_ATTRIBUTE:
+            print_attribute(output, (ASTAttribute*) current);
+            break;
+        case AST_SLICE:
+            print_slice(output, (ASTSlice*) current);
             break;
         default:
             fprintf(output, "Unexpected AST type: %d", current->type);

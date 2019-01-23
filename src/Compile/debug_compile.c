@@ -49,6 +49,7 @@ static struct named_opcode OpcodeNames[] = {
     { OP_BINARY_AND,    "AND (&&)" },
     { OP_BINARY_OR,     "OR (||)" },
     { OP_BANG,          "BANG (!)" },
+    { OP_IN,            "IN" },
 
     // Expressions / math
     { OP_BINARY_PLUS,   "PLUS (+)" },

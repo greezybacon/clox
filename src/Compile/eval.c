@@ -19,7 +19,7 @@ eval_raise_error(VmEvalContext *ctx, const char *characters, ...) {
 
 Object*
 vmeval_eval(VmEvalContext *ctx) {
-    Object *lhs, *rhs, **local, *rv;
+    Object *lhs, *rhs, **local, *rv, *item;
     Constant *C;
 
     Object *_locals[ctx->code->locals.count], **locals = &_locals[0];
@@ -229,7 +229,23 @@ vmeval_eval(VmEvalContext *ctx) {
             // Boolean
             case OP_BINARY_AND:
             case OP_BINARY_OR:
+            break;
+
             case OP_BANG:
+            lhs = POP(stack);
+            PUSH(stack, Bool_fromObject(lhs) == LoxTRUE ? LoxFALSE : LoxTRUE);
+            break;
+
+            case OP_IN:
+            lhs = POP(stack);
+            rhs = POP(stack);
+            if (lhs->type->contains) {
+                PUSH(stack, lhs->type->contains(lhs, rhs));
+            }
+            else {
+                fprintf(stderr, "Type <%s> does not support IN\n", lhs->type->name);
+            }
+            break;
 
             // Expressions
             case OP_BINARY_PLUS:
@@ -258,6 +274,16 @@ vmeval_eval(VmEvalContext *ctx) {
             lhs = POP(stack);
             if (lhs->type->get_item)
                 PUSH(stack, lhs->type->get_item(lhs, rhs));
+            else
+                fprintf(stderr, "lhs type %s does not support GET_ITEM\n", lhs->type->name);
+            break;
+
+            case OP_SET_ITEM:
+            rhs = POP(stack);
+            item = POP(stack);
+            lhs = POP(stack);
+            if (lhs->type->set_item)
+                lhs->type->set_item(lhs, item, rhs);
             break;
 
             default:
@@ -271,6 +297,7 @@ vmeval_eval(VmEvalContext *ctx) {
 op_return:
     rv = POP(stack);
 
+    // Check stack overflow and underflow
     assert(stack >= _stack);
     assert(stack - _stack < STACK_SIZE);
 

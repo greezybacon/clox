@@ -77,17 +77,16 @@ hash_resize(HashObject* self, size_t newsize) {
     HashEntry *entry, *current;
     for (current = self->table, i=self->size; i; current++, i--) {
         if (current->key != NULL) {
-            slot = ht_hashval(current->key) & mask;
+            slot = current->hash & mask;
 
             // Find an empty slot
-        	entry = table + slot;
-        	while (entry->key != NULL) {
+            entry = table + slot;
+            while (entry->key != NULL) {
                 slot = (slot + 1) & mask;
                 entry = table + slot;
-        	}
+            }
 
-            entry->value = current->value;
-            entry->key = current->key;
+            *entry = *current;
         }
     }
     self->table = table;
@@ -97,11 +96,11 @@ hash_resize(HashObject* self, size_t newsize) {
     return 0;
 }
 
+static Object* hash_asstring(Object*);
+
 /* Insert a key-value pair into a hash table. */
 static void
 hash_set_fast(HashObject *self, Object *key, Object *value, hashval_t hash) {
-    assert(((Object*)self)->type == &HashType);
-
     int slot;
     HashEntry *entry;
 
@@ -138,11 +137,13 @@ hash_set_fast(HashObject *self, Object *key, Object *value, hashval_t hash) {
 }
 
 static void
-hash_set(HashObject *self, Object *key, Object *value) {
+hash_set(Object *self, Object *key, Object *value) {
+    assert(self->type == &HashType);
+
     hashval_t hash = 0;
     hash = ht_hashval(key);
 
-    return hash_set_fast(self, key, value, hash);
+    return hash_set_fast((HashObject*) self, key, value, hash);
 }
 
 static HashEntry*
@@ -179,7 +180,7 @@ hash_get(Object *self, Object *key) {
 
     if (entry == NULL)
         // TODO: Raise error
-        return NULL;
+        return LoxNIL;
 
     return entry->value;
 }
@@ -194,7 +195,7 @@ hash_contains(Object *self, Object *key) {
 Object*
 Hash_getItem(HashObject* self, Object* key) {
     assert(self);
-    return hash_get((Object*) self, key);
+    return hash_lookup((Object*) self, key);
 }
 
 Object*
@@ -210,7 +211,7 @@ Hash_getItemEx(HashObject* self, Object* key, hashval_t hash) {
 void
 Hash_setItem(HashObject* self, Object* key, Object* value) {
     assert(self);
-    hash_set(self, key, value);
+    hash_set((Object*) self, key, value);
 }
 
 void
