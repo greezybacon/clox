@@ -491,7 +491,14 @@ compile_class(Compiler *self, ASTClass *node) {
         body = body->next;
     }
 
-    length += compile_emit(self, OP_BUILD_CLASS, count);
+    // Inheritance
+    if (node->extends) {
+        length += compile_node(self, node->extends);
+        length += compile_emit(self, OP_BUILD_SUBCLASS, count);
+    }
+    else {
+        length += compile_emit(self, OP_BUILD_CLASS, count);
+    }
 
     // Support anonymous classes?
     if (node->name) {

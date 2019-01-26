@@ -179,7 +179,7 @@ codeobject_call(Object* self, VmScope *scope, Object *object, Object *args) {
 
     VmEvalContext call_ctx = (VmEvalContext) {
         .code = ((CodeObject*) self)->code,
-        .scope = scope->outer,
+        .scope = scope,
         .this = object,
         .args = (VmCallArgs) {
             .values = ((TupleObject*) args)->items,

@@ -195,7 +195,11 @@ hash_contains(Object *self, Object *key) {
 Object*
 Hash_getItem(HashObject* self, Object* key) {
     assert(self);
-    return hash_lookup((Object*) self, key);
+    assert(self->base.type == &HashType);
+
+    HashEntry *entry = hash_lookup((HashObject*) self, key);
+
+    return (entry == NULL) ? NULL : entry->value;
 }
 
 Object*

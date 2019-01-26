@@ -574,9 +574,7 @@ parse_statement(Parser* self) {
         if (self->tokens->peek(self->tokens)->type == T_OP_LT) {
             self->tokens->next(self->tokens);
             next = parse_expect(self, T_WORD);
-            astclass->extends = (Object*) String_fromCharArrayAndSize(
-                self->tokens->fetch_text(self->tokens, next),
-                next->length);
+            astclass->extends = parse_TERM(self);
         }
 
         parse_expect(self, T_OPEN_BRACE);

@@ -9,6 +9,7 @@ typedef struct class_object {
     Object      base;
 
     HashObject  *attributes;
+    struct class_object *parent;
 } ClassObject;
 
 typedef struct instance_object {
@@ -25,7 +26,7 @@ typedef struct boundmethod_object {
     Object      *object;
 } BoundMethodObject;
 
-ClassObject* Class_build(HashObject*);
+ClassObject* Class_build(HashObject*, Object*);
 Object* BoundMethod_create(Object *, Object *);
 
 #endif

@@ -60,6 +60,7 @@ static struct named_opcode OpcodeNames[] = {
 
     // Classes
     { OP_BUILD_CLASS,   "BUILD_CLASS" },
+    { OP_BUILD_SUBCLASS, "BUILD_SUBCLASS" },
     { OP_GET_ATTR,      "GET_ATTRIBUTE" },
     { OP_SET_ATTR,      "SET_ATTRIBUTE" },
     { OP_THIS,          "THIS" },

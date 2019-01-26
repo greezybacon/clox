@@ -1,0 +1,19 @@
+class A {
+    init() {
+        this.a = 22
+    }
+}
+
+class B < A {
+    init() {
+        super.init()
+        this.a = this.a + 10
+    }
+
+    getA() {
+        return this.a
+    }
+}
+
+qq = B()
+print(32 == qq.getA())

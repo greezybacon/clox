@@ -53,6 +53,7 @@ enum opcode {
 
     // Classes
     OP_BUILD_CLASS,
+    OP_BUILD_SUBCLASS,
     OP_GET_ATTR,
     OP_SET_ATTR,
     OP_THIS,

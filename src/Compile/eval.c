@@ -120,14 +120,18 @@ vmeval_eval(VmEvalContext *ctx) {
             goto op_return;
             break;
 
-            case OP_BUILD_CLASS: {
+        case OP_BUILD_SUBCLASS:
+            rhs = POP(stack);
+            // Build the class as usual
+        case OP_BUILD_CLASS: {
                 size_t count = pc->arg;
                 HashObject *attributes = Hash_newWithSize(pc->arg);
                 while (count--) {
                     lhs = POP(stack);
                     Hash_setItem(attributes, lhs, POP(stack));
                 }
-                PUSH(stack, (Object*) Class_build(attributes));
+                PUSH(stack, (Object*) Class_build(attributes,
+                    pc->op == OP_BUILD_SUBCLASS ? rhs : NULL));
             }
             break;
 
@@ -148,8 +152,16 @@ vmeval_eval(VmEvalContext *ctx) {
             PUSH(stack, ctx->this);
             break;
 
-            case OP_LOOKUP:
-            case OP_LOOKUP_GLOBAL:
+        case OP_SUPER: {
+            InstanceObject *super = GC_NEW(InstanceObject);
+            *super = *((InstanceObject*) ctx->this);
+            super->class = super->class->parent;
+            PUSH(stack, (Object*) super);
+            break;
+        }
+
+        case OP_LOOKUP:
+        case OP_LOOKUP_GLOBAL:
             C = ctx->code->constants + pc->arg;
             assert(ctx->scope);
             PUSH(stack, VmScope_lookup_global(ctx->scope, C->value, C->hash));

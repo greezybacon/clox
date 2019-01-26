@@ -15,31 +15,70 @@ static struct object_type InstanceType;
 static struct object_type BoundMethodType;
 
 ClassObject*
-Class_build(HashObject *attributes) {
+Class_build(HashObject *attributes, Object *parent) {
     ClassObject* O = object_new(sizeof(ClassObject), &ClassType);
-    
+
     O->attributes = attributes;
+    O->parent = parent;
     return O;
+}
+
+bool
+Class_isClass(Object* self) {
+    assert(self);
+    return(self->type == &ClassType);
+}
+
+static Object*
+class_getattr(Object *self, Object *name) {
+    assert(self);
+    assert(self->type == &ClassType);
+
+    ClassObject *class = (ClassObject*) self;
+    Object *method;
+    if (class->attributes && (method = Hash_getItem(class->attributes, name)))
+        return method;
+
+    if (class->parent) {
+        return class_getattr((Object*) class->parent, name);
+    }
+
+    return LoxNIL;
+}
+
+static void
+class_setattr(Object *self, Object *name, Object *value) {
+    assert(self);
+    assert(self->type == &ClassType);
+
+    ClassObject *this = (ClassObject*) self;
+
+    if (!this->attributes)
+        this->attributes = Hash_new();
+
+    Hash_setItem(this->attributes, name, value);
 }
 
 static Object*
 class_instanciate(Object* self, VmScope *scope, Object* object, Object* args) {
     assert(self);
     assert(self->type == &ClassType);
+
     // Create/return a object with (self) as the class
     InstanceObject *O = object_new(sizeof(InstanceObject), &InstanceType);
-    
+
     O->class = (ClassObject*) self;
+    // XXX: Try and create attributes hash lazily (but breaks if the first
+    //      attribute is set in a super() method)
+    O->attributes = Hash_new();
 
     // Call constructor with args
     static Object *init = NULL;
     if (!init)
         init = (Object*) String_fromCharArrayAndSize("init", 4);
 
-    Object *constructor;
-    if (O->class->attributes
-        && ((constructor = Hash_getItem(O->class->attributes, init)))
-    ) {
+    Object *constructor = class_getattr(self, init);
+    if (constructor != LoxNIL) {
         assert(Function_isCallable(constructor));
         constructor->type->call(constructor, scope, (Object*) O, args);
     }
@@ -51,7 +90,7 @@ static Object*
 class_asstring(Object *self) {
     char buffer[64];
     size_t bytes;
-    
+
     bytes = snprintf(buffer, sizeof(buffer), "class@%p", self);
     return (Object*) String_fromCharArrayAndSize(buffer, bytes);
 }
@@ -64,6 +103,8 @@ static struct object_type ClassType = (ObjectType) {
     .as_string = class_asstring,
 
     .op_eq = IDENTITY,
+    .getattr = class_getattr,
+    .setattr = class_setattr,
 
     .call = class_instanciate,
 };
@@ -79,10 +120,10 @@ instance_getattr(Object *self, Object *name) {
 
     Object *attr;
 
-    if (this->attributes && (attr = Hash_getItem(this->attributes, name)) != NULL)
+    if (this->attributes && (attr = Hash_getItem(this->attributes, name)))
         return attr;
 
-    if ((attr = Hash_getItem(this->class->attributes, name)) != NULL)
+    if ((attr = class_getattr(this->class, name)) != LoxNIL)
         return BoundMethod_create(attr, self);
 
     // OOPS. Log something!
@@ -95,9 +136,6 @@ instance_setattr(Object *self, Object *name, Object *value) {
     assert(self->type == &InstanceType);
 
     InstanceObject *this = (InstanceObject*) self;
-    assert(this->class);
-
-    Object *method;
 
     if (!this->attributes)
         this->attributes = Hash_new();
@@ -142,6 +180,6 @@ static struct object_type BoundMethodType = (ObjectType) {
     .name = "method",
 
     .op_eq = IDENTITY,
-    
+
     .call = boundmethod_invoke,
 };
