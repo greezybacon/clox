@@ -41,14 +41,14 @@ next_token(Tokenizer *self) {
 
     Token *token = &next;
     *token = (struct token) {
-        .pos = self->stream->offset, 
+        .pos = self->stream->offset,
         .line = self->stream->line,
         .stream_pos = self->stream->pos - 1,
         .type = T_EOF,
         .length = 0,
         .text = NULL,
     };
-    
+
     self->current = token;
 
     switch (c) {

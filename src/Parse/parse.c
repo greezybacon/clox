@@ -442,13 +442,10 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
     }
 
     // Peek for (binary) operator(s)
-    for (;;) {
-        if (next->type < T__OP_MIN || next->type > T__OP_MAX)
-            break;
-
+    while (next->type > T__OP_MIN && next->type < T__OP_MAX) {
         operator = get_operator_info(next->type);
         if (operator->assoc == ASSOC_LEFT
-            && previous && previous->precedence > operator->precedence
+            && previous && previous->precedence >= operator->precedence
         ) {
             // Don't process this here. Unwind the recursion back to where
             // the precedence is lower and continue building the expression
@@ -476,6 +473,8 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
             // Roll the expession forward as the new LHS
             lhs = (ASTNode*) expr;
         }
+
+        next = T->peek(T);
     }
 
     return lhs;
