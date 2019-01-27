@@ -9,12 +9,33 @@
 
 #include "Objects/hash.h"
 #include "Objects/class.h"
+#include "Objects/exception.h"
 
 #define STACK_SIZE 32
 
 static void
-eval_raise_error(VmEvalContext *ctx, const char *characters, ...) {
+vmeval_print_backtrace(VmEvalContext *ctx) {
+
+
+    if (ctx->previous)
+        vmeval_print_backtrace(ctx->previous);
+}
+
+static void
+vmeval_raise_exception(VmEvalContext *ctx, ExceptionObject *exc) {
+    // TODO: Identify the source file and line number (which would require placing
+    // that in the instruction block in the code context).
+    LoxString *S = (LoxString*) exc->base.type->as_string((Object*) exc);
+    vmeval_print_backtrace(ctx);
+    fprintf(stderr, "%.*s\n", S->length, S->characters);
+    exit(1);
+}
+
+static void
+vmeval_raise_error(VmEvalContext *ctx, const char *format, ...) {
     // TODO: Make the characters a real Exception object
+    //Exception_fromBuffer(ctx->scope);
+    //Lox_RaiseError(ctx->scope);
 }
 
 static void
@@ -76,8 +97,11 @@ vmeval_eval(VmEvalContext *ctx) {
     // XXX: Program could overflow 32-slot stack
     Object *_stack[STACK_SIZE], **stack = &_stack[0];
 
-    Instruction *pc = ctx->code->block->instructions;
-    Instruction *end = pc + ctx->code->block->nInstructions;
+    InstructionList *instructions = &ctx->code->block->instructions;
+    Instruction *pc = instructions->opcodes,
+        *end = pc + instructions->count;
+
+    ctx->pc = &pc;
 
     static void *_labels[] = {
         [OP_NOOP] = &&OP_NOOP,
@@ -229,6 +253,10 @@ OP_CALL_FUN: {
                 LoxTuple *args = Tuple_fromList(pc->arg, stack - pc->arg);
                 rv = fun->type->call(fun, ctx->scope, ctx->this, (Object*) args);
                 INCREF(rv);
+                if (Exception_isException(rv)) {
+                    // exceptions from VM code will happen in the block above
+                    vmeval_raise_exception(ctx, rv);
+                }
                 LoxObject_Cleanup((Object*) args);
             }
             else {

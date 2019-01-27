@@ -202,7 +202,7 @@ print_opcode(const CodeContext *context, const Instruction *op) {
 }
 
 void
-print_instructions(const CodeContext *context, const Instruction *block, int count) {
+print_instructions(const CodeContext *context, const Instruction *block, int count, int start) {
     static bool sorted = false;
     if (!sorted) {
         qsort(OpcodeNames, sizeof(OpcodeNames) / sizeof(struct named_opcode),
@@ -213,12 +213,27 @@ print_instructions(const CodeContext *context, const Instruction *block, int cou
             sizeof(struct token_to_compare_op), math_cmpfunc);
     }
 
+    int i = 0;
     while (count--) {
+        printf("% 8d  ", start + i++);
         print_opcode(context, block++);
     }
 }
 
 void
 print_codeblock(const CodeContext* context, const CodeBlock *block) {
-    print_instructions(context, block->instructions, block->nInstructions);
+    int total = block->instructions.count,
+        start = 0,
+        lines = block->codesource.count,
+        prev_line = 0;
+    CodeSource *source = block->codesource.offsets;
+
+    while (lines--) {
+        // Emit all the instructions from the same line number
+            printf("Line %d\n", source->line_number);
+
+        print_instructions(context, block->instructions.opcodes + start, source->opcode_count, start);
+        start += source->opcode_count;
+        source++;
+    }
 }

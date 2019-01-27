@@ -46,7 +46,7 @@ file_read(VmScope *state, Object *self, Object *args) {
 
     int size;
     if (0 != Lox_ParseArgs(args, "i", &size))
-        return LoxNIL;
+        return Exception_fromConstant("Cannot read from file");
 
     char *buffer = malloc(size);
     size_t length = fread(buffer, 1, size, ((LoxFile*) self)->file);

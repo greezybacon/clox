@@ -38,9 +38,15 @@ static CodeBlock*
 compile_start_block(Compiler *self) {
     CodeBlock *block = GC_MALLOC(sizeof(CodeBlock));
     *block = (CodeBlock) {
-        .size = 32,
         .prev = self->context->block,
-        .instructions = GC_MALLOC(32 * sizeof(Instruction)),
+        .instructions = (InstructionList) {
+            .size = 32,
+            .opcodes = GC_MALLOC(32 * sizeof(Instruction)),
+        },
+        .codesource = (CodeSourceList) {
+            .size = 8,
+            .offsets = GC_MALLOC(8 * sizeof(CodeSource)),
+        },
     };
     self->context->block = block;
     return block;
@@ -76,22 +82,59 @@ compile_block(Compiler *self, ASTNode* node) {
     return compile_pop_block(self);
 }
 
+
 static inline void
 compile_block_ensure_size(CodeBlock *block, unsigned size) {
-    while (block->size < size) {
-        block->size += 16;
-        block->instructions = GC_REALLOC(block->instructions,
-            block->size * sizeof(Instruction));
+    InstructionList *instructions = &block->instructions;
+    if (instructions->size < size) {
+        while (instructions->size < size)
+            instructions->size += 16;
+
+        instructions->opcodes = GC_REALLOC(instructions->opcodes,
+            instructions->size * sizeof(Instruction));
+    }
+}
+
+static inline void
+compile_source_ensure_size(CodeBlock *block, unsigned size) {
+    if (block->codesource.size < size) {
+        while (block->codesource.size < size)
+            block->codesource.size += 16;
+
+        block->codesource.offsets = GC_REALLOC(block->codesource.offsets,
+            block->codesource.size * sizeof(CodeSource));
     }
 }
 
 static unsigned
 compile_merge_block_into(Compiler *self, CodeBlock *dst, CodeBlock *src) {
-    compile_block_ensure_size(dst, dst->nInstructions + dst->nInstructions);
-    Instruction *i = src->instructions;
+    compile_block_ensure_size(dst, dst->instructions.count
+        + src->instructions.count);
+    Instruction *i = src->instructions.opcodes;
     unsigned rv = JUMP_LENGTH(src);
-    for (; src->nInstructions--; i++)
-        *(dst->instructions + dst->nInstructions++) = *i;
+    for (; src->instructions.count--; i++)
+        *(dst->instructions.opcodes + dst->instructions.count++) = *i;
+
+    compile_source_ensure_size(dst, dst->codesource.count
+        + src->codesource.count);
+    CodeSource *cs = src->codesource.offsets, *ds;
+    int j;
+    bool exists;
+    for (; src->codesource.count--; cs++) {
+        ds = dst->codesource.offsets;
+        exists = false;
+        for (j = dst->codesource.count; j; j--) {
+            if (ds->line_number == cs->line_number) {
+                ds->opcode_count += cs->opcode_count;
+                exists = true;
+                break;
+            }
+            ds++;
+        }
+        if (!exists)
+            *(dst->codesource.offsets + dst->codesource.count++) = *cs;
+    }
+
     return rv;
 }
 
@@ -133,19 +176,49 @@ compile_emit_constant(Compiler *self, Object *value) {
     return index;
 }
 
+static void
+compile_source_record_location(CodeBlock *block, ASTNode *node) {
+    // Check if last-recorded location is still the same
+    CodeSource *previous = NULL;
+    if (block->codesource.count > 0) {
+        previous = block->codesource.offsets + block->codesource.count - 1;
+        if (!node || previous->line_number == node->line) {
+            previous->opcode_count++;
+            return;
+        }
+    }
+
+    if (!node)
+        return;
+
+    // Ensure enough capacity for another source pointer
+    compile_source_ensure_size(block, block->codesource.count + 1);
+
+    // Associate the location of the source with the new opcode
+    *(block->codesource.offsets + block->codesource.count++) = (CodeSource) {
+        .opcode_count = 1,
+        .line_number = node->line,
+    };
+}
+
 static unsigned
 compile_emit_into(CodeBlock *block, enum opcode op, short argument) {
-    compile_block_ensure_size(block, block->nInstructions + 1);
-    *(block->instructions + block->nInstructions++) = (Instruction) {
+    compile_block_ensure_size(block, block->instructions.count + 1);
+    *(block->instructions.opcodes + block->instructions.count++) = (Instruction) {
         .op = op,
         .arg = argument,
     };
+
     return 1;
 }
 
 static inline unsigned
-compile_emit(Compiler* self, enum opcode op, short argument) {
-    return compile_emit_into(self->context->block, op, argument);
+compile_emit(Compiler* self, enum opcode op, short argument, ASTNode *node) {
+    unsigned length = compile_emit_into(self->context->block, op, argument);
+
+    compile_source_record_location(self->context->block, node);
+
+    return length;
 }
 
 static int
@@ -252,14 +325,14 @@ compile_assignment(Compiler *self, ASTAssignment *assign) {
         // XXX: Consider assignment to non-local (closed) vars?
         // Lookup or allocate a local variable
         index = compile_locals_allocate(self, assign->name);
-        length += compile_emit(self, OP_STORE_LOCAL, index);
+        length += compile_emit(self, OP_STORE_LOCAL, index, (ASTNode*) assign);
     }
     else {
         // Non-local
         // Find the name in the constant stack
         index = compile_emit_constant(self, assign->name);
         // Push the STORE
-        length += compile_emit(self, OP_STORE_GLOBAL, index);
+        length += compile_emit(self, OP_STORE_GLOBAL, index, (ASTNode*) assign);
     }
     return length;
 }
@@ -310,12 +383,12 @@ compile_expression(Compiler* self, ASTExpression *expr) {
         case T_AND:
             // If the LHS is false, then jump past the end of the expression 
             // as we've already decided on the answer
-            length += compile_emit(self, OP_JUMP_IF_FALSE_OR_POP, rhs_length);
+            length += compile_emit(self, OP_JUMP_IF_FALSE_OR_POP, rhs_length, (ASTNode*) expr);
             break;
 
         case T_OR:
             // XXX: Length of OP_POP_TOP might not be identically 1
-            length += compile_emit(self, OP_JUMP_IF_TRUE_OR_POP, rhs_length);
+            length += compile_emit(self, OP_JUMP_IF_TRUE_OR_POP, rhs_length, (ASTNode*) expr);
 
         default:
             break;
@@ -339,35 +412,35 @@ compile_expression(Compiler* self, ASTExpression *expr) {
             struct token_to_math_op* T, key = { .token = expr->binary_op };
             T = bsearch(&key, TokenToMathOp, sizeof(TokenToMathOp) / sizeof(struct token_to_math_op),
                 sizeof(struct token_to_math_op), _cmpfunc);
-            length += compile_emit(self, OP_BINARY_MATH, T->math_op);
+            length += compile_emit(self, OP_BINARY_MATH, T->math_op, (ASTNode*) expr);
             break;
         }
         case T_OP_EQUAL:
-            length += compile_emit(self, OP_COMPARE, COMPARE_EQ);
+            length += compile_emit(self, OP_COMPARE, COMPARE_EQ, (ASTNode*) expr);
             break;
 
         case T_OP_NOTEQUAL:
-            length += compile_emit(self, OP_COMPARE, COMPARE_NOT_EQ);
+            length += compile_emit(self, OP_COMPARE, COMPARE_NOT_EQ, (ASTNode*) expr);
             break;
 
         case T_OP_LT:
-            length += compile_emit(self, OP_COMPARE, COMPARE_LT);
+            length += compile_emit(self, OP_COMPARE, COMPARE_LT, (ASTNode*) expr);
             break;
 
         case T_OP_LTE:
-            length += compile_emit(self, OP_COMPARE, COMPARE_LTE);
+            length += compile_emit(self, OP_COMPARE, COMPARE_LTE, (ASTNode*) expr);
             break;
 
         case T_OP_GT:
-            length += compile_emit(self, OP_COMPARE, COMPARE_GT);
+            length += compile_emit(self, OP_COMPARE, COMPARE_GT, (ASTNode*) expr);
             break;
 
         case T_OP_GTE:
-            length += compile_emit(self, OP_COMPARE, COMPARE_GTE);
+            length += compile_emit(self, OP_COMPARE, COMPARE_GTE, (ASTNode*) expr);
             break;
 
         case T_OP_IN:
-            length += compile_emit(self, OP_COMPARE, COMPARE_IN);
+            length += compile_emit(self, OP_COMPARE, COMPARE_IN, (ASTNode*) expr);
             break;
 
         case T_AND:
@@ -386,11 +459,11 @@ compile_expression(Compiler* self, ASTExpression *expr) {
     switch (expr->unary_op) {
         // Bitwise NOT?
         case T_BANG:
-        length += compile_emit(self, OP_BANG, 0);
+        length += compile_emit(self, OP_BANG, 0, (ASTNode*) expr);
         break;
 
         case T_OP_MINUS:
-        length += compile_emit(self, OP_UNARY_NEGATIVE, 0);
+        length += compile_emit(self, OP_UNARY_NEGATIVE, 0, (ASTNode*) expr);
         break;
 
         case T_OP_PLUS:
@@ -413,7 +486,7 @@ compile_tuple_literal(Compiler *self, ASTTupleLiteral *node) {
         item = item->next;
     }
 
-    return length + compile_emit(self, OP_BUILD_TUPLE, count);
+    return length + compile_emit(self, OP_BUILD_TUPLE, count, (ASTNode*) node);
 }
 
 static unsigned
@@ -422,21 +495,21 @@ compile_return(Compiler *self, ASTReturn *node) {
     if (node->expression)
         length += compile_node(self, node->expression);
 
-    return length + compile_emit(self, OP_RETURN, 0);
+    return length + compile_emit(self, OP_RETURN, 0, (ASTNode*) node);
 }
 
 static unsigned
 compile_literal(Compiler *self, ASTLiteral *node) {
     // Fetch the index of the constant
     unsigned index = compile_emit_constant(self, node->literal);
-    return compile_emit(self, OP_CONSTANT, index);
+    return compile_emit(self, OP_CONSTANT, index, (ASTNode*) node);
 }
 
 static unsigned
 compile_interpolated_string(Compiler *self, ASTInterpolatedString *node) {
     unsigned length = 0, count;
     length += compile_node_count(self, node->items, &count);
-    return length + compile_emit(self, OP_BUILD_STRING, count);
+    return length + compile_emit(self, OP_BUILD_STRING, count, (ASTNode*) node);
 }
 
 static unsigned
@@ -447,7 +520,7 @@ compile_interpolated_expr(Compiler *self, ASTInterpolatedExpr *node) {
     if (node->format) {
         LoxString *format = String_fromLiteral(node->format, strlen(node->format));
         unsigned index = compile_emit_constant(self, (Object*) format);
-        length += compile_emit(self, OP_FORMAT, index);
+        length += compile_emit(self, OP_FORMAT, index, (ASTNode*) node);
     }
 
     return length;
@@ -458,22 +531,22 @@ compile_lookup(Compiler *self, ASTLookup *node) {
     // See if the name is in the locals list
     int index;
     if (-1 != (index = compile_locals_islocal(self->context, node->name, HASHVAL(node->name)))) {
-        return compile_emit(self, OP_LOOKUP_LOCAL, index);
+        return compile_emit(self, OP_LOOKUP_LOCAL, index, (ASTNode*) node);
     }
     else if (-1 != (index = compile_locals_isclosed(self, node->name))) {
-        return compile_emit(self, OP_LOOKUP_CLOSED, index);
+        return compile_emit(self, OP_LOOKUP_CLOSED, index, (ASTNode*) node);
     }
     // Fetch the index of the name constant
     index = compile_emit_constant(self, node->name);
-    return compile_emit(self, OP_LOOKUP_GLOBAL, index);
+    return compile_emit(self, OP_LOOKUP_GLOBAL, index, (ASTNode*) node);
 }
 
 static unsigned
 compile_magic(Compiler *self, ASTMagic *node) {
     if (node->this)
-        return compile_emit(self, OP_THIS, 0);
+        return compile_emit(self, OP_THIS, 0, (ASTNode*) node);
     else if (node->super)
-        return compile_emit(self, OP_SUPER, 0);
+        return compile_emit(self, OP_SUPER, 0, (ASTNode*) node);
 
     compile_error(self, "Unhandled magic");
     return 0;
@@ -486,14 +559,14 @@ compile_while(Compiler* self, ASTWhile *node) {
     // Emit the block in a different context, capture the length
     CodeBlock *block = compile_block(self, node->block);
     // Jump over the block
-    length = compile_emit(self, OP_JUMP, JUMP_LENGTH(block));
+    length = compile_emit(self, OP_JUMP, JUMP_LENGTH(block), (ASTNode*) node);
     // Do the block
     length += compile_merge_block(self, block);
     // Check the condition
     length += compile_node(self, node->condition);
     // Jump back if TRUE
     // XXX: This assumes size of JUMP is the same as POP_JUMP_IF_TRUE (probably safe)
-    length += compile_emit(self, OP_POP_JUMP_IF_TRUE, -length);
+    length += compile_emit(self, OP_POP_JUMP_IF_TRUE, -length, (ASTNode*) node);
 
     return length;
 }
@@ -510,7 +583,7 @@ compile_if(Compiler *self, ASTIf *node) {
     // TODO: The JUMP could perhaps be omitted (if the end of `block` is RETURN)
     // ... 1 for JUMP below (if node->otherwise)
     length += compile_emit(self, OP_POP_JUMP_IF_FALSE, JUMP_LENGTH(block) + (
-        node->otherwise ? 1 : 0));
+        node->otherwise ? 1 : 0), (ASTNode*) node);
     // Add in the block following the condition
     length += compile_merge_block(self, block);
 
@@ -519,7 +592,7 @@ compile_if(Compiler *self, ASTIf *node) {
         block = compile_block(self, node->otherwise);
         // (As part of the positive/previous block), skip the ELSE part.
         // TODO: If the last line was RETURN, this could be ignored
-        length += compile_emit(self, OP_JUMP, JUMP_LENGTH(block));
+        length += compile_emit(self, OP_JUMP, JUMP_LENGTH(block), (ASTNode*) node);
         length += compile_merge_block(self, block);
     }
     return length;
@@ -528,7 +601,7 @@ compile_if(Compiler *self, ASTIf *node) {
 static unsigned
 compile_foreach(Compiler *self, ASTForeach *node) {
     unsigned length = compile_node(self, node->iterable);
-    length += compile_emit(self, OP_GET_ITERATOR, 0);
+    length += compile_emit(self, OP_GET_ITERATOR, 0, (ASTNode*) node);
 
     CodeBlock *loop = compile_start_block(self);
 
@@ -539,18 +612,18 @@ compile_foreach(Compiler *self, ASTForeach *node) {
     int index = compile_locals_allocate(self,
         (Object*) String_fromCharArrayAndSize(var->name, var->name_length));
 
-    length += compile_emit(self, OP_NEXT_OR_BREAK, index);
+    length += compile_emit(self, OP_NEXT_OR_BREAK, index, (ASTNode*) node);
 
     CodeBlock *block = compile_block(self, node->block);
     compile_merge_block_into(self, loop, block);
-    compile_emit(self, OP_JUMP, -JUMP_LENGTH(loop) - 1);
+    compile_emit(self, OP_JUMP, -JUMP_LENGTH(loop) - 1, (ASTNode*) node);
 
     // Now grab the loop block and return to the outer context
     compile_pop_block(self);
-    length += compile_emit(self, OP_ENTER_BLOCK, JUMP_LENGTH(loop));
+    length += compile_emit(self, OP_ENTER_BLOCK, JUMP_LENGTH(loop), (ASTNode*) node);
     length += compile_merge_block(self, loop);
     // And discard the iterator
-    return length + compile_emit(self, OP_LEAVE_BLOCK, 1);
+    return length + compile_emit(self, OP_LEAVE_BLOCK, 1, (ASTNode*) node);
 }
 
 static unsigned
@@ -581,15 +654,15 @@ compile_function_inner(Compiler *self, ASTFunction *node) {
         .info = self->info,
     };
     length += compile_node(&nested, node->block);
-    if ((self->context->block->instructions + (self->context->block->nInstructions - 1))->op != OP_RETURN)
-        length += compile_emit(&nested, OP_HALT, 0);
+    if ((self->context->block->instructions.opcodes + (self->context->block->instructions.count - 1))->op != OP_RETURN)
+        length += compile_emit(&nested, OP_HALT, 0, (ASTNode*) node);
 
     // Create a constant for the function
     index = compile_emit_constant(self,
         VmCode_fromContext(node, compile_pop_context(self)));
 
     // (Meanwhile, back in the original context)
-    return length + compile_emit(self, OP_CONSTANT, index);
+    return length + compile_emit(self, OP_CONSTANT, index, (ASTNode*) node);
 }
 
 static unsigned
@@ -608,17 +681,17 @@ compile_function(Compiler *self, ASTFunction *node) {
     length = compile_function_inner(self, node);
 
     // Create closure and stash in context
-    length += compile_emit(self, OP_CLOSE_FUN, 0);
+    length += compile_emit(self, OP_CLOSE_FUN, 0, (ASTNode*) node);
 
     // Store the named function?
     if (name) {
         if (self->flags & CFLAG_LOCAL_VARS) {
             index = compile_locals_allocate(self, name);
-            length += compile_emit(self, OP_STORE_LOCAL, index);
+            length += compile_emit(self, OP_STORE_LOCAL, index, (ASTNode*) node);
         }
         else {
             index = compile_emit_constant(self, name);
-            length += compile_emit(self, OP_STORE_GLOBAL, index);
+            length += compile_emit(self, OP_STORE_GLOBAL, index, (ASTNode*) node);
         }
         compile_pop_info(self);
     }
@@ -658,12 +731,12 @@ compile_invoke(Compiler* self, ASTInvoke *node) {
 
     // Call the function
     if (recursing)
-        length += compile_emit(self, OP_RECURSE, node->nargs);
+        length += compile_emit(self, OP_RECURSE, node->nargs, (ASTNode*) node);
     else
-        length += compile_emit(self, OP_CALL_FUN, node->nargs);
+        length += compile_emit(self, OP_CALL_FUN, node->nargs, (ASTNode*) node);
 
     if (node->return_value_ignored)
-        length += compile_emit(self, OP_POP_TOP, 0);
+        length += compile_emit(self, OP_POP_TOP, 0, (ASTNode*) node);
 
     return length;
 }
@@ -678,7 +751,7 @@ compile_var(Compiler *self, ASTVar *node) {
 
     if (node->expression) {
         length += compile_node(self, node->expression);
-        length += compile_emit(self, OP_STORE_LOCAL, index);
+        length += compile_emit(self, OP_STORE_LOCAL, index, (ASTNode*) node);
     }
 
     return length;
@@ -710,7 +783,7 @@ compile_class(Compiler *self, ASTClass *node) {
 
         // Anonymous methods?
         if (method->name_length) {
-            length += compile_emit(self, OP_CONSTANT, index);
+            length += compile_emit(self, OP_CONSTANT, index, (ASTNode*) method);
             count++;
             compile_pop_info(self);
         }
@@ -721,21 +794,21 @@ compile_class(Compiler *self, ASTClass *node) {
     // Inheritance
     if (node->extends) {
         length += compile_node(self, node->extends);
-        length += compile_emit(self, OP_BUILD_SUBCLASS, count);
+        length += compile_emit(self, OP_BUILD_SUBCLASS, count, (ASTNode*) node->extends);
     }
     else {
-        length += compile_emit(self, OP_BUILD_CLASS, count);
+        length += compile_emit(self, OP_BUILD_CLASS, count, (ASTNode*) node);
     }
 
     // Support anonymous classes?
     if (node->name) {
         if (self->flags & CFLAG_LOCAL_VARS) {
             index = compile_locals_allocate(self, node->name);
-            length += compile_emit(self, OP_STORE_LOCAL, index);
+            length += compile_emit(self, OP_STORE_LOCAL, index, (ASTNode*) node);
         }
         else {
             index = compile_emit_constant(self, node->name);
-            length += compile_emit(self, OP_STORE_GLOBAL, index);
+            length += compile_emit(self, OP_STORE_GLOBAL, index, (ASTNode*) node);
         }
     }
 
@@ -750,10 +823,10 @@ compile_attribute(Compiler *self, ASTAttribute *attr) {
     index = compile_emit_constant(self, attr->attribute);
     if (attr->value) {
         length += compile_node(self, attr->value);
-        return length + compile_emit(self, OP_SET_ATTR, index);
+        return length + compile_emit(self, OP_SET_ATTR, index, (ASTNode*) attr);
     }
 
-    return length + compile_emit(self, OP_GET_ATTR, index);
+    return length + compile_emit(self, OP_GET_ATTR, index, (ASTNode*) attr);
 }
 
 static unsigned
@@ -766,10 +839,10 @@ compile_slice(Compiler *self, ASTSlice *node) {
     }
     if (node->value) {
         length += compile_node(self, node->value);
-        return length + compile_emit(self, OP_SET_ITEM, 0);
+        return length + compile_emit(self, OP_SET_ITEM, 0, (ASTNode*) node);
     }
     else {
-        return length + compile_emit(self, OP_GET_ITEM, 0);
+        return length + compile_emit(self, OP_GET_ITEM, 0, (ASTNode*) node);
     }
 }
 
@@ -787,7 +860,7 @@ compile_table_literal(Compiler *self, ASTTableLiteral *node) {
         count++;
     }
 
-    return length + compile_emit(self, OP_BUILD_TABLE, count);
+    return length + compile_emit(self, OP_BUILD_TABLE, count, (ASTNode*) node);
 }
 
 static unsigned
@@ -874,7 +947,7 @@ compile_compile(Compiler* self, Parser* parser) {
         length += compile_node(self, ast);
     }
 
-    length += compile_emit(self, OP_HALT, 0);
+    length += compile_emit(self, OP_HALT, 0, NULL);
 
     return length;
 }
@@ -917,7 +990,7 @@ compile_ast(Compiler* self, ASTNode* node) {
         node = node->next;
     }
 
-    length += compile_emit(self, OP_RETURN, 0);
+    length += compile_emit(self, OP_RETURN, 0, node);
 
     return self->context;
 }

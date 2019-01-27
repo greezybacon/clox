@@ -606,7 +606,7 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
      * SLICE = T_OPEN_BRACKET [ EXPR [ ':' EXPR [ ':' EXPR ] ] ] T_CLOSE_BRACKET
      */
     Tokenizer* T = self->tokens;
-    Token* next;
+    Token *next, start;
     const OperatorInfo *operator;
     ASTNode *lhs = NULL, *rhs;
     ASTExpression *expr;
@@ -614,6 +614,7 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
 
     // Read next token and handle unary operations
     next = T->next(T);
+    start = *next;
     if (next->type == T_BANG || next->type == T_OP_PLUS || next->type == T_OP_MINUS) {
         unary_op = next->type;
         lhs = parse_expression_r(self, 0);
@@ -685,7 +686,7 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
         }
         else {
             expr = GC_NEW(ASTExpression);
-            parser_node_init((ASTNode*) expr, AST_EXPRESSION, next);
+            parser_node_init((ASTNode*) expr, AST_EXPRESSION, &start);
 
             expr->lhs = lhs;
             expr->binary_op = operator->operator;

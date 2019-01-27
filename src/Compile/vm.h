@@ -111,16 +111,31 @@ enum lox_vm_compare {
 }
 __attribute__((packed));
 
+typedef struct code_source {
+    unsigned    opcode_count;           // Offset in instruction list to this line
+    unsigned    line_number;            // Line number of code
+} CodeSource;
+
+typedef struct code_source_list {
+    const char  *filename;              // File where the code came from
+    unsigned    size, count;            // Size of the CodeSource list and current usage
+    CodeSource  *offsets;
+} CodeSourceList;
+
 typedef struct instruction {
     enum opcode     op;
     short           arg;
 } Instruction;
 
+typedef struct instruction_list {
+    unsigned        size, count;        // Size of the Instruction list and current usage
+    Instruction     *opcodes;
+} InstructionList;
+
 typedef struct code_instructions {
     struct code_instructions *prev;
-    unsigned            size;
-    unsigned            nInstructions;
-    struct instruction  *instructions;
+    InstructionList     instructions;
+    CodeSourceList      codesource;
 } CodeBlock;
 
 typedef struct code_constant {
@@ -146,7 +161,7 @@ typedef struct code_context {
     Object              *owner;             // If defined in a class
 } CodeContext;
 
-#define JUMP_LENGTH(block) ((block)->nInstructions)
+#define JUMP_LENGTH(block) ((block)->instructions.count)
 
 // Run-time data to evaluate a CodeContext block
 typedef struct vmeval_scope {
@@ -196,6 +211,8 @@ typedef struct vmeval_context {
     VmScope         *scope;
     VmCallArgs      args;
     Object          *this;
+    Instruction     **pc;
+    struct vmeval_context *previous;
 } VmEvalContext;
 
 typedef struct vmeval_loop_block {
