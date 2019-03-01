@@ -68,9 +68,6 @@ class_instanciate(Object* self, VmScope *scope, Object* object, Object* args) {
     InstanceObject *O = object_new(sizeof(InstanceObject), &InstanceType);
 
     O->class = (ClassObject*) self;
-    // XXX: Try and create attributes hash lazily (but breaks if the first
-    //      attribute is set in a super() method)
-    O->attributes = Hash_new();
 
     // Call constructor with args
     static Object *init = NULL;
@@ -110,6 +107,25 @@ static struct object_type ClassType = (ObjectType) {
 };
 
 
+Object*
+InstanceObject_getSuper(Object *self) {
+    assert(self);
+    assert(self->type == &InstanceType);
+
+    // If an attribute is set in a super.method(), then the attributes
+    // map needs to have been already created.
+    InstanceObject *this = (InstanceObject*) self;
+    if (!this->attributes)
+        this->attributes = Hash_new();
+
+    InstanceObject *super = GC_NEW(InstanceObject);
+    *super = *((InstanceObject*) self);
+    assert(super->class);
+    super->class = super->class->parent;
+
+    return super;
+}
+
 static Object*
 instance_getattr(Object *self, Object *name) {
     assert(self);
@@ -143,10 +159,30 @@ instance_setattr(Object *self, Object *name, Object *value) {
     Hash_setItem(this->attributes, name, value);
 }
 
+static Object*
+instance_asstring(Object *self) {
+    static Object *toString = NULL;
+    if (!toString)
+        toString = (Object*) String_fromCharArrayAndSize("toString", 8);
+
+    Object *repr = instance_getattr(self, toString);
+    if (repr != LoxNIL) {
+        assert(Function_isCallable(repr));
+        return repr->type->call(repr, NULL, self, LoxNIL);
+    }
+
+    {
+        char buffer[64], *bytes;
+        bytes = snprintf(buffer, sizeof(buffer), "instance@%p", self);
+        return (Object*) String_fromCharArrayAndSize(buffer, bytes);
+    }
+}
+
 static struct object_type InstanceType = (ObjectType) {
     .code = TYPE_OBJECT,
     .name = "object",
 
+    .as_string = instance_asstring,
     .op_eq = IDENTITY,
     
     .getattr = instance_getattr,

@@ -154,6 +154,27 @@ print_slice(FILE *output, ASTSlice *node) {
     }
 }
 
+static void
+print_class(FILE *output, ASTClass *node) {
+    fprintf(output, "Class(name:=");
+    print_object(output, node->name);
+    if (node->extends) {
+        fprintf(output, ", extends:=");
+        print_node(output, node->extends);
+    }
+    fprintf(output, ") { ");
+    print_node(output, node->body);
+    fprintf(output, " }");
+}
+
+static void
+print_magic(FILE *output, ASTMagic *node) {
+    if (node->this)
+        fprintf(output, "this");
+    else if (node->super)
+        fprintf(output, "super");
+}
+
 void
 print_node_list(FILE* output, ASTNode* node, const char * separator) {
     ASTNode* current = node;
@@ -206,6 +227,12 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
             break;
         case AST_SLICE:
             print_slice(output, (ASTSlice*) current);
+            break;
+        case AST_CLASS:
+            print_class(output, (ASTClass*) current);
+            break;
+        case AST_MAGIC:
+            print_magic(output, (ASTMagic*) current);
             break;
         default:
             fprintf(output, "Unexpected AST type: %d", current->type);

@@ -115,8 +115,8 @@ typedef struct ast_slice {
 typedef struct ast_class {
     ASTNode             node;
     Object              *name;
-    Object              *extends;
-    struct ast_node*    body;
+    struct ast_node     *extends;
+    struct ast_node     *body;
 } ASTClass;
 
 typedef struct ast_fun {

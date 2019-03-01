@@ -26,7 +26,8 @@ typedef struct boundmethod_object {
     Object      *object;
 } BoundMethodObject;
 
-ClassObject* Class_build(HashObject*, Object*);
+ClassObject* Class_build(HashObject*, ClassObject*);
 Object* BoundMethod_create(Object *, Object *);
+Object* InstanceObject_getSuper(Object *);
 
 #endif

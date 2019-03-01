@@ -300,20 +300,6 @@ parse_TERM(Parser* self) {
         fprintf(stderr, "Parse error: Unexpected statement token: %d\n", next->type);
     }
 
-    // Peek for DOT, CALL and INVOKE
-    for (;;) {
-        next = T->peek(T);
-
-        if (next->type == T_DOT) {
-            // Consume the T_DOT
-            T->next(T);
-            result = parse_expression_attr(self, result);
-        }
-        else {
-            break;
-        }
-    }
-
     return (ASTNode*) result;
 }
 
@@ -414,6 +400,7 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
 
     // If there is no current expression, then this becomes the LHS
     lhs = term;
+    next = T->peek(T);
 
     // Handle CALL and SLICE
     for (;;) {
@@ -422,6 +409,11 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
         }
         else if (next->type == T_OPEN_BRACKET) {
             lhs = parse_slice(self, lhs);
+        }
+        else if (next->type == T_DOT) {
+            // Consume the T_DOT
+            T->next(T);
+            lhs = parse_expression_attr(self, lhs);
         }
         else {
             break;
@@ -572,8 +564,7 @@ parse_statement(Parser* self) {
 
         if (self->tokens->peek(self->tokens)->type == T_OP_LT) {
             self->tokens->next(self->tokens);
-            next = parse_expect(self, T_WORD);
-            astclass->extends = parse_TERM(self);
+            astclass->extends = parse_expression(self);
         }
 
         parse_expect(self, T_OPEN_BRACE);

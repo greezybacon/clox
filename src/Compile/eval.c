@@ -153,10 +153,7 @@ vmeval_eval(VmEvalContext *ctx) {
             break;
 
         case OP_SUPER: {
-            InstanceObject *super = GC_NEW(InstanceObject);
-            *super = *((InstanceObject*) ctx->this);
-            super->class = super->class->parent;
-            PUSH(stack, (Object*) super);
+            PUSH(stack, InstanceObject_getSuper(ctx->this));
             break;
         }
 

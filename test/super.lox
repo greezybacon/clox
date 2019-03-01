@@ -1,0 +1,25 @@
+class A {
+  init() { 
+    print("hello from A constructor");
+  }
+
+  method() {
+    print("A method");
+  }
+}
+
+class B < A {
+  method() {
+    print("B method");
+  }
+
+  test() {
+    super.method();
+  }
+}
+
+class C < B {}
+
+C().test();
+
+// vim: ft=lox:
