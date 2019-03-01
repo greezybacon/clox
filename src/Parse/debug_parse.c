@@ -63,7 +63,7 @@ print_invoke(FILE* output, ASTInvoke* node) {
 
 static void
 print_var(FILE* output, ASTVar* node) {
-    fprintf(output, "Var(%s=", node->name);
+    fprintf(output, "Var(%.*s=", node->name_length, node->name);
     print_node(output, node->expression);
     fprintf(output, ")");
 }
