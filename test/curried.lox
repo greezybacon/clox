@@ -1,0 +1,8 @@
+function add(x) {
+    return function(y) {
+        return x + y;
+    }
+}
+
+print(add(3)(5))
+add(3)(5) == 8

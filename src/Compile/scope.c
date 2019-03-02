@@ -13,13 +13,9 @@ VmScope_create(VmScope *outer, CodeContext *code, Object **locals, unsigned loca
         .outer = outer,
         .globals = outer->globals,
         .code = code,
+        .locals_count = locals_count,
+        .locals = locals,
     };
-    if (locals_count) {
-        self->locals_count = locals_count,
-        self->locals = GC_MALLOC(sizeof(Object*) * locals_count);
-        while (locals_count--)
-            *(self->locals + locals_count) = *(locals + locals_count);
-    }
     return self;
 }
 

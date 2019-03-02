@@ -23,6 +23,7 @@ vmeval_eval(VmEvalContext *ctx) {
     Constant *C;
 
     Object *_locals[ctx->code->locals.count], **locals = &_locals[0];
+    bool locals_in_stack = true;
 
     // Store parameters in the local variables
     int i=ctx->args.count;
@@ -45,78 +46,88 @@ vmeval_eval(VmEvalContext *ctx) {
         print_instructions(ctx->code, pc, 1);
 #endif
         switch (pc->op) {
-            case OP_JUMP:
+        case OP_JUMP:
             pc += pc->arg;
             break;
 
-            case OP_POP_JUMP_IF_TRUE:
+        case OP_POP_JUMP_IF_TRUE:
             lhs = POP(stack);
             if (Bool_isTrue(lhs))
                 pc += pc->arg;
             break;
 
-            case OP_JUMP_IF_TRUE:
+        case OP_JUMP_IF_TRUE:
             lhs = PEEK(stack);
             if (Bool_isTrue(lhs))
                 pc += pc->arg;
             break;
 
-            case OP_POP_JUMP_IF_FALSE:
+        case OP_POP_JUMP_IF_FALSE:
             lhs = POP(stack);
             if (!Bool_isTrue(lhs))
                 pc += pc->arg;
             break;
 
-            case OP_JUMP_IF_FALSE:
+        case OP_JUMP_IF_FALSE:
             lhs = PEEK(stack);
             if (!Bool_isTrue(lhs))
                 pc += pc->arg;
             break;
 
-            case OP_DUP_TOP:
+        case OP_DUP_TOP:
             lhs = PEEK(stack);
             PUSH(stack, lhs);
             break;
 
-            case OP_POP_TOP:
+        case OP_POP_TOP:
             POP(stack);
             break;
 
-            case OP_CLOSE_FUN: {
-                CodeObject *code = (CodeObject*) POP(stack);
-                VmFunction *fun = CodeObject_makeFunction((Object*) code,
-                    // XXX: Globals?
-                    VmScope_create(ctx->scope, code->code, locals, ctx->code->locals.count));
-                PUSH(stack, (Object*) fun);
+        case OP_CLOSE_FUN: {
+            CodeObject *code = (CodeObject*) POP(stack);
+            // Move the locals into a malloc'd object so that future local
+            // changes will be represented in this closure
+            if (locals_in_stack) {
+                unsigned locals_count = ctx->code->locals.count;
+                Object **mlocals = GC_MALLOC(sizeof(Object*) * locals_count);
+                while (locals_count--)
+                    *(mlocals + locals_count) = *(locals + locals_count);
+                locals = mlocals;
+                locals_in_stack = false;
             }
+            VmFunction *fun = CodeObject_makeFunction((Object*) code,
+                // XXX: Globals?
+                VmScope_create(ctx->scope, code->code, locals, ctx->code->locals.count));
+            PUSH(stack, (Object*) fun);
             break;
+        }
 
-            case OP_CALL_FUN: {
-                Object *fun = *(stack - pc->arg - 1);
-                assert(Function_isCallable(fun));
+        case OP_CALL_FUN: {
+            Object *fun = *(stack - pc->arg - 1);
+            assert(Function_isCallable(fun));
 
-                if (VmFunction_isVmFunction(fun)) {
-                    VmEvalContext call_ctx = (VmEvalContext) {
-                        .code = ((VmFunction*)fun)->code->code,
-                        .scope = ((VmFunction*)fun)->scope,
-                        .args = (VmCallArgs) {
-                            .values = stack - pc->arg,
-                            .count = pc->arg,
-                        },
-                    };
-                    rv = vmeval_eval(&call_ctx);
-                }
-                else {
-                    TupleObject *args = Tuple_fromList(pc->arg, stack - pc->arg);
-                    rv = fun->type->call(fun, ctx->scope, NULL, (Object*) args);
-                }
-
-                stack -= pc->arg + 1; // POP_N, {pc->arg}
-                PUSH(stack, rv);
+            if (VmFunction_isVmFunction(fun)) {
+                VmEvalContext call_ctx = (VmEvalContext) {
+                    .code = ((VmFunction*)fun)->code->code,
+                    .scope = ((VmFunction*)fun)->scope,
+                    .args = (VmCallArgs) {
+                        .values = stack - pc->arg,
+                        .count = pc->arg,
+                    },
+                };
+                rv = vmeval_eval(&call_ctx);
             }
-            break;
+            else {
+                TupleObject *args = Tuple_fromList(pc->arg, stack - pc->arg);
+                rv = fun->type->call(fun, ctx->scope, NULL, (Object*) args);
+            }
 
-            case OP_RETURN:
+            stack -= pc->arg + 1; // POP_N, {pc->arg}
+            PUSH(stack, rv);
+            break;
+        }
+
+        case OP_RETURN:
             goto op_return;
             break;
 
@@ -124,31 +135,31 @@ vmeval_eval(VmEvalContext *ctx) {
             rhs = POP(stack);
             // Build the class as usual
         case OP_BUILD_CLASS: {
-                size_t count = pc->arg;
-                HashObject *attributes = Hash_newWithSize(pc->arg);
-                while (count--) {
-                    lhs = POP(stack);
-                    Hash_setItem(attributes, lhs, POP(stack));
-                }
-                PUSH(stack, (Object*) Class_build(attributes,
-                    pc->op == OP_BUILD_SUBCLASS ? rhs : NULL));
+            size_t count = pc->arg;
+            HashObject *attributes = Hash_newWithSize(pc->arg);
+            while (count--) {
+                lhs = POP(stack);
+                Hash_setItem(attributes, lhs, POP(stack));
             }
+            PUSH(stack, (Object*) Class_build(attributes,
+                pc->op == OP_BUILD_SUBCLASS ? (ClassObject*) rhs : NULL));
             break;
+        }
 
-            case OP_GET_ATTR:
+        case OP_GET_ATTR:
             C = ctx->code->constants + pc->arg;
             lhs = POP(stack);
             PUSH(stack, object_getattr(lhs, C->value));
             break;
 
-            case OP_SET_ATTR:
+        case OP_SET_ATTR:
             C = ctx->code->constants + pc->arg;
             rhs = POP(stack);
             lhs = POP(stack);
             lhs->type->setattr(lhs, C->value, rhs);
             break;
 
-            case OP_THIS:
+        case OP_THIS:
             PUSH(stack, ctx->this);
             break;
 
@@ -164,7 +175,7 @@ vmeval_eval(VmEvalContext *ctx) {
             PUSH(stack, VmScope_lookup_global(ctx->scope, C->value, C->hash));
             break;
 
-            case OP_LOOKUP_CLOSED:
+        case OP_LOOKUP_CLOSED:
             if (ctx->scope) {
                 lhs = VmScope_lookup_local(ctx->scope, pc->arg);
             }
@@ -173,25 +184,25 @@ vmeval_eval(VmEvalContext *ctx) {
             PUSH(stack, lhs);
             break;
 
-            case OP_STORE:
-            case OP_STORE_GLOBAL:
+        case OP_STORE:
+        case OP_STORE_GLOBAL:
             C = ctx->code->constants + pc->arg;
             assert(ctx->scope);
             VmScope_assign(ctx->scope, C->value, POP(stack), C->hash);
             break;
 
-            case OP_STORE_LOCAL:
+        case OP_STORE_LOCAL:
             assert(pc->arg < ctx->code->locals.count);
             *(locals + pc->arg) = POP(stack);
             break;
 
-            case OP_STORE_ARG_LOCAL:
+        case OP_STORE_ARG_LOCAL:
             assert(ctx->args.count);
             *(locals + pc->arg) = *(ctx->args.values++);
             ctx->args.count--;
             break;
 
-            case OP_LOOKUP_LOCAL:
+        case OP_LOOKUP_LOCAL:
             assert(pc->arg < ctx->code->locals.count);
             lhs = *(locals + pc->arg);
             if (lhs == NULL) {
@@ -205,7 +216,7 @@ vmeval_eval(VmEvalContext *ctx) {
             PUSH(stack, lhs);
             break;
 
-            case OP_CONSTANT:
+        case OP_CONSTANT:
             C = ctx->code->constants + pc->arg;
             PUSH(stack, C->value);
             break;
@@ -257,28 +268,28 @@ vmeval_eval(VmEvalContext *ctx) {
             break;
 
             // Expressions
-            case OP_BINARY_PLUS:
+        case OP_BINARY_PLUS:
             BINARY_METHOD(op_plus);
             break;
 
-            case OP_BINARY_MINUS:
+        case OP_BINARY_MINUS:
             BINARY_METHOD(op_minus);
             break;
 
-            case OP_BINARY_STAR:
+        case OP_BINARY_STAR:
             BINARY_METHOD(op_star);
             break;
 
-            case OP_BINARY_SLASH:
+        case OP_BINARY_SLASH:
             BINARY_METHOD(op_slash);
             break;
 
-            case OP_NEG:
+        case OP_NEG:
             lhs = POP(stack);
             PUSH(stack, (Object*) lhs->type->op_neg(lhs));
             break;
 
-            case OP_GET_ITEM:
+        case OP_GET_ITEM:
             rhs = POP(stack);
             lhs = POP(stack);
             if (lhs->type->get_item)
@@ -287,7 +298,7 @@ vmeval_eval(VmEvalContext *ctx) {
                 fprintf(stderr, "lhs type %s does not support GET_ITEM\n", lhs->type->name);
             break;
 
-            case OP_SET_ITEM:
+        case OP_SET_ITEM:
             rhs = POP(stack);
             item = POP(stack);
             lhs = POP(stack);
@@ -295,9 +306,9 @@ vmeval_eval(VmEvalContext *ctx) {
                 lhs->type->set_item(lhs, item, rhs);
             break;
 
-            default:
+        default:
             printf("Unexpected OPCODE (%d)\n", pc->op);
-            case OP_NOOP:
+        case OP_NOOP:
             break;
         }
         pc++;
