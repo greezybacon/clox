@@ -21,4 +21,6 @@ void Tuple_setItem(TupleObject*, size_t, Object*);
 bool Tuple_isTuple(Object*);
 size_t Tuple_getSize(Object*);
 
+#define Tuple_GETITEM(self, index) *(((TupleObject*) self)->items + index)
+
 #endif

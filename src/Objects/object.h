@@ -4,7 +4,8 @@
 #include <stdlib.h>
 
 enum base_type {
-    TYPE_NIL=1,
+    TYPE_UNDEFINED=0,
+    TYPE_NIL,
     TYPE_BOOL,
     TYPE_STRING,
     TYPE_STRINGTREE,
@@ -21,6 +22,8 @@ typedef struct object Object;
 typedef unsigned long int hashval_t;
 typedef struct bool_object BoolObject;
 typedef struct vmeval_scope VmScope;
+
+typedef struct lox_iterator Iterator;
 
 typedef Object* (*NativeFunctionCall)(VmScope*, Object*, Object*);
 
@@ -70,6 +73,9 @@ typedef struct object_type {
 
     // TODO: Callable
 	Object* (*call)(Object*, VmScope*, Object*, Object*);
+
+    // Iteration
+    Iterator* (*iterate)(Object*);
 
     // TODO: Methods (stuff unique to each type)
     ObjectMethod* methods;

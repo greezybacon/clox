@@ -137,3 +137,31 @@ static Object _LoxNIL = (Object) {
     .type = &NilType,
 };
 Object *LoxNIL = &_LoxNIL;
+
+
+
+
+static BoolObject*
+undef_asbool(Object* self) {
+    return LoxFALSE;
+}
+
+static Object*
+undef_asstring(Object* self) {
+    return (Object*) String_fromConstant("undefned");
+}
+
+static struct object_type UndefinedType = (ObjectType) {
+    .code = TYPE_UNDEFINED,
+    .name = "undefined",
+
+    .as_bool = undef_asbool,
+    .as_string = undef_asstring,
+
+    .op_eq = IDENTITY,
+};
+
+static Object _LoxUndefined = (Object) {
+    .type = &UndefinedType,
+};
+Object *LoxUndefined = &_LoxUndefined;

@@ -9,6 +9,8 @@
 #include "Compile/compile.h"
 #include "Include/Lox.h"
 
+#include "Vendor/bdwgc/include/gc.h"
+
 const char *argp_program_version =
   "Lox (0.1)";
 const char *argp_program_bug_address =
@@ -65,6 +67,8 @@ main(int argc, char** argv) {
         }
     }
 
+    GC_INIT();
+
     Object *result = NULL;
     if (arguments->input_file) {
         FILE *file = fopen(arguments->input_file, "r");
@@ -86,6 +90,8 @@ main(int argc, char** argv) {
     
     if (result)
         pretty_print(result);
+    else
+        printf("NULL\n");
 
     return 0;
 }

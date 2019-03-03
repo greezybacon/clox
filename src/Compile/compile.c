@@ -135,6 +135,8 @@ compile_emit(Compiler* self, enum opcode op, short argument) {
 
 static int
 compile_locals_islocal(CodeContext *context, Object *name, hashval_t hash) {
+    assert(name->type->op_eq);
+
     int index = 0;
     LocalsList *locals = &context->locals;
 
@@ -172,7 +174,6 @@ compile_locals_isclosed(Compiler *self, Object *name) {
 static unsigned
 compile_locals_allocate(Compiler *self, Object *name) {
     assert(name->type);
-    assert(name->type->op_eq);
 
     int index;
     LocalsList *locals = &self->context->locals;
@@ -183,14 +184,14 @@ compile_locals_allocate(Compiler *self, Object *name) {
     }
 
     // Ensure space in the index and locals
-    if (locals->size < locals->count) {
+    if (locals->size <= locals->count) {
         locals->size += 8;
         locals->names = GC_REALLOC(locals->names, sizeof(*locals->names) * locals->size);
     }
 
     *(locals->names + locals->count) = (Constant) {
         .value = name,
-        .hash = name->type->hash(name),
+        .hash = hash,
     };
     return locals->count++;
 }

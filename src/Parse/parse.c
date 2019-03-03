@@ -383,7 +383,7 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
     Tokenizer* T = self->tokens;
     Token* next;
     const OperatorInfo *operator;
-    ASTNode *lhs = NULL, *term, *rhs;
+    ASTNode *lhs = NULL, *rhs;
     ASTExpression *expr;
     enum token_type unary_op = 0;
 
@@ -403,12 +403,11 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
         return lhs;
     }
 
-    term = parse_TERM(self);
-    if (term == NULL)
+    lhs = parse_TERM(self);
+    if (lhs == NULL)
         return NULL;
 
     // If there is no current expression, then this becomes the LHS
-    lhs = term;
     next = T->peek(T);
 
     // Handle CALL and SLICE

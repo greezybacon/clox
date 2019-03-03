@@ -97,7 +97,7 @@ vmeval_eval(VmEvalContext *ctx) {
             }
             VmFunction *fun = CodeObject_makeFunction((Object*) code,
                 // XXX: Globals?
-                VmScope_create(ctx->scope, code->code, locals, ctx->code->locals.count));
+                VmScope_create(ctx->scope, code->context, locals, ctx->code->locals.count));
             PUSH(stack, (Object*) fun);
             break;
         }
@@ -108,7 +108,7 @@ vmeval_eval(VmEvalContext *ctx) {
 
             if (VmFunction_isVmFunction(fun)) {
                 VmEvalContext call_ctx = (VmEvalContext) {
-                    .code = ((VmFunction*)fun)->code->code,
+                    .code = ((VmFunction*)fun)->code->context,
                     .scope = ((VmFunction*)fun)->scope,
                     .args = (VmCallArgs) {
                         .values = stack - pc->arg,
@@ -119,7 +119,7 @@ vmeval_eval(VmEvalContext *ctx) {
             }
             else {
                 TupleObject *args = Tuple_fromList(pc->arg, stack - pc->arg);
-                rv = fun->type->call(fun, ctx->scope, NULL, (Object*) args);
+                rv = fun->type->call(fun, ctx->scope, ctx->this, (Object*) args);
             }
 
             stack -= pc->arg + 1; // POP_N, {pc->arg}
@@ -132,7 +132,7 @@ vmeval_eval(VmEvalContext *ctx) {
             break;
 
         case OP_BUILD_SUBCLASS:
-            rhs = POP(stack);
+            rhs = POP(stack);               // (parent)
             // Build the class as usual
         case OP_BUILD_CLASS: {
             size_t count = pc->arg;
@@ -164,7 +164,20 @@ vmeval_eval(VmEvalContext *ctx) {
             break;
 
         case OP_SUPER: {
-            PUSH(stack, InstanceObject_getSuper(ctx->this));
+            lhs = (Object*) ctx->code->owner;
+            if (!lhs) {
+                fprintf(stderr, "WARNING: `super` used in non-class method\n");
+                lhs = LoxUndefined;
+            }
+            else {
+                assert(Class_isClass(lhs));
+                lhs = (Object*) ((ClassObject*) lhs)->parent;
+                if (!lhs) {
+                    fprintf(stderr, "WARNING: `super` can only be used in a subclass\n");
+                    lhs = LoxUndefined;
+                }
+            }
+            PUSH(stack, lhs);
             break;
         }
 

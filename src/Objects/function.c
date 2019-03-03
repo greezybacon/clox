@@ -136,9 +136,9 @@ static struct object_type NativeFunctionType = (ObjectType) {
 static struct object_type CodeObjectType;
 
 Object*
-CodeObject_fromContext(ASTFunction *fun, CodeContext *code) {
+CodeObject_fromContext(ASTFunction *fun, CodeContext *context) {
     CodeObject* O = object_new(sizeof(CodeObject), &CodeObjectType);
-    O->code = code;
+    O->context = context;
 
     if (fun->name_length)
         O->name = (Object*) String_fromCharArrayAndSize(fun->name, fun->name_length);
@@ -178,7 +178,7 @@ codeobject_call(Object* self, VmScope *scope, Object *object, Object *args) {
     assert(Tuple_isTuple(args));
 
     VmEvalContext call_ctx = (VmEvalContext) {
-        .code = ((CodeObject*) self)->code,
+        .code = ((CodeObject*) self)->context,
         .scope = scope,
         .this = object,
         .args = (VmCallArgs) {
@@ -216,7 +216,7 @@ vmfun_call(Object* self, VmScope *ignored, Object *object, Object *args) {
     assert(Tuple_isTuple(args));
 
     VmEvalContext call_ctx = (VmEvalContext) {
-        .code = ((VmFunction*) self)->code->code,
+        .code = ((VmFunction*) self)->code->context,
         .scope = ((VmFunction*) self)->scope,
         .this = object,
         .args = (VmCallArgs) {

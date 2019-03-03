@@ -4,9 +4,10 @@
 
 #include "object.h"
 #include "class.h"
-#include "hash.h"
-#include "string.h"
 #include "function.h"
+#include "hash.h"
+#include "iterator.h"
+#include "string.h"
 
 #include "Vendor/bdwgc/include/gc.h"
 
@@ -15,11 +16,25 @@ static struct object_type InstanceType;
 static struct object_type BoundMethodType;
 
 ClassObject*
-Class_build(HashObject *attributes, Object *parent) {
+Class_build(HashObject *attributes, ClassObject *parent) {
     ClassObject* O = object_new(sizeof(ClassObject), &ClassType);
 
     O->attributes = attributes;
     O->parent = parent;
+    O->name = LoxUndefined;
+
+    // Attach all the callable attributes to this class
+    Iterator* it = Hash_getIterator(attributes);
+    Object *value, *next;
+    while ((next = it->next(it))) {
+        assert(Tuple_isTuple(next));
+        value = Tuple_GETITEM((TupleObject*) next, 1);
+
+        if (CodeObject_isCodeObject(value)) {
+            ((CodeObject*) value)->context->owner = O;
+        }
+    }
+
     return O;
 }
 
@@ -43,7 +58,7 @@ class_getattr(Object *self, Object *name) {
         return class_getattr((Object*) class->parent, name);
     }
 
-    return LoxNIL;
+    return LoxUndefined;
 }
 
 static void
@@ -75,7 +90,7 @@ class_instanciate(Object* self, VmScope *scope, Object* object, Object* args) {
         init = (Object*) String_fromCharArrayAndSize("init", 4);
 
     Object *constructor = class_getattr(self, init);
-    if (constructor != LoxNIL) {
+    if (constructor != LoxUndefined) {
         assert(Function_isCallable(constructor));
         constructor->type->call(constructor, scope, (Object*) O, args);
     }
@@ -106,26 +121,6 @@ static struct object_type ClassType = (ObjectType) {
     .call = class_instanciate,
 };
 
-
-Object*
-InstanceObject_getSuper(Object *self) {
-    assert(self);
-    assert(self->type == &InstanceType);
-
-    // If an attribute is set in a super.method(), then the attributes
-    // map needs to have been already created.
-    InstanceObject *this = (InstanceObject*) self;
-    if (!this->attributes)
-        this->attributes = Hash_new();
-
-    InstanceObject *super = GC_NEW(InstanceObject);
-    *super = *((InstanceObject*) self);
-    assert(super->class);
-    super->class = super->class->parent;
-
-    return super;
-}
-
 static Object*
 instance_getattr(Object *self, Object *name) {
     assert(self);
@@ -143,7 +138,7 @@ instance_getattr(Object *self, Object *name) {
         return BoundMethod_create(attr, self);
 
     // OOPS. Log something!
-    return LoxNIL;
+    return LoxUndefined;
 }
 
 static void
@@ -172,7 +167,8 @@ instance_asstring(Object *self) {
     }
 
     {
-        char buffer[64], *bytes;
+        char buffer[64];
+        int bytes;
         bytes = snprintf(buffer, sizeof(buffer), "instance@%p", self);
         return (Object*) String_fromCharArrayAndSize(buffer, bytes);
     }

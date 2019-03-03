@@ -2,6 +2,7 @@
 #define COMPILE_VM_H
 
 #include "Include/Lox.h"
+#include "Objects/class.h"
 
 enum opcode {
     // Basic
@@ -98,6 +99,7 @@ typedef struct code_context {
     Constant            *constants;
     LocalsList          locals;
     struct code_context *prev;
+    Object              *owner;             // If defined in a class
 } CodeContext;
 
 enum compiler_flags {

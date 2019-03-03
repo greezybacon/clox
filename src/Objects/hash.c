@@ -10,6 +10,7 @@
 #include "hash.h"
 #include "boolean.h"
 #include "integer.h"
+#include "iterator.h"
 #include "object.h"
 #include "string.h"
 #include "tuple.h"
@@ -262,17 +263,6 @@ hash_asbool(Object* self) {
     return ((HashObject*) self)->count == 0 ? LoxFALSE : LoxTRUE;
 }
 
-typedef struct _iterator {
-    Object* (*next)(struct _iterator*);
-    Object* previous;
-} Iterator;
-
-typedef struct {
-    Iterator    base;
-    int         pos;
-    HashObject* hash;
-} HashObjectIterator;
-
 static Object*
 hash_entries__next(Iterator* this) {
     HashObjectIterator *self = (HashObjectIterator*) this;
@@ -289,9 +279,9 @@ hash_entries__next(Iterator* this) {
     return NULL;
 }
 
-static Iterator*
-iter_hash_entries(HashObject* self) {
-    HashObjectIterator* it = malloc(sizeof(HashObjectIterator));
+Iterator*
+Hash_getIterator(HashObject* self) {
+    HashObjectIterator* it = GC_NEW(HashObjectIterator);
 
     *it = (HashObjectIterator) {
         .base.next = hash_entries__next,
@@ -299,6 +289,12 @@ iter_hash_entries(HashObject* self) {
         .pos = 0,
     };
     return (Iterator*) it;
+}
+
+static Iterator*
+hash_iterate(Object *self) {
+    assert(self->type == &HashType);
+    return Hash_getIterator((HashObject*) self);
 }
 
 static Object*
@@ -315,7 +311,7 @@ hash_asstring(Object* self) {
     Object *next, *key, *value;
     StringObject *skey, *svalue;
 
-    Iterator* it = iter_hash_entries((HashObject*) self);
+    Iterator* it = Hash_getIterator((HashObject*) self);
     while ((next = it->next(it))) {
         assert(Tuple_isTuple(next));
         key = Tuple_getItem((TupleObject*) next, 0);
@@ -342,6 +338,7 @@ static struct object_type HashType = (ObjectType) {
     .get_item = hash_get,
     .remove_item = hash_remove,
     .contains = hash_contains,
+    .iterate = hash_iterate,
 
     .as_string = hash_asstring,
     .as_bool = hash_asbool,

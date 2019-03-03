@@ -18,5 +18,6 @@ bool Bool_isTrue(Object*);
 
 BoolObject *LoxTRUE, *LoxFALSE;
 Object *LoxNIL;
+Object *LoxUndefined;
 
 #endif

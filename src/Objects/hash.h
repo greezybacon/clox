@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 
+#include "iterator.h"
 #include "object.h"
 
 #if 0
@@ -40,6 +41,12 @@ typedef struct hash_object {
     HashEntry *table;
 } HashObject;
 
+typedef struct {
+    Iterator    base;
+    int         pos;
+    HashObject* hash;
+} HashObjectIterator;
+
 HashObject* Hash_new(void);
 HashObject* Hash_newWithSize(size_t);
 Object* Hash_getItem(HashObject*, Object*);
@@ -47,6 +54,7 @@ Object* Hash_getItemEx(HashObject*, Object*, hashval_t);
 bool Hash_contains(HashObject*, Object*);
 void Hash_setItem(HashObject*, Object*, Object*);
 void Hash_setItemEx(HashObject*, Object*, Object*, hashval_t);
+Iterator* Hash_getIterator(HashObject*);
 
 #endif
 

@@ -35,7 +35,7 @@ typedef struct code_object {
     Object      base;
 
     Object      *name;
-    CodeContext *code;
+    CodeContext *context;
 } CodeObject;
 
 Object* CodeObject_fromContext(ASTFunction*, CodeContext*);

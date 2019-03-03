@@ -24,10 +24,10 @@ typedef struct boundmethod_object {
     
     Object      *method;
     Object      *object;
+    ClassObject *origin;
 } BoundMethodObject;
 
 ClassObject* Class_build(HashObject*, ClassObject*);
 Object* BoundMethod_create(Object *, Object *);
-Object* InstanceObject_getSuper(Object *);
 
 #endif
