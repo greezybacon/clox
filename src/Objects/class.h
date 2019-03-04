@@ -21,7 +21,7 @@ typedef struct instance_object {
 
 typedef struct boundmethod_object {
     Object      base;
-    
+
     Object      *method;
     Object      *object;
     ClassObject *origin;

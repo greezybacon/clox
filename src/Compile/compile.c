@@ -508,7 +508,7 @@ compile_invoke(Compiler* self, ASTInvoke *node) {
         length += compile_node(self, node->args);
 
     // Call the function
-    if (recursing == true)
+    if (recursing)
         length += compile_emit(self, OP_RECURSE, node->nargs);
     else
         length += compile_emit(self, OP_CALL_FUN, node->nargs);
@@ -543,6 +543,8 @@ compile_class(Compiler *self, ASTClass *node) {
     ASTFunction *method;
     Object *method_name;
     while (body) {
+        assert(body->type == AST_FUNCTION);
+        method = (ASTFunction*) body;
         if (method->name_length) {
             method_name = (Object*) String_fromCharArrayAndSize(method->name,
                 method->name_length);
@@ -552,8 +554,6 @@ compile_class(Compiler *self, ASTClass *node) {
             });
         }
 
-        assert(body->type == AST_FUNCTION);
-        method = (ASTFunction*) body;
         compile_function_inner(self, method);
 
         // Anonymous methods?

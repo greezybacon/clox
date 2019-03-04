@@ -180,7 +180,7 @@ static struct object_type InstanceType = (ObjectType) {
 
     .as_string = instance_asstring,
     .op_eq = IDENTITY,
-    
+
     .getattr = instance_getattr,
     .setattr = instance_setattr,
 };
