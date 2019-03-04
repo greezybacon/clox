@@ -18,6 +18,7 @@ enum opcode {
     OP_CLOSE_FUN,
     OP_CALL_FUN,
     OP_RETURN,
+    OP_RECURSE,
 
     // Scope
     OP_LOOKUP,
@@ -102,15 +103,6 @@ typedef struct code_context {
     Object              *owner;             // If defined in a class
 } CodeContext;
 
-enum compiler_flags {
-    CFLAG_LOCAL_VARS =  0x00000001,         // Use local vars where possible
-};
-
-typedef struct compiler_object {
-    CodeContext         *context;
-    unsigned            flags;
-} Compiler;
-
 #define JUMP_LENGTH(block) ((block)->nInstructions)
 
 // Run-time data to evaluate a CodeContext block
@@ -140,9 +132,7 @@ typedef struct vmeval_call_args {
 
 #define PRINT(value) do { \
     StringObject *S = (StringObject*) ((Object*) value)->type->as_string((Object*) value); \
-    printf("(%s) %.*s #%d\n", ((Object*) value)->type->name, S->length, S->characters, \
-        ((Object*) value)->refcount); \
-    DECREF(S); \
+    printf("(%s) %.*s #%d\n", ((Object*) value)->type->name, S->length, S->characters); \
 } while(0)
 
 typedef struct vmeval_context {

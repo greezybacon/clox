@@ -24,6 +24,7 @@ static struct named_opcode OpcodeNames[] = {
     { OP_CALL_FUN,      "CALL_FUNCTION" },
     { OP_CLOSE_FUN,     "CLOSE_FUNCTION" },
     { OP_RETURN,        "RETURN" },
+    { OP_RECURSE,       "RECURSE_CALL" },
 
     // Variables
     { OP_LOOKUP,        "LOOKUP" },

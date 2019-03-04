@@ -196,6 +196,37 @@ compile_locals_allocate(Compiler *self, Object *name) {
     return locals->count++;
 }
 
+static void
+compile_push_info(Compiler *self, CompileInfo info) {
+    CompileInfo *new = malloc(sizeof(CompileInfo));
+    if (self->info) {
+        *new = (CompileInfo) {
+            .function_name = info.function_name ? info.function_name
+                : self->info->function_name,
+            .class_name = info.class_name ? info.class_name
+                : self->info->class_name,
+        };
+    }
+    else {
+        *new = info;
+    }
+    new->prev = self->info;
+    self->info = new;
+}
+
+static void
+compile_pop_info(Compiler *self) {
+    if (self->info && self->info->prev) {
+        CompileInfo *old = self->info;
+        self->info = self->info->prev;
+        free(old);
+    }
+    else {
+        free(self->info);
+        self->info = NULL;
+    }
+}
+
 static unsigned
 compile_assignment(Compiler *self, ASTAssignment *assign) {
     // Push the expression
@@ -405,6 +436,7 @@ compile_function_inner(Compiler *self, ASTFunction *node) {
     Compiler nested = (Compiler) {
         .context = self->context,
         .flags = self->flags | CFLAG_LOCAL_VARS,
+        .info = self->info,
     };
     length += compile_node(&nested, node->block);
 
@@ -420,17 +452,26 @@ static unsigned
 compile_function(Compiler *self, ASTFunction *node) {
     size_t length;
     unsigned index;
+    Object *name = NULL;
+
+    if (node->name_length) {
+        name = (Object*) String_fromCharArrayAndSize(node->name, node->name_length);
+        compile_push_info(self, (CompileInfo) {
+            .function_name = name,
+        });
+    }
+
     length = compile_function_inner(self, node);
 
     // Create closure and stash in context
     length += compile_emit(self, OP_CLOSE_FUN, 0);
 
     // Store the named function?
-    if (node->name_length) {
-        index = compile_emit_constant(self,
-            (Object*) String_fromCharArrayAndSize(node->name, node->name_length));
+    if (name) {
+        index = compile_emit_constant(self, name);
         // Push the STORE
         length += compile_emit(self, OP_STORE, index);
+        compile_pop_info(self);
     }
     return length;
 }
@@ -439,16 +480,40 @@ static unsigned
 compile_invoke(Compiler* self, ASTInvoke *node) {
     // Push the function / callable / lookup
     unsigned length = 0;
+    bool recursing = false;
+
+    // TODO: If we are currently executing a function with the same name
+    // as the one being invoked here, and the name of the function is not
+    // local, then we use a RECURSE opcode which could be a special case
+    // of CALL_FUN which adds a stack frame but does not lookup nor change
+    // the code execution context.
+    if (self->info && self->info->function_name
+        && node->callable->type == AST_LOOKUP
+    ) {
+        Object *name = ((ASTLookup*) node->callable)->name;
+        if (name->type == self->info->function_name->type
+            && LoxTRUE == name->type->op_eq(name, self->info->function_name)
+            && -1 == compile_locals_islocal(self->context, name, HASHVAL(name))
+        ) {
+            recursing = true;
+        }
+    }
 
     // Make the function
-    length += compile_node(self, node->callable);
+    if (!recursing)
+        length += compile_node(self, node->callable);
 
     // Push all the arguments
     if (node->nargs && node->args != NULL)
         length += compile_node(self, node->args);
 
     // Call the function
-    return length + compile_emit(self, OP_CALL_FUN, node->nargs);
+    if (recursing == true)
+        length += compile_emit(self, OP_RECURSE, node->nargs);
+    else
+        length += compile_emit(self, OP_CALL_FUN, node->nargs);
+
+    return length;
 }
 
 static unsigned
@@ -476,17 +541,26 @@ compile_class(Compiler *self, ASTClass *node) {
     // Build the methods
     ASTNode *body = node->body;
     ASTFunction *method;
+    Object *method_name;
     while (body) {
+        if (method->name_length) {
+            method_name = (Object*) String_fromCharArrayAndSize(method->name,
+                method->name_length);
+            index = compile_emit_constant(self, method_name);
+            compile_push_info(self, (CompileInfo) {
+                .function_name = method_name,
+            });
+        }
+
         assert(body->type == AST_FUNCTION);
         method = (ASTFunction*) body;
         compile_function_inner(self, method);
 
         // Anonymous methods?
         if (method->name_length) {
-            index = compile_emit_constant(self,
-                (Object*) String_fromCharArrayAndSize(method->name, method->name_length));
             length += compile_emit(self, OP_CONSTANT, index);
             count++;
+            compile_pop_info(self);
         }
 
         body = body->next;

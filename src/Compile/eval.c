@@ -26,7 +26,7 @@ vmeval_eval(VmEvalContext *ctx) {
     bool locals_in_stack = true;
 
     // Store parameters in the local variables
-    int i=ctx->args.count;
+    int i = ctx->args.count;
     assert(ctx->code->locals.count >= ctx->args.count);
     while (i--)
         *(locals + i) = *(ctx->args.values + i);
@@ -124,6 +124,19 @@ vmeval_eval(VmEvalContext *ctx) {
 
             stack -= pc->arg + 1; // POP_N, {pc->arg}
             PUSH(stack, rv);
+            break;
+        }
+
+        case OP_RECURSE: {
+            // This will only happen for a VmFunction. In this case, we will
+            // execute the same code again, but with different arguments.
+            stack -= pc->arg; // POP_N, {pc->arg}
+            VmEvalContext call_ctx = *ctx;
+            call_ctx.args = (VmCallArgs) {
+                .values = stack,
+                .count = pc->arg,
+            };
+            PUSH(stack, vmeval_eval(&call_ctx));
             break;
         }
 
