@@ -23,7 +23,6 @@ Scope_leave(Scope* self) {
 }
 
 #include "Objects/string.h"
-#include "Objects/garbage.h"
 
 static HashObject*
 Scope_locate(Scope* self, Object* name) {

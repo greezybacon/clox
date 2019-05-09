@@ -4,6 +4,9 @@
 #include "Include/Lox.h"
 #include "Objects/class.h"
 
+#define likely(x)       __builtin_expect((x),1)
+#define unlikely(x)     __builtin_expect((x),0)
+
 enum opcode {
     // Basic
     OP_NOOP = 0,
@@ -127,8 +130,13 @@ typedef struct vmeval_call_args {
 } VmCallArgs;
 
 #define POP(stack) *(--(stack))
+#define XPOP(stack) do { --(stack); DECREF(*stack); } while(0)
 #define PEEK(stack) *stack
-#define PUSH(stack, what) *(stack++) = (what)
+#define PUSH(stack, what) ({ \
+    typeof(what) _what = (what); \
+    *(stack++) = _what; INCREF((Object*) _what); \
+})
+#define XPUSH(stack, what) *(stack++) = (what)
 
 #define PRINT(value) do { \
     StringObject *S = (StringObject*) ((Object*) value)->type->as_string((Object*) value); \

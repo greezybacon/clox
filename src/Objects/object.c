@@ -19,15 +19,15 @@ object_finalize(GC_PTR object, GC_PTR client_data) {
 
 void*
 object_new(size_t size, ObjectType* type) {
-    Object* result = (void*) GC_MALLOC(size);
+    Object* result = (void*) calloc(1, size);
 
-	if (result == NULL) {
+	if (unlikely(result == NULL)) {
 		// TODO: Trigger error
 	}
-	result->type = type;
-
-    if (type->cleanup)
-        GC_REGISTER_FINALIZER(result, object_finalize, NULL, NULL, NULL);
+	*result = (Object) {
+		.type = type,
+		.refcount = 0,
+	};
 
 	return (void*) result;
 }

@@ -35,7 +35,7 @@ HashObject *Hash_newWithSize(size_t size) {
     if (hashtable == NULL)
         return hashtable;
 
-    hashtable->table = GC_MALLOC(newsize * sizeof(HashEntry));
+    hashtable->table = calloc(newsize, sizeof(HashEntry));
     if (hashtable->table == NULL)
         return NULL;
 
@@ -68,8 +68,8 @@ hash_resize(HashObject* self, size_t newsize) {
         // TODO: Raise error -- it would be resized on new addition
         return 1;
 
-    HashEntry* table = GC_MALLOC(newsize * sizeof(HashEntry));
-    if (table == NULL)
+    HashEntry* table = calloc(newsize, sizeof(HashEntry));
+    if (unlikely(table == NULL))
         return errno;
 
     // Place all the keys in the new table
@@ -129,11 +129,18 @@ hash_set_fast(HashObject *self, Object *key, Object *value, hashval_t hash) {
         entry = self->table + slot;
     }
 
+    if (entry && entry->value) {
+        DECREF(entry->key);
+        DECREF(entry->value);
+    }
+
     *entry = (HashEntry) {
         .value = value,
         .key = key,
         .hash = hash,
     };
+    INCREF(key);
+    INCREF(value);
     self->count++;
 }
 
@@ -181,7 +188,7 @@ hash_get(Object *self, Object *key) {
 
     if (entry == NULL)
         // TODO: Raise error
-        return LoxNIL;
+        return LoxUndefined;
 
     return entry->value;
 }
@@ -239,10 +246,12 @@ hash_remove(Object* self, Object* key) {
 
     if (entry == NULL)
         // TODO: Raise error
-        ;
+        return;
 
     ((HashObject*) self)->count--;
 
+    DECREF(entry->key);
+    DECREF(entry->value);
     entry->key = NULL;
     entry->value = NULL;
 }
@@ -329,6 +338,14 @@ hash_asstring(Object* self) {
     return (Object*) String_fromCharArrayAndSize(buffer, position - buffer);
 }
 
+static void
+hash_cleanup(Object *self) {
+    assert(self->type == &HashType);
+
+    HashObject *this = (HashObject*) self;
+    free(this->table);
+}
+
 static struct object_type HashType = (ObjectType) {
     .code = TYPE_HASH,
     .name = "hash",
@@ -342,4 +359,5 @@ static struct object_type HashType = (ObjectType) {
 
     .as_string = hash_asstring,
     .as_bool = hash_asbool,
+    .cleanup = hash_cleanup,
 };

@@ -59,7 +59,7 @@ bool_asint(Object* self) {
 static Object*
 bool_asstring(Object* self) {
     assert(self->type == &BooleanType);
-    return (Object*) String_fromCharArrayAndSize(((BoolObject*)self)->value ? "true:" : "false", 5);
+    return (Object*) String_fromConstant(((BoolObject*)self)->value ? "true" : "false");
 }
 
 static BoolObject*
@@ -90,16 +90,20 @@ static struct object_type BooleanType = (ObjectType) {
 
     .op_eq = bool_op_eq,
     .op_ne = bool_op_ne,
+
+    .cleanup = ERROR,
 };
 
 static BoolObject _LoxTRUE = (BoolObject) {
     .base.type = &BooleanType,
+    .base.refcount = 1,
     .value = true,
 };
 BoolObject *LoxTRUE = &_LoxTRUE;
 
 static BoolObject _LoxFALSE = (BoolObject) {
     .base.type = &BooleanType,
+    .base.refcount = 1,
     .value = false,
 };
 BoolObject *LoxFALSE = &_LoxFALSE;
@@ -119,7 +123,7 @@ null_asint(Object* self) {
 
 static Object*
 null_asstring(Object* self) {
-    return (Object*) String_fromCharArrayAndSize("null", 4);
+    return (Object*) String_fromConstant("null");
 }
 
 static struct object_type NilType = (ObjectType) {
@@ -131,10 +135,12 @@ static struct object_type NilType = (ObjectType) {
     .as_string = null_asstring,
 
     .op_eq = IDENTITY,
+    .cleanup = ERROR,
 };
 
 static Object _LoxNIL = (Object) {
     .type = &NilType,
+    .refcount = 1,
 };
 Object *LoxNIL = &_LoxNIL;
 
@@ -159,9 +165,11 @@ static struct object_type UndefinedType = (ObjectType) {
     .as_string = undef_asstring,
 
     .op_eq = IDENTITY,
+    .cleanup = ERROR,
 };
 
 static Object _LoxUndefined = (Object) {
     .type = &UndefinedType,
+    .refcount = 1,
 };
 Object *LoxUndefined = &_LoxUndefined;

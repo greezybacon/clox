@@ -7,7 +7,6 @@
 #include "object.h"
 #include "boolean.h"
 #include "function.h"
-#include "garbage.h"
 #include "string.h"
 #include "tuple.h"
 #include "Compile/vm.h"

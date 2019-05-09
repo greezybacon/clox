@@ -13,7 +13,7 @@ TupleObject*
 Tuple_new(size_t count) {
     TupleObject* self = object_new(sizeof(TupleObject), &TupleType);
     self->count = count;
-    self->items = GC_MALLOC(count * sizeof(Object*));
+    self->items = malloc(count * sizeof(Object*));
     return self;
 }
 
@@ -124,10 +124,19 @@ tuple_asstring(Object* self) {
     return (Object*) String_fromCharArrayAndSize(buffer, position - buffer);
 }
 
+static void
+tuple_cleanup(Object *self) {
+    assert(self->type == &TupleType);
+
+    TupleObject *this = (TupleObject*) self;
+    free(this->items);
+}
+
 static struct object_type TupleType = (ObjectType) {
     .name = "tuple",
     .len = tuple_len,
     .get_item = tuple_getitem,
 
     .as_string = tuple_asstring,
+    .cleanup = tuple_cleanup,
 };

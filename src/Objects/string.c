@@ -17,7 +17,7 @@ StringObject*
 String_fromCharArrayAndSize(char *characters, size_t size) {
     StringObject* O = object_new(sizeof(StringObject), &StringType);
     O->length = size;
-    O->characters = GC_STRNDUP(characters, size);
+    O->characters = strndup(characters, size);
     return O;
 }
 
@@ -47,13 +47,26 @@ String_fromLiteral(char* value, size_t size) {
     return String_fromCharArrayAndSize(value + 1, size - 2);
 }
 
+StringObject*
+String_fromConstant(const char* value) {
+    return String_fromMalloc(value, strlen(value));
+}
+
+static void
+string_cleanup(Object *self) {
+    assert(self->type == &StringType);
+
+    StringObject* this = (StringObject*) self;
+    free(this->characters);
+}
+
 static hashval_t
 string_hash(Object* self) {
     assert(self != NULL);
     assert(self->type == &StringType);
 
     StringObject* S = (StringObject*) self;
-    char *ch = S->characters;
+    const char *ch = S->characters;
     unsigned length = S->length;
     hashval_t hash = 0;
 
@@ -73,7 +86,7 @@ string_len(Object* self) {
     if (S->length > 0 && S->char_count == 0) {
 		// Faster counting, http://www.daemonology.net/blog/2008-06-05-faster-utf8-strlen.html
    		int i = S->length, j = 0;
-		char *s = S->characters;
+		const char *s = S->characters;
    		while (i--) {
      		if ((*s++ & 0xc0) != 0x80)
 				j++;
@@ -182,7 +195,7 @@ string_getitem(Object* self, Object* index) {
         length++;
 
     // TODO: Maybe this could be a StringSlice object?
-    return String_fromMalloc(s, length);
+    return (Object*) String_fromMalloc(s, length);
 }
 
 // METHODS ----------------------------------
@@ -193,7 +206,7 @@ string_upper(VmScope *state, Object *self, Object *args) {
     assert(self->type == &StringType);
 
     StringObject *S = (StringObject*) self;
-    char *upper = GC_STRNDUP(S->characters, S->length), *eupper = upper;
+    char *upper = strndup(S->characters, S->length), *eupper = upper;
     int i;
     for (i=0; i<S->length; i++)
         *eupper++ = toupper(upper[i]);
@@ -248,8 +261,19 @@ StringTree_fromStrings(Object *a, Object *b) {
 
     O->left = (Object*) a;
     O->right = (Object*) b;
+    INCREF(a);
+    INCREF(b);
 
     return O;
+}
+
+static void
+stringtree_cleanup(Object* self) {
+    assert(self->type == &StringTreeType);
+
+    StringTreeObject* this = (StringTreeObject*) self;
+    DECREF(this->left);
+    DECREF(this->right);
 }
 
 static hashval_t
@@ -299,7 +323,7 @@ stringtree_asstring(Object* self) {
 
     size_t size = Integer_toInt(stringtree_len(self)) + 1;
 
-    char *buffer = GC_MALLOC_ATOMIC(sizeof(char) * size), *pbuffer = buffer;
+    char *buffer = malloc(sizeof(char) * size), *pbuffer = buffer;
     if (!buffer) {
         return LoxNIL;
     }
@@ -337,6 +361,8 @@ stringtree_op_plus(Object *self, Object *other) {
 
     O->left = self;
     O->right = other;
+    INCREF(self);
+    INCREF(other);
 
     return (Object*) O;
 }
@@ -346,6 +372,7 @@ stringtree_op_plus(Object *self, Object *other) {
 static struct object_type StringTreeType = (ObjectType) {
     .code = TYPE_STRINGTREE,
     .name = "string",
+    .cleanup = stringtree_cleanup,
     .hash = stringtree_hash,
     .len = stringtree_len,
 

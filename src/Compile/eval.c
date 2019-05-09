@@ -28,8 +28,16 @@ vmeval_eval(VmEvalContext *ctx) {
     // Store parameters in the local variables
     int i = ctx->args.count;
     assert(ctx->code->locals.count >= ctx->args.count);
-    while (i--)
+    while (i--) {
         *(locals + i) = *(ctx->args.values + i);
+		INCREF(*(locals + i));
+	}
+    
+    i = ctx->code->locals.count - ctx->args.count;
+    while (i--) {
+        *(locals + i) = LoxUndefined;
+		INCREF(LoxUndefined);
+	}
 
     // TODO: Add estimate for MAX_STACK in the compile phase
     // XXX: Program could overflow 32-slot stack
@@ -54,18 +62,21 @@ vmeval_eval(VmEvalContext *ctx) {
             lhs = POP(stack);
             if (Bool_isTrue(lhs))
                 pc += pc->arg;
+            DECREF(lhs);
             break;
 
         case OP_JUMP_IF_TRUE:
             lhs = PEEK(stack);
             if (Bool_isTrue(lhs))
                 pc += pc->arg;
+            DECREF(lhs);
             break;
 
         case OP_POP_JUMP_IF_FALSE:
             lhs = POP(stack);
             if (!Bool_isTrue(lhs))
                 pc += pc->arg;
+            DECREF(lhs);
             break;
 
         case OP_JUMP_IF_FALSE:
@@ -80,7 +91,7 @@ vmeval_eval(VmEvalContext *ctx) {
             break;
 
         case OP_POP_TOP:
-            POP(stack);
+            XPOP(stack);
             break;
 
         case OP_CLOSE_FUN: {
@@ -90,8 +101,10 @@ vmeval_eval(VmEvalContext *ctx) {
             if (locals_in_stack) {
                 unsigned locals_count = ctx->code->locals.count;
                 Object **mlocals = GC_MALLOC(sizeof(Object*) * locals_count);
-                while (locals_count--)
+                while (locals_count--) {
                     *(mlocals + locals_count) = *(locals + locals_count);
+                    INCREF(*(mlocals + locals_count));
+                }
                 locals = mlocals;
                 locals_in_stack = false;
             }
@@ -122,21 +135,34 @@ vmeval_eval(VmEvalContext *ctx) {
                 rv = fun->type->call(fun, ctx->scope, ctx->this, (Object*) args);
             }
 
-            stack -= pc->arg + 1; // POP_N, {pc->arg}
-            PUSH(stack, rv);
+            i = pc->arg + 1; // POP_N, {pc->arg}
+            while (i--)
+                XPOP(stack);
+
+            XPUSH(stack, rv);
             break;
         }
 
         case OP_RECURSE: {
             // This will only happen for a VmFunction. In this case, we will
             // execute the same code again, but with different arguments.
-            stack -= pc->arg; // POP_N, {pc->arg}
             VmEvalContext call_ctx = *ctx;
             call_ctx.args = (VmCallArgs) {
-                .values = stack,
+                .values = stack - pc->arg,
                 .count = pc->arg,
             };
-            PUSH(stack, vmeval_eval(&call_ctx));
+            // Don't INCREF because the return value of the call should be
+            // decref'd in this scope which would cancel an INCREF
+            rv = vmeval_eval(&call_ctx);
+
+            // XXX: This corrupts memory. Instead, we should call a secondary
+            // vmeval_eval() method which will not INCREF and DECREF the stack
+            // arguments. This will avoid needing to
+            i = pc->arg; // POP_N, {pc->arg}
+            while (i--)
+                XPOP(stack);
+
+            XPUSH(stack, rv);
             break;
         }
 
@@ -152,10 +178,15 @@ vmeval_eval(VmEvalContext *ctx) {
             HashObject *attributes = Hash_newWithSize(pc->arg);
             while (count--) {
                 lhs = POP(stack);
-                Hash_setItem(attributes, lhs, POP(stack));
+                rhs = POP(stack);
+                Hash_setItem(attributes, lhs, rhs);
+                DECREF(lhs);
+                DECREF(rhs);
             }
             PUSH(stack, (Object*) Class_build(attributes,
                 pc->op == OP_BUILD_SUBCLASS ? (ClassObject*) rhs : NULL));
+            if (pc->op == OP_BUILD_SUBCLASS)
+                DECREF(rhs);
             break;
         }
 
@@ -163,6 +194,7 @@ vmeval_eval(VmEvalContext *ctx) {
             C = ctx->code->constants + pc->arg;
             lhs = POP(stack);
             PUSH(stack, object_getattr(lhs, C->value));
+            DECREF(lhs);
             break;
 
         case OP_SET_ATTR:
@@ -170,6 +202,8 @@ vmeval_eval(VmEvalContext *ctx) {
             rhs = POP(stack);
             lhs = POP(stack);
             lhs->type->setattr(lhs, C->value, rhs);
+            DECREF(rhs);
+            DECREF(lhs);
             break;
 
         case OP_THIS:
@@ -206,7 +240,7 @@ vmeval_eval(VmEvalContext *ctx) {
                 lhs = VmScope_lookup_local(ctx->scope, pc->arg);
             }
             else
-                lhs = LoxNIL;
+                lhs = LoxUndefined;
             PUSH(stack, lhs);
             break;
 
@@ -214,11 +248,15 @@ vmeval_eval(VmEvalContext *ctx) {
         case OP_STORE_GLOBAL:
             C = ctx->code->constants + pc->arg;
             assert(ctx->scope);
-            VmScope_assign(ctx->scope, C->value, POP(stack), C->hash);
+            VmScope_assign(ctx->scope, C->value, item = POP(stack), C->hash);
+            DECREF(item);
             break;
 
         case OP_STORE_LOCAL:
             assert(pc->arg < ctx->code->locals.count);
+            item = *(locals + pc->arg);
+            if (item)
+                DECREF(item);
             *(locals + pc->arg) = POP(stack);
             break;
 
@@ -237,7 +275,7 @@ vmeval_eval(VmEvalContext *ctx) {
                     ((StringObject*) (ctx->code->locals.names + pc->arg)->value)->length,
                     ((StringObject*) (ctx->code->locals.names + pc->arg)->value)->characters,
                     pc->arg);
-                lhs = LoxNIL;
+                lhs = LoxUndefined;
             }
             PUSH(stack, lhs);
             break;
@@ -247,42 +285,43 @@ vmeval_eval(VmEvalContext *ctx) {
             PUSH(stack, C->value);
             break;
 
-#define BINARY_METHOD(method) do { rhs = POP(stack); lhs = POP(stack); PUSH(stack, (Object*) lhs->type->method(lhs, rhs)); } while(0)
+#define BINARY_METHOD(method) do { rhs = POP(stack); lhs = POP(stack); PUSH(stack, (Object*) lhs->type->method(lhs, rhs)); DECREF(lhs); DECREF(rhs); } while(0)
 
             // Comparison
-            case OP_GT:
+        case OP_GT:
             BINARY_METHOD(op_gt);
             break;
 
-            case OP_GTE:
+        case OP_GTE:
             BINARY_METHOD(op_gte);
             break;
 
-            case OP_LT:
+        case OP_LT:
             BINARY_METHOD(op_lt);
             break;
 
-            case OP_LTE:
+        case OP_LTE:
             BINARY_METHOD(op_lte);
             break;
 
-            case OP_EQUAL:
+        case OP_EQUAL:
             BINARY_METHOD(op_eq);
             break;
 
-            case OP_NEQ:
+        case OP_NEQ:
 
             // Boolean
-            case OP_BINARY_AND:
-            case OP_BINARY_OR:
+        case OP_BINARY_AND:
+        case OP_BINARY_OR:
             break;
 
-            case OP_BANG:
+        case OP_BANG:
             lhs = POP(stack);
-            PUSH(stack, Bool_fromObject(lhs) == LoxTRUE ? LoxFALSE : LoxTRUE);
+            PUSH(stack, (Object*) (Bool_fromObject(lhs) == LoxTRUE ? LoxFALSE : LoxTRUE));
+            DECREF(lhs);
             break;
 
-            case OP_IN:
+        case OP_IN:
             lhs = POP(stack);
             rhs = POP(stack);
             if (lhs->type->contains) {
@@ -291,6 +330,8 @@ vmeval_eval(VmEvalContext *ctx) {
             else {
                 fprintf(stderr, "Type <%s> does not support IN\n", lhs->type->name);
             }
+            DECREF(lhs);
+            DECREF(rhs);
             break;
 
             // Expressions
@@ -313,6 +354,7 @@ vmeval_eval(VmEvalContext *ctx) {
         case OP_NEG:
             lhs = POP(stack);
             PUSH(stack, (Object*) lhs->type->op_neg(lhs));
+            DECREF(lhs);
             break;
 
         case OP_GET_ITEM:
@@ -322,6 +364,8 @@ vmeval_eval(VmEvalContext *ctx) {
                 PUSH(stack, lhs->type->get_item(lhs, rhs));
             else
                 fprintf(stderr, "lhs type %s does not support GET_ITEM\n", lhs->type->name);
+            DECREF(lhs);
+            DECREF(rhs);
             break;
 
         case OP_SET_ITEM:
@@ -330,6 +374,9 @@ vmeval_eval(VmEvalContext *ctx) {
             lhs = POP(stack);
             if (lhs->type->set_item)
                 lhs->type->set_item(lhs, item, rhs);
+            DECREF(lhs);
+            DECREF(rhs);
+            DECREF(item);
             break;
 
         default:
@@ -342,6 +389,11 @@ vmeval_eval(VmEvalContext *ctx) {
 
 op_return:
     rv = POP(stack);
+
+    i = ctx->code->locals.count;
+    while (i--)
+        if (*(locals + i))
+            DECREF(*(locals + i));
 
     // Check stack overflow and underflow
     assert(stack >= _stack);

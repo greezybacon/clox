@@ -87,7 +87,7 @@ class_instanciate(Object* self, VmScope *scope, Object* object, Object* args) {
     // Call constructor with args
     static Object *init = NULL;
     if (!init)
-        init = (Object*) String_fromCharArrayAndSize("init", 4);
+        init = (Object*) String_fromConstant("init");
 
     Object *constructor = class_getattr(self, init);
     if (constructor != LoxUndefined) {
@@ -158,11 +158,10 @@ static Object*
 instance_asstring(Object *self) {
     static Object *toString = NULL;
     if (!toString)
-        toString = (Object*) String_fromCharArrayAndSize("toString", 8);
+        toString = (Object*) String_fromConstant("toString");
 
     Object *repr = instance_getattr(self, toString);
-    if (repr != LoxNIL) {
-        assert(Function_isCallable(repr));
+    if (Function_isCallable(repr)) {
         return repr->type->call(repr, NULL, self, LoxNIL);
     }
 

@@ -8,6 +8,7 @@ typedef struct class_object {
     // Inherits from Object
     Object      base;
 
+    Object      *name;
     HashObject  *attributes;
     struct class_object *parent;
 } ClassObject;

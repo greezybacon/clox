@@ -118,6 +118,7 @@ compile_emit_constant(Compiler *self, Object *value) {
         .value = value,
         .hash = (value->type->hash) ? value->type->hash(value) : 0,
     };
+    INCREF(value);
     return index;
 }
 

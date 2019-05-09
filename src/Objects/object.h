@@ -16,6 +16,7 @@ enum base_type {
     TYPE_CLASS,
     TYPE_OBJECT,
     TYPE_BOUND_METHOD,
+    TYPE_EXCEPTION,
 };
 
 typedef struct object Object;
@@ -91,8 +92,19 @@ typedef struct object {
     unsigned    refcount;
 } Object;
 
+static void inline
+LoxObject_CLEANUP(Object* object) {
+    if (object->type->cleanup)
+        object->type->cleanup(object);
+
+    free(object);
+}
+
 void* object_new(size_t size, ObjectType*);
 Object* object_getattr(Object*, Object*);
+
+#define INCREF(object) ((object)->refcount++)
+#define DECREF(object) do { if ((--(object)->refcount) == 0) LoxObject_CLEANUP(object); } while(0)
 
 #define HASHVAL(object) (hashval_t) ((object)->type->hash ? (object)->type->hash(object) : (hashval_t) (object))
 
@@ -106,6 +118,10 @@ struct bool_object *LoxTRUE;
 struct bool_object *LoxFALSE;
 static inline BoolObject *IDENTITY(Object *self, Object *other) {
     return self == other ? LoxTRUE : LoxFALSE;
+}
+
+static inline void ERROR(Object *self) {
+    *((volatile int*) ((volatile void*) NULL)) = 42;
 }
 
 #endif

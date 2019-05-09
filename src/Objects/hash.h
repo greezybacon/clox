@@ -6,6 +6,9 @@
 #include "iterator.h"
 #include "object.h"
 
+#define likely(x)       __builtin_expect((x),1)
+#define unlikely(x)     __builtin_expect((x),0)
+
 #if 0
 struct _entry_s {
 	Object *key;
