@@ -19,6 +19,10 @@ enum base_type {
     TYPE_EXCEPTION,
 };
 
+enum object_type_feature {
+    FEATURE_STASH =     1<<0,
+};
+
 typedef struct object Object;
 typedef unsigned long int hashval_t;
 typedef struct bool_object BoolObject;
@@ -36,7 +40,7 @@ typedef struct object_method {
 typedef struct object_type {
     enum base_type  code;
     char*           name;
-    int             features;
+    enum object_type_feature features;
 
     // Hashtable support
     hashval_t (*hash)(Object*);
@@ -92,19 +96,12 @@ typedef struct object {
     unsigned    refcount;
 } Object;
 
-static void inline
-LoxObject_CLEANUP(Object* object) {
-    if (object->type->cleanup)
-        object->type->cleanup(object);
-
-    free(object);
-}
-
 void* object_new(size_t size, ObjectType*);
 Object* object_getattr(Object*, Object*);
+void LoxObject_Cleanup(Object*);
 
 #define INCREF(object) ((object)->refcount++)
-#define DECREF(object) do { if ((--(object)->refcount) == 0) LoxObject_CLEANUP(object); } while(0)
+#define DECREF(object) do { if ((--(object)->refcount) == 0) LoxObject_Cleanup(object); } while(0)
 
 #define HASHVAL(object) (hashval_t) ((object)->type->hash ? (object)->type->hash(object) : (hashval_t) (object))
 

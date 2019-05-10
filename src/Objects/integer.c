@@ -203,6 +203,7 @@ integer_op_gte(Object* self, Object* other) {
 static struct object_type IntegerType = (ObjectType) {
     .code = TYPE_INTEGER,
     .name = "int",
+    .features = FEATURE_STASH,
     .hash = integer_hash,
 
     // coercion

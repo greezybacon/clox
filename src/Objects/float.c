@@ -162,6 +162,7 @@ float_op_gt(Object* self, Object* other) {
 static struct object_type FloatType = (ObjectType) {
     .code = TYPE_FLOAT,
     .name = "float",
+    .features = FEATURE_STASH,
     .hash = float_hash,
     .as_int = float_asint,
     .as_float = float_asfloat,

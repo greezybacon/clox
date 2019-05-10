@@ -30,5 +30,6 @@ typedef struct boundmethod_object {
 
 ClassObject* Class_build(HashObject*, ClassObject*);
 Object* BoundMethod_create(Object *, Object *);
+bool Class_isClass(Object*);
 
 #endif
