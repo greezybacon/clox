@@ -45,7 +45,7 @@ static void
 compile_push_context(Compiler* self) {
     CodeContext *context = GC_MALLOC(sizeof(CodeContext));
     *context = (CodeContext) {
-        .constants = GC_MALLOC(8 * sizeof(Object*)),
+        .constants = GC_MALLOC(8 * sizeof(Constant)),
         .sizeConstants = 8,
         .locals = (LocalsList) {
             .size = 8,
@@ -69,7 +69,7 @@ compile_block(Compiler *self, ASTNode* node) {
 static inline void
 compile_block_ensure_size(CodeBlock *block, unsigned size) {
     while (block->size < size) {
-        block->size *= 2;
+        block->size += 16;
         block->instructions = GC_REALLOC(block->instructions,
             block->size * sizeof(Instruction));
     }
@@ -105,12 +105,11 @@ compile_emit_constant(Compiler *self, Object *value) {
 
     if (context->nConstants == context->sizeConstants) {
         unsigned new_size = context->sizeConstants + 8;
-        C = GC_MALLOC(new_size * sizeof(Constant));
+        C = GC_REALLOC(context->constants, new_size * sizeof(Constant));
         if (!C)
             // TODO: Raise compiler error?
             return 0;
-        bcopy(context->constants, C, context->sizeConstants * sizeof(Constant));
-        context->sizeConstants = new_size;
+        context->constants = C;
     }
 
     index = context->nConstants++;
