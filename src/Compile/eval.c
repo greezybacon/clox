@@ -130,9 +130,15 @@ vmeval_eval(VmEvalContext *ctx) {
                 };
                 rv = vmeval_eval(&call_ctx);
             }
-            else {
+            else if (Function_isCallable(fun)) {
                 TupleObject *args = Tuple_fromList(pc->arg, stack - pc->arg);
                 rv = fun->type->call(fun, ctx->scope, ctx->this, (Object*) args);
+                INCREF(rv);
+                LoxObject_Cleanup((Object*) args);
+            }
+            else {
+                fprintf(stderr, "WARNING: Type `%s` is not callable\n", fun->type->name);
+                rv = LoxUndefined;
             }
 
             i = pc->arg + 1; // POP_N, {pc->arg}
@@ -155,10 +161,8 @@ vmeval_eval(VmEvalContext *ctx) {
             // decref'd in this scope which would cancel an INCREF
             rv = vmeval_eval(&call_ctx);
 
-            // XXX: This corrupts memory. Instead, we should call a secondary
-            // vmeval_eval() method which will not INCREF and DECREF the stack
-            // arguments. This will avoid needing to
-            i = pc->arg; // POP_N, {pc->arg}
+            // DECREF all the arguments
+            i = pc->arg;
             while (i--)
                 XPOP(stack);
 
