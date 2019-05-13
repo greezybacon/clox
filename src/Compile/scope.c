@@ -6,6 +6,16 @@
 #include "Vendor/bdwgc/include/gc.h"
 #include "Objects/hash.h"
 
+static void
+VmScope_cleanup(GC_PTR object, GC_PTR client_data) {
+    VmScope* self = (VmScope*) object;
+
+    int i = self->locals_count;
+    while (i--) {
+        DECREF(*(self->locals + i));
+    }
+}
+
 VmScope*
 VmScope_create(VmScope *outer, CodeContext *code, Object **locals, unsigned locals_count) {
     VmScope *self = GC_MALLOC(sizeof(VmScope));
@@ -16,6 +26,7 @@ VmScope_create(VmScope *outer, CodeContext *code, Object **locals, unsigned loca
         .locals_count = locals_count,
         .locals = locals,
     };
+    GC_REGISTER_FINALIZER(self, VmScope_cleanup, NULL, NULL, NULL);
     return self;
 }
 
@@ -39,7 +50,7 @@ VmScope_lookup_global(VmScope* self, Object* name, hashval_t hash) {
     if (self->outer)
         return VmScope_lookup_global(self->outer, name, hash);
 
-    return LoxNIL;
+    return LoxUndefined;
 
 }
 

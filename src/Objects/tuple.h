@@ -23,4 +23,5 @@ size_t Tuple_getSize(Object*);
 
 #define Tuple_GETITEM(self, index) *(((TupleObject*) self)->items + index)
 
+const TupleObject *LoxEmptyTuple;
 #endif

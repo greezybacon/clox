@@ -5,6 +5,7 @@
 #include "integer.h"
 #include "boolean.h"
 #include "tuple.h"
+#include "Lib/builtin.h"
 
 #include "Vendor/bdwgc/include/gc.h"
 

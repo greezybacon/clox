@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <limits.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "hash.h"
 #include "boolean.h"
@@ -32,12 +33,12 @@ HashObject *Hash_newWithSize(size_t size) {
         newsize <<= 1;
 
     hashtable = object_new(sizeof(HashObject), &HashType);
-    if (hashtable == NULL)
-        return hashtable;
+    if (unlikely(hashtable == NULL))
+        return LoxNIL;
 
     hashtable->table = calloc(newsize, sizeof(HashEntry));
-    if (hashtable->table == NULL)
-        return NULL;
+    if (unlikely(hashtable->table == NULL))
+        return LoxNIL;
 
     hashtable->size = newsize;
     hashtable->size_mask = newsize - 1;
@@ -129,9 +130,10 @@ hash_set_fast(HashObject *self, Object *key, Object *value, hashval_t hash) {
         entry = self->table + slot;
     }
 
-    if (entry && entry->value) {
+    if (entry->hash) {
         DECREF(entry->key);
         DECREF(entry->value);
+        self->count--;
     }
 
     *entry = (HashEntry) {

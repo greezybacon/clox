@@ -91,7 +91,10 @@ object_trystash(Object* self) {
 
 void
 LoxObject_Cleanup(Object* self) {
-    if (unlikely(self->type->cleanup != NULL))
+    if (unlikely(self->protect_delete))
+        return;
+    
+    if (self->type->cleanup != NULL)
         self->type->cleanup(self);
 
     if (unlikely(self->type->features & FEATURE_STASH))

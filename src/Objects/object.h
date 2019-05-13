@@ -93,7 +93,13 @@ typedef struct object_type {
 
 typedef struct object {
     ObjectType* type;
-    unsigned    refcount;
+    union {
+        unsigned        refcount;
+        struct {
+            unsigned    protect_delete:1;
+            unsigned    _refcount:sizeof(unsigned) * 8 - 1;
+        };
+    };
 } Object;
 
 void* object_new(size_t size, ObjectType*);

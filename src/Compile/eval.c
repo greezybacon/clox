@@ -32,7 +32,7 @@ vmeval_eval(VmEvalContext *ctx) {
         *(locals + i) = *(ctx->args.values + i);
 		INCREF(*(locals + i));
 	}
-    
+
     i = ctx->code->locals.count - ctx->args.count;
     while (i--) {
         *(locals + i) = LoxUndefined;
@@ -45,9 +45,6 @@ vmeval_eval(VmEvalContext *ctx) {
 
     Instruction *pc = ctx->code->block->instructions;
     Instruction *end = pc + ctx->code->block->nInstructions;
-
-    // Default result is NIL
-    PUSH(stack, LoxNIL);
 
     while (pc < end) {
 #if DEBUG
@@ -117,7 +114,6 @@ vmeval_eval(VmEvalContext *ctx) {
 
         case OP_CALL_FUN: {
             Object *fun = *(stack - pc->arg - 1);
-            assert(Function_isCallable(fun));
 
             if (VmFunction_isVmFunction(fun)) {
                 VmEvalContext call_ctx = (VmEvalContext) {
@@ -141,7 +137,8 @@ vmeval_eval(VmEvalContext *ctx) {
                 rv = LoxUndefined;
             }
 
-            i = pc->arg + 1; // POP_N, {pc->arg}
+            i = pc->arg; // POP_N, {pc->arg}
+            XPOP(stack);
             while (i--)
                 XPOP(stack);
 
@@ -179,7 +176,7 @@ vmeval_eval(VmEvalContext *ctx) {
             // Build the class as usual
         case OP_BUILD_CLASS: {
             size_t count = pc->arg;
-            HashObject *attributes = Hash_newWithSize(pc->arg);
+            HashObject *attributes = Hash_newWithSize(count);
             while (count--) {
                 lhs = POP(stack);
                 rhs = POP(stack);
@@ -205,7 +202,12 @@ vmeval_eval(VmEvalContext *ctx) {
             C = ctx->code->constants + pc->arg;
             rhs = POP(stack);
             lhs = POP(stack);
-            lhs->type->setattr(lhs, C->value, rhs);
+            if (unlikely(!lhs->type->setattr)) {
+                fprintf(stderr, "WARNING: `setattr` not defined for type: `%s`\n", lhs->type->name);
+            }
+            else {
+                lhs->type->setattr(lhs, C->value, rhs);
+            }
             DECREF(rhs);
             DECREF(lhs);
             break;
@@ -216,14 +218,14 @@ vmeval_eval(VmEvalContext *ctx) {
 
         case OP_SUPER: {
             lhs = (Object*) ctx->code->owner;
-            if (!lhs) {
+            if (unlikely(!lhs)) {
                 fprintf(stderr, "WARNING: `super` used in non-class method\n");
                 lhs = LoxUndefined;
             }
             else {
                 assert(Class_isClass(lhs));
                 lhs = (Object*) ((ClassObject*) lhs)->parent;
-                if (!lhs) {
+                if (unlikely(!lhs)) {
                     fprintf(stderr, "WARNING: `super` can only be used in a subclass\n");
                     lhs = LoxUndefined;
                 }
@@ -252,8 +254,9 @@ vmeval_eval(VmEvalContext *ctx) {
         case OP_STORE_GLOBAL:
             C = ctx->code->constants + pc->arg;
             assert(ctx->scope);
-            VmScope_assign(ctx->scope, C->value, item = POP(stack), C->hash);
-            DECREF(item);
+            lhs = POP(stack);
+            VmScope_assign(ctx->scope, C->value, lhs, C->hash);
+            DECREF(lhs);
             break;
 
         case OP_STORE_LOCAL:
@@ -328,11 +331,11 @@ vmeval_eval(VmEvalContext *ctx) {
         case OP_IN:
             lhs = POP(stack);
             rhs = POP(stack);
-            if (lhs->type->contains) {
-                PUSH(stack, lhs->type->contains(lhs, rhs));
+            if (likely(lhs->type->contains != NULL)) {
+                PUSH(stack, (Object*) lhs->type->contains(lhs, rhs));
             }
             else {
-                fprintf(stderr, "Type <%s> does not support IN\n", lhs->type->name);
+                fprintf(stderr, "WARNING: Type <%s> does not support IN\n", lhs->type->name);
             }
             DECREF(lhs);
             DECREF(rhs);
@@ -367,7 +370,7 @@ vmeval_eval(VmEvalContext *ctx) {
             if (lhs->type->get_item)
                 PUSH(stack, lhs->type->get_item(lhs, rhs));
             else
-                fprintf(stderr, "lhs type %s does not support GET_ITEM\n", lhs->type->name);
+                fprintf(stderr, "lhs type `%s` does not support GET_ITEM\n", lhs->type->name);
             DECREF(lhs);
             DECREF(rhs);
             break;
@@ -378,6 +381,8 @@ vmeval_eval(VmEvalContext *ctx) {
             lhs = POP(stack);
             if (lhs->type->set_item)
                 lhs->type->set_item(lhs, item, rhs);
+            else
+                fprintf(stderr, "lhs type `%s` does not support SET_ITEM\n", lhs->type->name);
             DECREF(lhs);
             DECREF(rhs);
             DECREF(item);
@@ -392,16 +397,19 @@ vmeval_eval(VmEvalContext *ctx) {
     }
 
 op_return:
-    rv = POP(stack);
+    // Default return value is NIL
+    if (stack == _stack)
+        rv = LoxNIL;
+    else
+        rv = POP(stack);
 
     i = ctx->code->locals.count;
     while (i--)
-        if (*(locals + i))
-            DECREF(*(locals + i));
+        DECREF(*(locals + i));
 
     // Check stack overflow and underflow
-    assert(stack >= _stack);
-    assert(stack - _stack < STACK_SIZE);
+    assert(stack == _stack);
+    //assert(stack - _stack < STACK_SIZE);
 
     return rv;
 }

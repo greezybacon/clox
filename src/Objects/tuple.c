@@ -28,7 +28,8 @@ Tuple_fromArgs(size_t count, ...) {
         Object** pitem = self->items;
         Object* item;
         while (count--) {
-            *(pitem++) = va_arg(args, Object*);
+            *(pitem++) = item = va_arg(args, Object*);
+            INCREF(item);
         }
         va_end(args);
     }
@@ -43,7 +44,8 @@ Tuple_fromList(size_t count, Object **first) {
         Object** pitem = self->items;
         Object* item;
         while (count--) {
-            *(pitem++) = *(first++);
+            *(pitem++) = item = *first++;
+            INCREF(item);
         }
     }
     return self;
@@ -64,6 +66,7 @@ Tuple_getItem(TupleObject* self, int index) {
 void
 Tuple_setItem(TupleObject* self, size_t index, Object* value) {
     if (self->count > index) {
+        DECREF(*(self->items + index));
         *(self->items + index) = value;
     }
     // Else raise error
@@ -129,6 +132,10 @@ tuple_cleanup(Object *self) {
     assert(self->type == &TupleType);
 
     TupleObject *this = (TupleObject*) self;
+    Object** pitem = this->items;
+    while (this->count--)
+        DECREF(*(pitem++));
+
     free(this->items);
 }
 
@@ -140,3 +147,13 @@ static struct object_type TupleType = (ObjectType) {
     .as_string = tuple_asstring,
     .cleanup = tuple_cleanup,
 };
+
+static TupleObject _LoxEmptyTuple = (TupleObject) {
+    .base = (Object) {
+        .type = &TupleType,
+        .refcount = 1,
+    },
+    .count = 0,
+    .items = NULL,
+};
+const TupleObject *LoxEmptyTuple = &_LoxEmptyTuple;
