@@ -468,9 +468,14 @@ compile_function(Compiler *self, ASTFunction *node) {
 
     // Store the named function?
     if (name) {
-        index = compile_emit_constant(self, name);
-        // Push the STORE
-        length += compile_emit(self, OP_STORE, index);
+        if (self->flags & CFLAG_LOCAL_VARS) {
+            index = compile_locals_allocate(self, name);
+            length += compile_emit(self, OP_STORE_LOCAL, index);
+        }
+        else {
+            index = compile_emit_constant(self, name);
+            length += compile_emit(self, OP_STORE_GLOBAL, index);
+        }
         compile_pop_info(self);
     }
     return length;
@@ -577,9 +582,14 @@ compile_class(Compiler *self, ASTClass *node) {
 
     // Support anonymous classes?
     if (node->name) {
-        index = compile_emit_constant(self, node->name);
-        // Push the STORE
-        length += compile_emit(self, OP_STORE_GLOBAL, index);
+        if (self->flags & CFLAG_LOCAL_VARS) {
+            index = compile_locals_allocate(self, node->name);
+            length += compile_emit(self, OP_STORE_LOCAL, index);
+        }
+        else {
+            index = compile_emit_constant(self, node->name);
+            length += compile_emit(self, OP_STORE_GLOBAL, index);
+        }
     }
 
     return length;
