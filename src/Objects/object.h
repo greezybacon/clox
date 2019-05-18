@@ -24,7 +24,7 @@ enum object_type_feature {
 };
 
 typedef struct object Object;
-typedef unsigned long int hashval_t;
+typedef long long int hashval_t;
 typedef struct bool_object BoolObject;
 typedef struct vmeval_scope VmScope;
 

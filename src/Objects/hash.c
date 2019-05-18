@@ -124,7 +124,8 @@ hash_set_fast(HashObject *self, Object *key, Object *value, hashval_t hash) {
             entry->value = value;
             return;
         }
-        slot = (slot + 1) & self->size_mask;
+        hash >>= 1;
+        slot = hash & self->size_mask;
         entry = self->table + slot;
     }
 
@@ -164,7 +165,8 @@ hash_lookup_fast(HashObject* self, Object* key, hashval_t hash) {
         && (entry->hash != hash
         || !Bool_ISTRUE(entry->key->type->op_eq(entry->key, key))
     )) {
-        slot = (slot + 1) & self->size_mask;
+        hash >>= 1;
+        slot = hash & self->size_mask;
         entry = self->table + slot;
     }
 
@@ -343,6 +345,15 @@ hash_cleanup(Object *self) {
     assert(self->type == &HashType);
 
     HashObject *this = (HashObject*) self;
+    HashEntry* table = this->table;
+    int p = this->size;
+    while (p--) {
+        if (table[p].key != NULL) {
+            DECREF(table[p].key);
+            DECREF(table[p].value);
+        }
+    }
+
     free(this->table);
 }
 

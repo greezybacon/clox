@@ -92,7 +92,7 @@ builtin_tuple(VmScope *state, Object *self, Object *args) {
 }
 
 static Object*
-builtin_hash(VmScope *state, Object *self, Object *args) {
+builtin_table(VmScope *state, Object *self, Object *args) {
     assert(Tuple_isTuple(args));
 
     // TODO: Consider value of args as list of two-item tuples?
@@ -111,6 +111,18 @@ builtin_open(VmScope *state, Object *self, Object *args) {
     return (Object*) Lox_FileOpen(filename, flags);
 }
 
+static Object*
+builtin_hash(VmScope *state, Object *self, Object *args) {
+    assert(Tuple_isTuple(args));
+
+    size_t argc = Tuple_getSize(args);
+
+    Object *object;
+    Lox_ParseArgs(args, "O", &object);
+
+    return (Object*) Integer_fromLongLong(HASHVAL(object));
+}
+
 static ModuleDescription
 builtins_module_def = {
     .name = "__builtins__",
@@ -120,8 +132,9 @@ builtins_module_def = {
         { "len", builtin_len },
         { "eval", builtin_eval },
         { "tuple", builtin_tuple },
-        { "hash", builtin_hash, },
+        { "table", builtin_table, },
         { "open", builtin_open },
+        { "hash", builtin_hash },
         { 0 },
     }
 };

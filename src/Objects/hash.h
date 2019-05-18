@@ -9,25 +9,6 @@
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
 
-#if 0
-struct _entry_s {
-	Object *key;
-	Object *value;
-	struct entry_s *next;
-};
-typedef struct entry_s _HashEntry;
-
-typedef struct _hash_object {
-    // Inherits from Object
-    Object  base;
-
-    size_t  size;
-    size_t  count;
-    HashEntry **table;
-} _HashObject;
-
-#endif
-
 typedef struct entry_s {
     Object *key;
     Object *value;
