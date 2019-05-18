@@ -1,5 +1,3 @@
-#define _XOPEN_SOURCE 500 /* Enable certain library functions (strdup) on linux.  See feature_test_macros(7) */
-
 #include <assert.h>
 #include <errno.h>
 #include <stdlib.h>

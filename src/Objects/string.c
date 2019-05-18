@@ -57,7 +57,7 @@ string_cleanup(Object *self) {
     assert(self->type == &StringType);
 
     StringObject* this = (StringObject*) self;
-    free(this->characters);
+    free((void*) this->characters);
 }
 
 static hashval_t
@@ -356,7 +356,7 @@ static Object*
 stringtree_op_plus(Object *self, Object *other) {
     StringTreeObject* O = object_new(sizeof(StringTreeObject), &StringTreeType);
 
-    if (!String_isString(other))
+    if (other->type != &StringTreeType && !String_isString(other))
         other = other->type->as_string(other);
 
     O->left = self;

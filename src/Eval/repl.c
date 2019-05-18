@@ -36,6 +36,8 @@ eval_repl_isdangling(CmdLoop* self, char* code, size_t length) {
         case T_CLOSE_BRACE:
             braces -= 1;
             break;
+        default:
+            break;
         }
     }
 

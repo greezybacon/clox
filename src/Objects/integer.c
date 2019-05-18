@@ -144,9 +144,8 @@ integer_op_divide(Object* self, Object* other) {
 
     // Promote floating point operations
     if (other->type->code == TYPE_FLOAT) {
-        FloatObject *F = self->type->as_float(self),
-                    *rv = F->base.type->op_slash((Object*) F, other);
-        return rv;
+        FloatObject *F = (FloatObject*) self->type->as_float(self);
+        return F->base.type->op_slash((Object*) F, other);
     }
     // Else coerce to integer
     else other = coerce_integer(other);
@@ -171,32 +170,32 @@ integer_op_ne(Object* self, Object* other) {
 static BoolObject*
 integer_op_lt(Object* self, Object* other) {
     assert(self->type == &IntegerType);
-    IntegerObject* rhs = coerce_integer(other);
-    return ((IntegerObject*)self)->value < rhs->value
+    Object* rhs = coerce_integer(other);
+    return ((IntegerObject*)self)->value < ((IntegerObject*)rhs)->value
         ? LoxTRUE : LoxFALSE;
 }
 
 static BoolObject*
 integer_op_lte(Object* self, Object* other) {
     assert(self->type == &IntegerType);
-    IntegerObject* rhs = coerce_integer(other);
-    return ((IntegerObject*)self)->value <= rhs->value
+    Object* rhs = coerce_integer(other);
+    return ((IntegerObject*)self)->value <= ((IntegerObject*)rhs)->value
         ? LoxTRUE : LoxFALSE;
 }
 
 static BoolObject*
 integer_op_gt(Object* self, Object* other) {
     assert(self->type == &IntegerType);
-    IntegerObject* rhs = coerce_integer(other);
-    return ((IntegerObject*)self)->value > rhs->value
+    Object* rhs = coerce_integer(other);
+    return ((IntegerObject*)self)->value > ((IntegerObject*)rhs)->value
         ? LoxTRUE : LoxFALSE;
 }
 
 static BoolObject*
 integer_op_gte(Object* self, Object* other) {
     assert(self->type == &IntegerType);
-    IntegerObject* rhs = coerce_integer(other);
-    return ((IntegerObject*)self)->value >= rhs->value
+    Object* rhs = coerce_integer(other);
+    return ((IntegerObject*)self)->value >= ((IntegerObject*)rhs)->value
         ? LoxTRUE : LoxFALSE;
 }
 

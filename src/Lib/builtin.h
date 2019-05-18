@@ -1,6 +1,8 @@
 #ifndef BUILTINS_H
 #define BUILTINS_H
 
+#include "Objects/module.h"
+
 ModuleObject* BuiltinModule_init(void);
 
 // args.c

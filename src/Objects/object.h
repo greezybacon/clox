@@ -45,7 +45,7 @@ typedef struct object_type {
     // Hashtable support
     hashval_t (*hash)(Object*);
 
-    // Coercion
+    // Coercion to simple type
     Object* (*as_int)(Object*);
     Object* (*as_float)(Object*);
     BoolObject* (*as_bool)(Object*);

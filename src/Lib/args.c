@@ -33,7 +33,7 @@ Lox_ParseArgs(Object *args, const char *format, ...) {
             else {
                 string = (StringObject*) oArg;
             }
-            *(va_arg(output, char**)) = string->characters;
+            *(va_arg(output, const char**)) = string->characters;
             if (*(format+1) == '#') { // 's#'
                 *(va_arg(output, int*)) = string->length;
                 format++;

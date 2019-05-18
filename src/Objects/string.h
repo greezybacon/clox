@@ -22,7 +22,7 @@ StringObject* String_fromConstant(const char *);
 StringObject* String_fromMalloc(const char *, size_t);
 size_t String_getLength(Object* self);
 int String_compare(StringObject*, const char*);
-StringObject* String_fromConstant(const char* value);
+StringObject* String_fromConstant(const char*);
 
 typedef struct stringtree_object {
     // Inherits from Object

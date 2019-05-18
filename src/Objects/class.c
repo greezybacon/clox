@@ -34,7 +34,7 @@ Class_build(HashObject *attributes, ClassObject *parent) {
         value = Tuple_GETITEM((TupleObject*) next, 1);
 
         if (CodeObject_isCodeObject(value)) {
-            ((CodeObject*) value)->context->owner = O;
+            ((CodeObject*) value)->context->owner = (Object*) O;
         }
     }
 

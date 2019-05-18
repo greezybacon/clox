@@ -27,8 +27,7 @@ typedef struct stream {
     StreamOps*  ops;
 } Stream;
 
-int
-stream_init(Stream*);
+void stream_init(Stream*);
 
 int
 stream_init_file(Stream*, FILE* restrict);

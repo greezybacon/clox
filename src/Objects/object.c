@@ -112,10 +112,12 @@ object_getattr(Object* self, Object *name) {
         return self->type->getattr(self, name);
 
     if (self->type->methods) {
+        assert(String_isString(name));
+
         // XXX: This is terribly slow -- move to a automatically-created hashtable?
         ObjectMethod* method = self->type->methods;
         while (method) {
-            if (String_compare(name, method->name) == 0)
+            if (String_compare((StringObject*) name, method->name) == 0)
                 return NativeFunction_bind(NativeFunction_new(method->method), self);
             method++;
         }

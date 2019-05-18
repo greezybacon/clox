@@ -45,6 +45,7 @@ file_stream_readahead(Stream* stream) {
             context->file);
         context->chunk_pos = 0;
     }
+    return 0;
 }
 
 static char
@@ -143,7 +144,7 @@ stream_read(Stream* stream, int offset, int length) {
     return stream->ops->read(stream, offset, length);
 }
 
-int
+void
 stream_init(Stream* stream) {
     *stream = (Stream) {
         .line = 1,
@@ -172,7 +173,7 @@ stream_init_file(Stream* stream, FILE* restrict file) {
 
     stream->ops = &file_stream_ops;
 
-    file_stream_readahead(stream);
+    return file_stream_readahead(stream);
 }
 
 void

@@ -57,5 +57,6 @@ typedef struct nfunction_object {
 
 Object* NativeFunction_new(NativeFunctionCall);
 bool Function_isNativeFunction(Object*);
+Object* NativeFunction_bind(Object*, Object*);
 
 #endif
