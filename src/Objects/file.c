@@ -18,6 +18,7 @@ Lox_FileOpen(const char *filename, const char *flags) {
 
     if (!O->file) {
         perror("Cannot open file");
+        return LoxNIL;
     }
     O->filename = filename;
     O->isopen = true;
@@ -41,8 +42,51 @@ file_read(VmScope *state, Object *self, Object *args) {
     if (0 != Lox_ParseArgs(args, "i", &size))
         return LoxNIL;
 
-    char *buffer = GC_MALLOC_ATOMIC(size);
-    size_t length = fread(buffer, size, 1, ((FileObject*) self)->file);
+    char *buffer = malloc(size);
+    size_t length = fread(buffer, 1, size, ((FileObject*) self)->file);
+
+    if (length == 0) {
+        free(buffer);
+        // XXX: Should NIL or Undefined be used instead of an empty string?
+        return (Object*) LoxEmptyString;
+    }
+
+    if (length < size && !(buffer = realloc(buffer, length))) {
+        // How could this happen if (length ?< size)
+        ;
+    }
+
+    return (Object*) String_fromMalloc(buffer, length);
+}
+
+static Object*
+file_readline(VmScope *state, Object *self, Object *args) {
+    assert(self);
+    assert(self->type == &FileType);
+
+    fpos_t before, after;
+    char *buffer = malloc(8192), *result;
+    int error, length = 0;
+
+    error = fgetpos(((FileObject*)self)->file, &before);
+    result = fgets(buffer, 8192, ((FileObject*) self)->file);
+    if (!error) {
+        error = fgetpos(((FileObject*)self)->file, &after);
+        if (!error) {
+            length = after - before;
+        }
+    }
+
+    if (!error && !length) {
+        free(buffer);
+        // XXX: Should NIL or Undefined be used instead of an empty string?
+        return (Object*) LoxEmptyString;
+    }
+
+    if (length && !realloc(buffer, length)) {
+        // How could this happen if (length ?< size)
+        ;
+    }
 
     return (Object*) String_fromMalloc(buffer, length);
 }
@@ -56,8 +100,6 @@ file_write(VmScope *state, Object *self, Object *args) {
     unsigned char *buffer;
 
     Lox_ParseArgs(args, "s#", &buffer, &length);
-
-    printf("Recieved: %s, %d\n", buffer, length);
 
     while (length > 0) {
         wrote = fwrite(buffer, sizeof(*buffer), length,
@@ -90,6 +132,22 @@ file_flush(VmScope *state, Object *self, Object *args) {
     assert(self->type == &FileType);
 
     return (Object*) Bool_fromBool(0 == fflush(((FileObject*) self)->file));
+}
+
+static Object*
+file_tell(VmScope *state, Object *self, Object *args) {
+    assert(self);
+    assert(self->type == &FileType);
+
+    if (!((FileObject*) self)->isopen)
+        return LoxUndefined;
+
+    fpos_t pos;
+    if (fgetpos(((FileObject*)self)->file, &pos)) {
+        perror("Unable to fetch file position");
+    }
+
+    return (Object*) Integer_fromLongLong(pos);
 }
 
 static Object*
@@ -127,11 +185,13 @@ static struct object_type FileType = (ObjectType) {
     .as_string = file_asstring,
 
     .methods = (ObjectMethod[]) {
-        {"read", file_read},
-        {"write", file_write},
-        {"close", file_close},
-        {"flush", file_flush},
-        {0, 0},
+        { "read", file_read },
+        { "readline", file_readline },
+        { "write", file_write },
+        { "close", file_close },
+        { "flush", file_flush },
+        { "tell", file_tell },
+        { 0, 0 },
     },
 
     .cleanup = file_cleanup,

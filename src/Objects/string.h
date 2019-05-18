@@ -45,5 +45,5 @@ typedef struct stringtree_object {
 } StringTreeObject;
 
 StringTreeObject* StringTree_fromStrings(Object*, Object*);
-
+const StringObject *LoxEmptyString;
 #endif

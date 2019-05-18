@@ -276,6 +276,16 @@ static struct object_type StringType = (ObjectType) {
     },
 };
 
+static StringObject _LoxEmptyString = (StringObject) {
+    .base = (Object) {
+        .type = &StringType,
+        .refcount = 1,
+    },
+    .length = 0,
+    .characters = "",
+};
+const StringObject *LoxEmptyString = &_LoxEmptyString;
+
 bool
 String_isString(Object* value) {
     if (value->type && value->type == &StringType)

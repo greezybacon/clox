@@ -105,9 +105,12 @@ NativeFunction_new(NativeFunctionCall callable) {
 Object*
 NativeFunction_bind(Object *self, Object *object) {
     assert(self->type == &NativeFunctionType);
+
     NFunctionObject* this = object_new(sizeof(NFunctionObject), &NativeFunctionType);
     this->callable = ((NFunctionObject*)self)->callable;
     this->self = object;
+    INCREF(object);
+
     return (Object*) this;
 }
 
@@ -123,10 +126,20 @@ nfunction_asstring(Object* self) {
     return (Object*) String_fromConstant("function() { native code }");
 }
 
+static void
+nfunction_cleanup(Object* self) {
+    assert(self->type == &NativeFunctionType);
+
+    if (((NFunctionObject*)self)->self)
+        DECREF(((NFunctionObject*)self)->self);
+}
+
 static struct object_type NativeFunctionType = (ObjectType) {
     .name = "native function",
+    .features = FEATURE_STASH,
     .call = nfunction_call,
     .as_string = nfunction_asstring,
+    .cleanup = nfunction_cleanup,
 };
 
 
