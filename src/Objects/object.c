@@ -111,16 +111,35 @@ object_getattr(Object* self, Object *name) {
     if (self->type->getattr)
         return self->type->getattr(self, name);
 
+    // Build a HashTable for faster access to methods
     if (self->type->methods) {
+        HashObject *methods = self->type->_methodTable;
+        if (!methods) {
+            unsigned count;
+            ObjectMethod* method = self->type->methods;
+            while (method && method->name) {
+                count++;
+                method++;
+            }
+
+            self->type->_methodTable = methods = Hash_newWithSize(count);
+            INCREF((Object*) methods);
+            method = self->type->methods;
+            while (method && method->name) {
+                Hash_setItem(methods,
+                    (Object*) String_fromConstant(method->name),
+                    NativeFunction_new(method->method));
+                method++;
+            }
+        }
+
         assert(String_isString(name));
 
-        // XXX: This is terribly slow -- move to a automatically-created hashtable?
-        ObjectMethod* method = self->type->methods;
-        while (method) {
-            if (String_compare((StringObject*) name, method->name) == 0)
-                return NativeFunction_bind(NativeFunction_new(method->method), self);
-            method++;
-        }
+        Object *result;
+        if (NULL != (result = Hash_getItem(methods, name)))
+            result = NativeFunction_bind(result, self);
+
+        return result ? result : LoxNIL;
     }
 
     return LoxNIL;

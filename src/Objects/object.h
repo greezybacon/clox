@@ -27,6 +27,7 @@ typedef struct object Object;
 typedef long long int hashval_t;
 typedef struct bool_object BoolObject;
 typedef struct vmeval_scope VmScope;
+typedef struct hash_object HashObject;
 
 typedef struct lox_iterator Iterator;
 
@@ -84,6 +85,7 @@ typedef struct object_type {
 
     // TODO: Methods (stuff unique to each type)
     ObjectMethod* methods;
+    HashObject* _methodTable; // XXX: Move this to an opaque type? Something behind-the-scenes-ish
     Object* (*getattr)(Object*, Object*);
     void (*setattr)(Object*, Object*, Object*);
 
