@@ -134,7 +134,8 @@ typedef struct vmeval_call_args {
 #define PEEK(stack) *stack
 #define PUSH(stack, what) ({ \
     typeof(what) _what = (what); \
-    *(stack++) = _what; INCREF((Object*) _what); \
+    *(stack++) = _what; \
+    INCREF((Object*) _what); \
 })
 #define XPUSH(stack, what) *(stack++) = (what)
 

@@ -417,8 +417,10 @@ op_return:
 static Object*
 vmeval_inscope(CodeContext *code, VmScope *scope) {
     static ModuleObject* builtins = NULL;
-    if (builtins == NULL)
+    if (builtins == NULL) {
         builtins = BuiltinModule_init();
+        INCREF((Object*) builtins);
+    }
 
     VmScope superglobals = (VmScope) {
         .globals = builtins->properties,
