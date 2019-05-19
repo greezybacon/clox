@@ -234,6 +234,8 @@ string_getitem(Object* self, Object* index) {
         length++;
 
     // TODO: Maybe this could be a StringSlice object?
+    // XXX: Possible memory corruption if this string is cleaned up while a
+    // reference to the slice is in use.
     return (Object*) String_fromMalloc(s, length);
 }
 
@@ -391,8 +393,69 @@ stringtree_asbool(Object* self) {
     return Integer_toInt(stringtree_len(self)) > 0 ? LoxTRUE : LoxFALSE;
 }
 
-static BoolObject*
-stringtree_op_eq(Object *self, Object *other) {
+Object*
+stringtree_chunks__next(ChunkIterator* self) {
+    // TODO: Support type assertion
+
+    if (self->inner) {
+        Object *result = stringtree_chunks__next(self->inner);
+        if (result != LoxStopIteration)
+            return result;
+
+        // Else retire inner iterator and move ahead
+        DECREF(self->inner);
+        self->inner = NULL;
+    }
+
+    if (self->pos == 0) {
+        self->pos++;
+        if (self->tree->left->type == &StringTreeType) {
+            self->inner = (ChunkIterator*) LoxStringTree_iterChunks(self->tree->left);
+            INCREF(self->inner);
+            return stringtree_chunks__next(self->inner);
+        }
+        else {
+            return (StringObject*) self->tree->left;
+        }
+    }
+    else if (self->pos == 1) {
+        self->pos++;
+        if (self->tree->right->type == &StringTreeType) {
+            self->inner = (ChunkIterator*) LoxStringTree_iterChunks(self->tree->right);
+            INCREF(self->inner);
+            return stringtree_chunks__next(self->inner);
+        }
+        else {
+            return (StringObject*) self->tree->right;
+        }
+    }
+
+    // Signal end of iteration
+    return LoxStopIteration;
+}
+
+Iterator*
+LoxStringTree_iterChunks(StringTreeObject* self) {
+    ChunkIterator* it = LoxIterator_create(sizeof(ChunkIterator));
+
+    it->iterator.next = stringtree_chunks__next;
+    it->tree = self;
+    INCREF((Object*) self);
+
+    return (Iterator*) it;
+}
+
+Object*
+stringtree_chunks(VmScope *state, Object *self, Object *args) {
+    assert(self);
+    assert(self->type == &StringTreeType);
+
+    return (Object*) LoxStringTree_iterChunks((StringTreeObject*) self);
+}
+
+/*
+static int
+stringtree_compare(Object *self, Object *other) {
     assert(self != NULL);
     assert(self->type == &StringTreeType);
 
@@ -416,8 +479,6 @@ stringtree_op_plus(Object *self, Object *other) {
     return (Object*) O;
 }
 
-
-
 static struct object_type StringTreeType = (ObjectType) {
     .code = TYPE_STRINGTREE,
     .name = "string",
@@ -429,4 +490,9 @@ static struct object_type StringTreeType = (ObjectType) {
     .as_bool = stringtree_asbool,
 
     .op_plus = stringtree_op_plus,
+
+    .methods = (ObjectMethod[]) {
+        { "chunks", stringtree_chunks },
+        { 0, 0 },
+    },
 };

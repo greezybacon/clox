@@ -139,8 +139,8 @@ object_getattr(Object* self, Object *name) {
         if (NULL != (result = Hash_getItem(methods, name)))
             result = NativeFunction_bind(result, self);
 
-        return result ? result : LoxNIL;
+        return result ? result : LoxUndefined;
     }
 
-    return LoxNIL;
+    return LoxUndefined;
 }

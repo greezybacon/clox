@@ -17,6 +17,7 @@ enum base_type {
     TYPE_OBJECT,
     TYPE_BOUND_METHOD,
     TYPE_EXCEPTION,
+    TYPE_ITERATOR,
 };
 
 enum object_type_feature {
@@ -108,8 +109,8 @@ void* object_new(size_t size, ObjectType*);
 Object* object_getattr(Object*, Object*);
 void LoxObject_Cleanup(Object*);
 
-#define INCREF(object) ((object)->refcount++)
-#define DECREF(object) do { if ((--(object)->refcount) == 0) LoxObject_Cleanup(object); } while(0)
+#define INCREF(object) (((Object*) object)->refcount++)
+#define DECREF(object) do { if ((--((Object*) object)->refcount) == 0) LoxObject_Cleanup((Object*) object); } while(0)
 
 #define HASHVAL(object) (hashval_t) ((object)->type->hash ? (object)->type->hash(object) : (hashval_t) (object))
 

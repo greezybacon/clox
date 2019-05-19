@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "iterator.h"
 #include "object.h"
 
 typedef struct string_object {
@@ -46,4 +47,16 @@ typedef struct stringtree_object {
 
 StringTreeObject* StringTree_fromStrings(Object*, Object*);
 const StringObject *LoxEmptyString;
+
+typedef struct string_chunk_iterator {
+    union {
+        Object      object;
+        Iterator    iterator;
+    };
+    StringTreeObject *tree;
+    int         pos;
+    struct string_chunk_iterator *inner;
+} ChunkIterator;
+
+Iterator* LoxStringTree_iterChunks(StringTreeObject*);
 #endif
