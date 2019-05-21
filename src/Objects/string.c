@@ -61,20 +61,19 @@ string_cleanup(Object *self) {
 }
 
 static hashval_t
-string_hash(Object* self) {
-    assert(self != NULL);
-    assert(self->type == &StringType);
+_string_hash_block(Object *self, hashval_t initial) {
+    // Hash implementation adapted from http://www.azillionmonkeys.com/qed/hash.html
+    if (unlikely(self == NULL))
+        return initial;
 
     StringObject* S = (StringObject*) self;
     const char *data = S->characters;
     unsigned length = S->length;
-
-    // Hash implementation from http://www.azillionmonkeys.com/qed/hash.html
-    hashval_t hash = length, tmp;
+    hashval_t hash = initial, tmp;
     int rem;
 
-    if (length <= 0 || data == NULL)
-        return 0;
+    if (length <= 0)
+        return initial;
 
     rem = length & 3;
     length >>= 2;
@@ -104,6 +103,13 @@ string_hash(Object* self) {
                 hash += hash >> 1;
     }
 
+    return hash;
+}
+
+static hashval_t
+_string_hash_final(Object *self, hashval_t initial) {
+    hashval_t hash = _string_hash_block(self, initial);
+
     /* Force "avalanching" of final 127 bits */
     hash ^= hash << 3;
     hash += hash >> 5;
@@ -114,6 +120,16 @@ string_hash(Object* self) {
 
     // TODO: Consider caching the hash value
     return hash;
+}
+
+static hashval_t
+string_hash(Object* self) {
+    assert(self != NULL);
+    assert(self->type == &StringType);
+
+    StringObject* S = (StringObject*) self;
+
+    return _string_hash_final(self, S->length);
 }
 
 static Object*
@@ -220,17 +236,21 @@ string_getitem(Object* self, Object* index) {
     while (i < 0)
         i += S->length;
 
+    // Advance to the start of the character following the one we want. Then
+    // back up one byte afterwards.
+    i++;
     const char *s = S->characters;
     while (i) {
         if ((*s++ & 0xc0) != 0x80)
             i--;
-    }
+	}
+    s--;
 
     // So, `s` points at the unicode character requested. But we should
     // include all the bytes in the response.
     length = 1;
     const char *t = s;
-    while (((*t++ & 0xc0) == 0x80))
+    while (((*++t & 0xc0) == 0x80))
         length++;
 
     // TODO: Maybe this could be a StringSlice object?
@@ -327,17 +347,6 @@ stringtree_cleanup(Object* self) {
     DECREF(this->right);
 }
 
-static hashval_t
-stringtree_hash(Object* self) {
-    assert(self != NULL);
-    assert(self->type == &StringTreeType);
-
-    StringTreeObject* S = (StringTreeObject*) self;
-
-    hashval_t left = S->left->type->hash(S->left);
-    return (left << 4) + left + S->right->type->hash(S->right);
-}
-
 static Object*
 stringtree_len(Object* self) {
     assert(self != NULL);
@@ -347,6 +356,26 @@ stringtree_len(Object* self) {
 
     int total = Integer_toInt(S->left->type->len(S->left));
     return (Object*) Integer_fromLongLong(total + Integer_toInt(S->right->type->len(S->right)));
+}
+
+static hashval_t
+stringtree_hash(Object* self) {
+    assert(self != NULL);
+    assert(self->type == &StringTreeType);
+
+    Object *chunk;
+    Iterator *chunks = LoxStringTree_iterChunks((StringTreeObject*) self);
+    hashval_t value = Integer_toInt(stringtree_len(self));
+
+    while (LoxStopIteration != (chunk = chunks->next(chunks))) {
+        // XXX: To calculate the same value as the equivalent contiguous
+        // string, the characters should be copied to represent and even
+        // number of 4-byte blocks with the remainder only at the end.
+        value = _string_hash_block(chunk, value);
+    }
+    LoxObject_Cleanup((Object*) chunks);
+
+    return _string_hash_final(NULL, value);
 }
 
 static int
