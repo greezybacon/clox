@@ -154,7 +154,7 @@ undef_asbool(Object* self) {
 
 static Object*
 undef_asstring(Object* self) {
-    return (Object*) String_fromConstant("undefned");
+    return (Object*) String_fromConstant("undefined");
 }
 
 static struct object_type UndefinedType = (ObjectType) {
