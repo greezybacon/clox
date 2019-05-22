@@ -26,17 +26,16 @@ vmeval_eval(VmEvalContext *ctx) {
     bool locals_in_stack = true;
 
     // Store parameters in the local variables
-    int i = ctx->args.count;
-    assert(ctx->code->locals.count >= ctx->args.count);
+    int i = ctx->code->locals.count, j = ctx->args.count;
+    assert(i >= j);
+    while (i > j) {
+        *(locals + --i) = LoxUndefined;
+		INCREF(LoxUndefined);
+	}
+
     while (i--) {
         *(locals + i) = *(ctx->args.values + i);
 		INCREF(*(locals + i));
-	}
-
-    i = ctx->code->locals.count - ctx->args.count;
-    while (i--) {
-        *(locals + i) = LoxUndefined;
-		INCREF(LoxUndefined);
 	}
 
     // TODO: Add estimate for MAX_STACK in the compile phase

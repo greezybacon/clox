@@ -57,7 +57,7 @@ Tuple_getItem(TupleObject* self, int index) {
         index += self->count;
     if (self->count < index + 1) {
         // Raise error
-        return NULL;
+        return LoxNIL;
     }
 
     return *(self->items + index);
