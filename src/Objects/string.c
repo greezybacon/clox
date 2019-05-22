@@ -37,7 +37,7 @@ String_fromObject(Object* value) {
         return (StringObject*) value->type->as_string(value);
 
     char buffer[32];
-    size_t length = snprintf(buffer, sizeof(buffer), "object@%p", value);
+    size_t length = snprintf(buffer, sizeof(buffer), "object<%s>@%p", value->type->name, value);
     return String_fromCharArrayAndSize(buffer, length);
 }
 
@@ -180,7 +180,7 @@ static BoolObject*
 string_op_eq(Object* self, Object* other) {
     assert(self->type == &StringType);
     assert(other);
-    
+
     if (other->type != self->type)
         return LoxFALSE;
 
