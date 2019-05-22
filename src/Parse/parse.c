@@ -27,6 +27,12 @@ parser_node_init(ASTNode* node, int type, Token* token) {
 }
 
 static void
+parser_with_flags(Parser* current, Parser *new, LoxParserFlag flags) {
+    *new = *current;
+    new->flags = flags;
+}
+
+static void
 parse_syntax_error(Parser* self, char* message) {
     Tokenizer* tokens = self->tokens;
     Token* next = tokens->peek(tokens);
@@ -119,6 +125,10 @@ parse_invoke(Parser* self, ASTNode* callable) {
     parser_node_init((ASTNode*) call, AST_INVOKE, func);
     call->callable = callable;
 
+    // Don't parse tuples unless enclosed in parentheses
+    Parser nested;
+    parser_with_flags(self, &nested, self->flags | LOX_PARSE_NO_AUTO_TUPLE);
+
     do {
         // Comsume the open paren or the comma
         T->next(T);
@@ -127,7 +137,7 @@ parse_invoke(Parser* self, ASTNode* callable) {
         if (T->peek(T)->type == T_CLOSE_PAREN)
             break;
 
-        narg = parse_expression(self);
+        narg = parse_expression(&nested);
         count += 1;
         if (args == NULL) {
             call->args = args = narg;
@@ -211,14 +221,16 @@ parse_TERM(Parser* self) {
     ASTNode* result = NULL;
 
     switch (next->type) {
-    case T_OPEN_PAREN:
-        // This would be a nested expression
+    case T_OPEN_PAREN: {
+        // This would be a nested expression. Tuples are also allowed
+        Parser nested;
+        parser_with_flags(self, &nested, self->flags & ~LOX_PARSE_NO_AUTO_TUPLE);
         if (T->peek(T)->type != T_CLOSE_PAREN) {
-            result = (ASTNode*) parse_expression(self);
+            result = (ASTNode*) parse_expression(&nested);
         }
         parse_expect(self, T_CLOSE_PAREN);
         break;
-
+    }
     case T_WORD: {
         ASTLookup *lookup = GC_MALLOC(sizeof(ASTLookup));
         parser_node_init((ASTNode*) lookup, AST_LOOKUP, next);
@@ -368,6 +380,35 @@ parse_expression_assign(Token *token, ASTNode *lhs, ASTNode *rhs) {
 }
 
 static ASTNode*
+parse_tuple_items(Parser* self, ASTNode *first) {
+    Token *next;
+    Tokenizer* T = self->tokens;
+    ASTNode *item;
+
+    ASTTupleLiteral *result = GC_MALLOC(sizeof(ASTTupleLiteral));
+    parser_node_init((ASTNode*) result, AST_TUPLE_LITERAL, T->peek(T));
+
+    result->items = first;
+
+    for (;;) {
+        next = T->peek(T);
+        if (next->type == T_CLOSE_PAREN) {
+            break;
+        }
+        else if (next->type == T_COMMA) {
+            next = T->next(T);
+        }
+
+        item = parse_expression(self);
+
+        // Chain the results together
+        first->next = item;
+        first = item;
+    }
+    return (ASTNode*) result;
+}
+
+static ASTNode*
 parse_expression_r(Parser* self, const OperatorInfo *previous) {
     /* General expression grammar
      * EXPR = UNARY? TERM [ CALL ]* [ OP EXPR ]*
@@ -422,6 +463,14 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
             // Consume the T_DOT
             T->next(T);
             lhs = parse_expression_attr(self, lhs);
+        }
+        else if (next->type == T_COMMA
+            && !(self->flags & LOX_PARSE_NO_AUTO_TUPLE)
+         ) {
+            // Nested tuples will require surrounding parentheses
+            Parser nested;
+            parser_with_flags(self, &nested, self->flags | LOX_PARSE_NO_AUTO_TUPLE);
+            lhs = parse_tuple_items(&nested, lhs);
         }
         else {
             break;
@@ -631,7 +680,7 @@ parser_parse_next(Parser* self) {
         self->tokens->next(self->tokens);
         rv = parse_statement(self);
         break;
-        
+
     case T_COMMENT:
         // For now, do nothing -- this isn't the line you're looking for. Move along
         self->tokens->next(self->tokens);

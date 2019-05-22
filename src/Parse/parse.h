@@ -25,6 +25,7 @@ enum ast_type {
     AST_ATTRIBUTE,
     AST_MAGIC,
     AST_SLICE,
+    AST_TUPLE_LITERAL,
 };
 
 enum associativity {
@@ -162,9 +163,19 @@ typedef struct ast_attribute {
     ASTNode             *value;
 } ASTAttribute;
 
+typedef struct ast_tuple_literal {
+    ASTNode             node;
+    struct ast_node     *items;
+} ASTTupleLiteral;
+
+typedef enum {
+    LOX_PARSE_NO_AUTO_TUPLE     = 1<<0,
+} LoxParserFlag;
+
 typedef struct parser_context {
     Tokenizer *     tokens;
     ASTNode*        previous;
+    LoxParserFlag   flags;
 
     ASTNode*        (*next)(struct parser_context*);
 } Parser;

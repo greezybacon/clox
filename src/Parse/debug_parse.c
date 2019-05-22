@@ -175,6 +175,13 @@ print_magic(FILE *output, ASTMagic *node) {
         fprintf(output, "super");
 }
 
+static void
+print_tuple_literal(FILE *output, ASTTupleLiteral *node) {
+    fprintf(output, "Tuple(");
+    print_node_list(output, node->items, ", ");
+    fprintf(output, ")");
+}
+
 void
 print_node_list(FILE* output, ASTNode* node, const char * separator) {
     ASTNode* current = node;
@@ -189,7 +196,7 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
             print_expression(output, (ASTExpression*) current);
             break;
         case AST_STATEMENT:
-            print_node_list(output, node, "\n");
+            print_node_list(output, current, "\n");
             break;
         case AST_FUNCTION:
             print_function(output, (ASTFunction*) current);
@@ -234,10 +241,12 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
         case AST_MAGIC:
             print_magic(output, (ASTMagic*) current);
             break;
+        case AST_TUPLE_LITERAL:
+            print_tuple_literal(output, (ASTTupleLiteral*) current);
+            break;
         default:
             fprintf(output, "Unexpected AST type: %d", current->type);
         }
-
         current = current->next;
         if (current) {
             fprintf(output, "%s", separator);

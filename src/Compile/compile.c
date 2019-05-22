@@ -9,6 +9,7 @@
 #include "Vendor/bdwgc/include/gc.h"
 
 static unsigned compile_node(Compiler *self, ASTNode* ast);
+static unsigned compile_node1(Compiler *self, ASTNode* ast);
 
 static void
 compile_error(Compiler* self, char* message) {
@@ -327,6 +328,20 @@ compile_expression(Compiler* self, ASTExpression *expr) {
 }
 
 static unsigned
+compile_tuple_literal(Compiler *self, ASTTupleLiteral *node) {
+    unsigned length = 0, count = 0;
+    ASTNode* item = node->items;
+
+    while (item) {
+        length += compile_node1(self, item);
+        count++;
+        item = item->next;
+    }
+
+    return length + compile_emit(self, OP_BUILD_TUPLE, count);
+}
+
+static unsigned
 compile_return(Compiler *self, ASTReturn *node) {
     unsigned length = 0;
     if (node->expression)
@@ -627,7 +642,7 @@ compile_slice(Compiler *self, ASTSlice *node) {
 }
 
 static unsigned
-_compile_node(Compiler* self, ASTNode* ast) {
+compile_node1(Compiler* self, ASTNode* ast) {
     switch (ast->type) {
     case AST_ASSIGNMENT:
         return compile_assignment(self, (ASTAssignment*) ast);
@@ -658,6 +673,8 @@ _compile_node(Compiler* self, ASTNode* ast) {
         return compile_attribute(self, (ASTAttribute*) ast);
     case AST_SLICE:
         return compile_slice(self, (ASTSlice*) ast);
+    case AST_TUPLE_LITERAL:
+        return compile_tuple_literal(self, (ASTTupleLiteral*) ast);
     default:
         compile_error(self, "Unexpected AST node type");
     }
@@ -669,7 +686,7 @@ compile_node(Compiler *self, ASTNode* ast) {
     unsigned length = 0;
 
     while (ast) {
-        length += _compile_node(self, ast);
+        length += compile_node1(self, ast);
         ast = ast->next;
     }
     return length;

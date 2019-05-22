@@ -388,6 +388,14 @@ vmeval_eval(VmEvalContext *ctx) {
             DECREF(item);
             break;
 
+        case OP_BUILD_TUPLE:
+            item = Tuple_fromList(pc->arg, stack - pc->arg);
+            i = pc->arg;
+            while (i--)
+                XPOP(stack);
+            PUSH(stack, item);
+            break;
+
         default:
             printf("Unexpected OPCODE (%d)\n", pc->op);
         case OP_NOOP:
