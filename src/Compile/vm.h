@@ -68,6 +68,9 @@ enum opcode {
     OP_GET_ITEM,
     OP_SET_ITEM,
     OP_DEL_ITEM,
+
+    // Complex literals
+    OP_BUILD_TUPLE,
 }
 __attribute__((packed));
 
