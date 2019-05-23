@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <strings.h>
 
@@ -12,8 +13,14 @@ static unsigned compile_node(Compiler *self, ASTNode* ast);
 static unsigned compile_node1(Compiler *self, ASTNode* ast);
 
 static void
-compile_error(Compiler* self, char* message) {
-    
+compile_error(Compiler* self, char* format, ...) {
+    va_list args;
+
+    va_start(args, format);
+    fprintf(stderr, "Warning: ");
+    vfprintf(stderr, format, args);
+    fprintf(stderr, "\n");
+    va_end(args);
 }
 
 // Function compilation
@@ -253,55 +260,83 @@ compile_assignment(Compiler *self, ASTAssignment *assign) {
 static unsigned
 compile_expression(Compiler* self, ASTExpression *expr) {
     // Push the LHS
-    unsigned length = compile_node(self, expr->lhs);
+    unsigned length = compile_node(self, expr->lhs), rhs_length;
 
     // Perform the binary op
     if (expr->binary_op) {
-        length += compile_node(self, expr->rhs);
+        // Compile the RHS in a sub-block so we can get a length to jump
+        // over and emit the code after the short-circuit logic.
+        CodeBlock *block = compile_block(self, expr->rhs);
+        rhs_length = JUMP_LENGTH(block);
+
+        // Handle short-circuit logic first
         switch (expr->binary_op) {
-            case T_OP_PLUS:
+        case T_AND:
+            // If the LHS is false, then jump past the end of the expression 
+            // as we've already decided on the answer
+            length += compile_emit(self, OP_JUMP_IF_FALSE_OR_POP, rhs_length);
+            break;
+
+        case T_OR:
+            // XXX: Length of OP_POP_TOP might not be identically 1
+            length += compile_emit(self, OP_JUMP_IF_TRUE_OR_POP, rhs_length);
+
+        default:
+            break;
+        }
+
+        // Emit the RHS
+        length += compile_merge_block(self, block);
+
+        switch (expr->binary_op) {
+        case T_OP_PLUS:
             length += compile_emit(self, OP_BINARY_PLUS, 0);
             break;
 
-            case T_OP_MINUS:
+        case T_OP_MINUS:
             length += compile_emit(self, OP_BINARY_MINUS, 0);
             break;
 
-            case T_OP_STAR:
+        case T_OP_STAR:
             length += compile_emit(self, OP_BINARY_STAR, 0);
             break;
 
-            case T_OP_SLASH:
+        case T_OP_SLASH:
             length += compile_emit(self, OP_BINARY_SLASH, 0);
             break;
 
-            case T_OP_EQUAL:
+        case T_OP_EQUAL:
             length += compile_emit(self, OP_EQUAL, 0);
             break;
 
-            // case T_OP_UNEQUAL:
-            case T_OP_LT:
+        // case T_OP_UNEQUAL:
+        case T_OP_LT:
             length += compile_emit(self, OP_LT, 0);
             break;
 
-            case T_OP_LTE:
+        case T_OP_LTE:
             length += compile_emit(self, OP_LTE, 0);
             break;
 
-            case T_OP_GT:
+        case T_OP_GT:
             length += compile_emit(self, OP_GT, 0);
             break;
 
-            case T_OP_GTE:
+        case T_OP_GTE:
             length += compile_emit(self, OP_GTE, 0);
             break;
 
-            case T_OP_IN:
+        case T_OP_IN:
             length += compile_emit(self, OP_IN, 0);
             break;
 
-            default:
-            compile_error(self, "Parser error ...");
+        case T_AND:
+        case T_OR:
+            // already handled above
+            break;
+
+        default:
+            compile_error(self, "Parser error: Unexpected binary operator: %d", expr->binary_op);
         }
     }
 

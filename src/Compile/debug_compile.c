@@ -17,6 +17,8 @@ static struct named_opcode OpcodeNames[] = {
     { OP_POP_JUMP_IF_FALSE, "POP_JUMP_IF_FALSE" },
     { OP_JUMP_IF_TRUE, "JUMP_IF_TRUE" },
     { OP_JUMP_IF_FALSE, "JUMP_IF_FALSE" },
+    { OP_JUMP_IF_TRUE_OR_POP, "JUMP_IF_TRUE_OR_POP" },
+    { OP_JUMP_IF_FALSE_OR_POP, "JUMP_IF_FALSE_OR_POP" },
     { OP_DUP_TOP,       "DUP_TOP" },
     { OP_POP_TOP,       "POP_TOP" },
 

@@ -15,6 +15,8 @@ enum opcode {
     OP_POP_JUMP_IF_TRUE,
     OP_JUMP_IF_FALSE,
     OP_POP_JUMP_IF_FALSE,
+    OP_JUMP_IF_FALSE_OR_POP,
+    OP_JUMP_IF_TRUE_OR_POP,
     OP_DUP_TOP,
     OP_POP_TOP,
 
@@ -134,7 +136,7 @@ typedef struct vmeval_call_args {
 
 #define POP(stack) *(--(stack))
 #define XPOP(stack) do { --(stack); DECREF(*stack); } while(0)
-#define PEEK(stack) *stack
+#define PEEK(stack) *(stack - 1)
 #define PUSH(stack, what) ({ \
     typeof(what) _what = (what); \
     *(stack++) = _what; \

@@ -65,7 +65,14 @@ vmeval_eval(VmEvalContext *ctx) {
             lhs = PEEK(stack);
             if (Bool_isTrue(lhs))
                 pc += pc->arg;
-            DECREF(lhs);
+            break;
+
+        case OP_JUMP_IF_TRUE_OR_POP:
+            lhs = PEEK(stack);
+            if (Bool_isTrue(lhs))
+                pc += pc->arg;
+            else
+                XPOP(stack);
             break;
 
         case OP_POP_JUMP_IF_FALSE:
@@ -79,6 +86,14 @@ vmeval_eval(VmEvalContext *ctx) {
             lhs = PEEK(stack);
             if (!Bool_isTrue(lhs))
                 pc += pc->arg;
+            break;
+
+        case OP_JUMP_IF_FALSE_OR_POP:
+            lhs = PEEK(stack);
+            if (!Bool_isTrue(lhs))
+                pc += pc->arg;
+            else
+                XPOP(stack);
             break;
 
         case OP_DUP_TOP:
