@@ -26,6 +26,41 @@ Float_fromLongLong(long long value) {
     return O;
 }
 
+bool
+Float_isFloat(Object *value) {
+    assert(value);
+    return value->type == &FloatType;
+}
+
+Object*
+Float_fromObject(Object* value) {
+    assert(value->type);
+
+    if (!value->type->as_int) {
+        fprintf(stderr, "Warning: Cannot coerce type `%s` to float\n", value->type->name);
+        return LoxUndefined;
+    }
+
+    return value->type->as_float(value);
+}
+
+long double
+Float_toLongDouble(Object* value) {
+    assert(value->type);
+
+    if (value->type != &FloatType) {
+        if (!value->type->as_float) {
+            // TODO: Raise error
+            return 0.0;
+        }
+        value = value->type->as_float(value);
+    }
+
+    assert(value->type == &FloatType);
+
+    return ((FloatObject*) value)->value;
+}
+
 hashval_t
 float_hash(Object* self) {
     assert(self->type == &FloatType);

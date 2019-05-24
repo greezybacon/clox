@@ -20,20 +20,35 @@ Integer_fromLongLong(long long value) {
 long long
 Integer_toInt(Object* value) {
     assert(value->type);
-    if (!value->type->as_int) {
-        // TODO: Raise error
+
+    if (value->type != &IntegerType) {
+        if (!value->type->as_int) {
+            // TODO: Raise error
+        }
+        value = value->type->as_int(value);
     }
 
-    IntegerObject* I = (IntegerObject*) value->type->as_int(value);
-    assert(I->base.type == &IntegerType);
+    assert(value->type == &IntegerType);
 
-    return I->value;
+    return ((IntegerObject*) value)->value;
 }
 
 bool
 Integer_isInteger(Object *value) {
     assert(value);
     return value->type == &IntegerType;
+}
+
+Object*
+Integer_fromObject(Object* value) {
+    assert(value->type);
+
+    if (!value->type->as_int) {
+        fprintf(stderr, "Warning: Cannot coerce type `%s` to int\n", value->type->name);
+        return LoxUndefined;
+    }
+
+    return value->type->as_int(value);
 }
 
 static hashval_t

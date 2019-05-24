@@ -115,12 +115,37 @@ static Object*
 builtin_hash(VmScope *state, Object *self, Object *args) {
     assert(Tuple_isTuple(args));
 
-    size_t argc = Tuple_getSize(args);
-
     Object *object;
     Lox_ParseArgs(args, "O", &object);
 
     return (Object*) Integer_fromLongLong(HASHVAL(object));
+}
+
+static Object*
+builtin_format(VmScope *state, Object *self, Object *args) {
+    assert(Tuple_isTuple(args));
+
+    Object *object;
+    char *format;
+    Lox_ParseArgs(args, "Os", &object, &format);
+    INCREF(object);
+
+    Object *rv = LoxObject_Format(object, format);
+
+    DECREF(object);
+    free(format);
+
+    return rv;
+}
+
+static Object*
+builtin_type(VmScope *state, Object *self, Object *args) {
+    assert(Tuple_isTuple(args));
+
+    Object *object;
+    Lox_ParseArgs(args, "O", &object);
+
+    return String_fromCharArrayAndSize(object->type->name, strlen(object->type->name));
 }
 
 static ModuleDescription
@@ -135,6 +160,8 @@ builtins_module_def = {
         { "table", builtin_table, },
         { "open", builtin_open },
         { "hash", builtin_hash },
+        { "format", builtin_format },
+        { "type", builtin_type },
         { 0 },
     }
 };

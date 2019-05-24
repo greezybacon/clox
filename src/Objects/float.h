@@ -10,11 +10,11 @@ typedef struct float_object {
     long double value;
 } FloatObject;
 
-FloatObject*
-Float_fromLongDouble(long double value);
-
-FloatObject*
-Float_fromLongLong(long long value);
+FloatObject* Float_fromLongDouble(long double);
+FloatObject* Float_fromLongLong(long long);
+Object* Float_fromObject(Object*);
+bool Float_isFloat(Object*);
+long double Float_toLongDouble(Object*);
 
 #endif
 
