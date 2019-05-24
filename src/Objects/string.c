@@ -176,6 +176,19 @@ string_asint(Object* self) {
     return (Object*) Integer_fromLongLong(value);
 }
 
+static int
+string_compare(Object *self, Object *other) {
+    assert(self->type == &StringType);
+    assert(other->type == &StringType);
+
+    int cmp = strncmp(((StringObject*) self)->characters,
+        ((StringObject*) other)->characters,
+        ((StringObject*) self)->length);
+
+        return cmp != 0 ? cmp
+            : ((StringObject*) self)->length - ((StringObject*) other)->length;
+}
+
 static BoolObject*
 string_op_eq(Object* self, Object* other) {
     assert(self->type == &StringType);
@@ -187,9 +200,7 @@ string_op_eq(Object* self, Object* other) {
     if (self == other)
         return LoxTRUE;
 
-    return strncmp(((StringObject*) self)->characters, ((StringObject*) other)->characters,
-        ((StringObject*) self)->length) == 0
-        ? LoxTRUE : LoxFALSE;
+    return string_compare(self, other) == 0 ? LoxTRUE : LoxFALSE;
 }
 
 static BoolObject*
