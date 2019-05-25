@@ -49,17 +49,11 @@ static struct named_opcode OpcodeNames[] = {
     { OP_NEQ,           "NEQ (!=)" },
 
     // Boolean logic
-    { OP_BINARY_AND,    "AND (&&)" },
-    { OP_BINARY_OR,     "OR (||)" },
     { OP_BANG,          "BANG (!)" },
     { OP_IN,            "IN" },
 
     // Expressions / math
-    { OP_BINARY_PLUS,   "PLUS (+)" },
-    { OP_BINARY_MINUS,  "MINUS (-)" },
-    { OP_BINARY_STAR,   "STAR (*)" },
-    { OP_BINARY_SLASH,  "SLASH (/)" },
-    { OP_NEG,           "NEG (-)" },
+    { OP_MATH,          "MATH" },
 
     // Classes
     { OP_BUILD_CLASS,   "BUILD_CLASS" },
@@ -82,6 +76,29 @@ static struct named_opcode OpcodeNames[] = {
 
 static int cmpfunc (const void * a, const void * b) {
    return ((struct named_opcode*) a)->code - ((struct named_opcode*) b)->code;
+}
+
+static struct token_to_math_op {
+    enum token_type     token;
+    enum opcode         vm_opcode;
+    enum lox_vm_math    math_op;
+    const char          *op_desc;
+} TokenToMathOp[] = {
+    { T_OP_PLUS,        OP_MATH,    MATH_BINARY_PLUS,       "+" },
+    { T_OP_MINUS,       OP_MATH,    MATH_BINARY_MINUS,      "-" },
+    { T_OP_STAR,        OP_MATH,    MATH_BINARY_STAR,       "*" },
+    { T_OP_SLASH,       OP_MATH,    MATH_BINARY_SLASH,      "/" },
+    { T_OP_AMPERSAND,   OP_MATH,    MATH_BINARY_AND,        "&" },
+    { T_OP_PIPE,        OP_MATH,    MATH_BINARY_OR,         "|" },
+    { T_OP_CARET,       OP_MATH,    MATH_BINARY_XOR,        "^" },
+    { T_OP_TILDE,       OP_MATH,    MATH_UNARY_INVERT,      "~" },
+    { T_OP_PERCENT,     OP_MATH,    MATH_BINARY_MODULUS,    "%" },
+    { T_OP_LSHIFT,      OP_MATH,    MATH_BINARY_LSHIFT,     "<<" },
+    { T_OP_RSHIFT,      OP_MATH,    MATH_BINARY_RSHIFT,     ">>" },
+};
+
+static int math_cmpfunc (const void * a, const void * b) {
+   return ((struct token_to_math_op*) a)->math_op - ((struct token_to_math_op*) b)->math_op;
 }
 
 static inline void
@@ -135,6 +152,14 @@ print_opcode(const CodeContext *context, const Instruction *op) {
             }
         }
     }
+    break;
+
+    case OP_MATH: {
+        struct token_to_math_op* T, key = { .math_op = op->arg };
+        T = bsearch(&key, TokenToMathOp, sizeof(TokenToMathOp) / sizeof(struct token_to_math_op),
+            sizeof(struct token_to_math_op), math_cmpfunc);
+            printf(" (%s)", T->op_desc);
+    }
 
     default:
         break;
@@ -148,6 +173,8 @@ print_instructions(const CodeContext *context, const Instruction *block, int cou
     if (!sorted) {
         qsort(OpcodeNames, sizeof(OpcodeNames) / sizeof(struct named_opcode),
             sizeof(struct named_opcode), cmpfunc);
+        qsort(TokenToMathOp, sizeof(TokenToMathOp) / sizeof(struct token_to_math_op),
+            sizeof(struct token_to_math_op), math_cmpfunc);
     }
 
     while (count--) {

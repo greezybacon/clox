@@ -64,7 +64,14 @@ typedef struct object_type {
     Object* (*op_plus)(Object*, Object*);
     Object* (*op_minus)(Object*, Object*);
     Object* (*op_star)(Object*, Object*);
+    Object* (*op_pow)(Object*, Object*);
     Object* (*op_slash)(Object*, Object*);
+    Object* (*op_mod)(Object*, Object*);
+    Object* (*op_lshift)(Object*, Object*);
+    Object* (*op_rshift)(Object*, Object*);
+    Object* (*op_band)(Object*, Object*);
+    Object* (*op_bor)(Object*, Object*);
+    Object* (*op_xor)(Object*, Object*);
 
     // TODO: Unary operators
     Object* (*op_neg)(Object*);

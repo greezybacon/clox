@@ -98,7 +98,13 @@ next_token(Tokenizer *self) {
         break;
 
     case '!':
-        token->type = T_BANG;
+        if (peek_char(self) == '=') {
+            next_char(self);
+            token->type = T_OP_NOTEQUAL;
+        }
+        else {
+            token->type = T_BANG;
+        }
         break;
 
     case ':':
@@ -110,6 +116,10 @@ next_token(Tokenizer *self) {
             next_char(self);
             token->type = T_OP_GTE;
         }
+        else if (peek_char(self) == '>') {
+            next_char(self);
+            token->type = T_OP_RSHIFT;
+        }
         else {
             token->type = T_OP_GT;
         }
@@ -119,6 +129,10 @@ next_token(Tokenizer *self) {
         if (peek_char(self) == '=') {
             next_char(self);
             token->type = T_OP_LTE;
+        }
+        else if (peek_char(self) == '<') {
+            next_char(self);
+            token->type = T_OP_LSHIFT;
         }
         else {
             token->type = T_OP_LT;
@@ -133,6 +147,26 @@ next_token(Tokenizer *self) {
         else {
             token->type = T_OP_ASSIGN;
         }
+        break;
+
+    case '%':
+        token->type = T_OP_PERCENT;
+        break;
+
+    case '&':
+        token->type = T_OP_AMPERSAND;
+        break;
+
+    case '|':
+        token->type = T_OP_PIPE;
+        break;
+
+    case '^':
+        token->type = T_OP_CARET;
+        break;
+
+    case '~':
+        token->type = T_OP_TILDE;
         break;
 
     case '.':

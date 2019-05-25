@@ -46,17 +46,11 @@ enum opcode {
     OP_NEQ,
 
     // Boolean
-    OP_BINARY_AND,
-    OP_BINARY_OR,
     OP_BANG,
     OP_IN,
 
     // Expressions
-    OP_BINARY_PLUS,
-    OP_BINARY_MINUS,
-    OP_BINARY_STAR,
-    OP_BINARY_SLASH,
-    OP_NEG,
+    OP_MATH,
 
     // Classes
     OP_BUILD_CLASS,
@@ -75,6 +69,22 @@ enum opcode {
     OP_BUILD_TUPLE,
     OP_BUILD_STRING,
     OP_FORMAT,
+}
+__attribute__((packed));
+
+enum lox_vm_math {
+    MATH_BINARY_AND = 1,
+    MATH_BINARY_OR,
+    MATH_BINARY_XOR,
+    MATH_BINARY_PLUS,
+    MATH_BINARY_MINUS,
+    MATH_BINARY_STAR,
+    MATH_BINARY_SLASH,
+    MATH_BINARY_LSHIFT,
+    MATH_BINARY_RSHIFT,
+    MATH_BINARY_MODULUS,
+    MATH_UNARY_NEGATIVE,
+    MATH_UNARY_INVERT,
 }
 __attribute__((packed));
 

@@ -258,10 +258,40 @@ compile_assignment(Compiler *self, ASTAssignment *assign) {
     return length;
 }
 
+static struct token_to_math_op {
+    enum token_type     token;
+    enum opcode         vm_opcode;
+    enum lox_vm_math    math_op;
+    const char          *op;
+} TokenToMathOp[] = {
+    { T_OP_PLUS,        OP_MATH,    MATH_BINARY_PLUS,       "+" },
+    { T_OP_MINUS,       OP_MATH,    MATH_BINARY_MINUS,      "-" },
+    { T_OP_STAR,        OP_MATH,    MATH_BINARY_STAR,       "*" },
+    { T_OP_SLASH,       OP_MATH,    MATH_BINARY_SLASH,      "/" },
+    { T_OP_AMPERSAND,   OP_MATH,    MATH_BINARY_AND,        "&" },
+    { T_OP_PIPE,        OP_MATH,    MATH_BINARY_OR,         "|" },
+    { T_OP_CARET,       OP_MATH,    MATH_BINARY_XOR,        "^" },
+    { T_OP_TILDE,       OP_MATH,    MATH_UNARY_INVERT,      "~" },
+    { T_OP_PERCENT,     OP_MATH,    MATH_BINARY_MODULUS,    "%" },
+    { T_OP_LSHIFT,      OP_MATH,    MATH_BINARY_LSHIFT,     "<<" },
+    { T_OP_RSHIFT,      OP_MATH,    MATH_BINARY_RSHIFT,     ">>" },
+};
+
+static int _cmpfunc (const void * a, const void * b) {
+   return ((struct token_to_math_op*) a)->token - ((struct token_to_math_op*) b)->token;
+}
+
 static unsigned
 compile_expression(Compiler* self, ASTExpression *expr) {
     // Push the LHS
     unsigned length = compile_node(self, expr->lhs), rhs_length;
+
+    static bool lookup_sorted = false;
+    if (!lookup_sorted) {
+        qsort(TokenToMathOp, sizeof(TokenToMathOp) / sizeof(struct token_to_math_op),
+            sizeof(struct token_to_math_op), _cmpfunc);
+        lookup_sorted = true;
+    }
 
     // Perform the binary op
     if (expr->binary_op) {
@@ -291,21 +321,22 @@ compile_expression(Compiler* self, ASTExpression *expr) {
 
         switch (expr->binary_op) {
         case T_OP_PLUS:
-            length += compile_emit(self, OP_BINARY_PLUS, 0);
-            break;
-
         case T_OP_MINUS:
-            length += compile_emit(self, OP_BINARY_MINUS, 0);
-            break;
-
         case T_OP_STAR:
-            length += compile_emit(self, OP_BINARY_STAR, 0);
-            break;
-
         case T_OP_SLASH:
-            length += compile_emit(self, OP_BINARY_SLASH, 0);
+        case T_OP_CARET:
+        case T_OP_PERCENT:
+        case T_OP_LSHIFT:
+        case T_OP_RSHIFT:
+        case T_OP_AMPERSAND:
+        case T_OP_PIPE:
+        case T_OP_TILDE: {
+            struct token_to_math_op* T, key = { .token = expr->binary_op };
+            T = bsearch(&key, TokenToMathOp, sizeof(TokenToMathOp) / sizeof(struct token_to_math_op),
+                sizeof(struct token_to_math_op), _cmpfunc);
+            length += compile_emit(self, OP_MATH, T->math_op);
             break;
-
+        }
         case T_OP_EQUAL:
             length += compile_emit(self, OP_EQUAL, 0);
             break;
@@ -351,7 +382,7 @@ compile_expression(Compiler* self, ASTExpression *expr) {
         break;
 
         case T_OP_MINUS:
-        length += compile_emit(self, OP_NEG, 0);
+        length += compile_emit(self, OP_MATH, MATH_UNARY_NEGATIVE);
         break;
 
         case T_OP_PLUS:

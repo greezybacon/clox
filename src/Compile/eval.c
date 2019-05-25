@@ -306,7 +306,19 @@ vmeval_eval(VmEvalContext *ctx) {
             PUSH(stack, C->value);
             break;
 
-#define BINARY_METHOD(method) do { rhs = POP(stack); lhs = POP(stack); PUSH(stack, (Object*) lhs->type->method(lhs, rhs)); DECREF(lhs); DECREF(rhs); } while(0)
+#define BINARY_METHOD(method) do { \
+    rhs = POP(stack); \
+    lhs = POP(stack); \
+    if (lhs->type->method) { \
+        PUSH(stack, (Object*) lhs->type->method(lhs, rhs)); \
+    } \
+    else { \
+        fprintf(stderr, "WARNING: Type `%s` does not support op `" #method "`\n", lhs->type->name); \
+        PUSH(stack, LoxUndefined); \
+    } \
+    DECREF(lhs); \
+    DECREF(rhs); \
+} while(0)
 
             // Comparison
         case OP_GT:
@@ -330,12 +342,9 @@ vmeval_eval(VmEvalContext *ctx) {
             break;
 
         case OP_NEQ:
-
-            // Boolean
-        case OP_BINARY_AND:
-        case OP_BINARY_OR:
             break;
 
+            // Boolean
         case OP_BANG:
             lhs = POP(stack);
             PUSH(stack, (Object*) (Bool_fromObject(lhs) == LoxTRUE ? LoxFALSE : LoxTRUE));
@@ -355,27 +364,47 @@ vmeval_eval(VmEvalContext *ctx) {
             DECREF(rhs);
             break;
 
-            // Expressions
-        case OP_BINARY_PLUS:
-            BINARY_METHOD(op_plus);
-            break;
-
-        case OP_BINARY_MINUS:
-            BINARY_METHOD(op_minus);
-            break;
-
-        case OP_BINARY_STAR:
-            BINARY_METHOD(op_star);
-            break;
-
-        case OP_BINARY_SLASH:
-            BINARY_METHOD(op_slash);
-            break;
-
-        case OP_NEG:
-            lhs = POP(stack);
-            PUSH(stack, (Object*) lhs->type->op_neg(lhs));
-            DECREF(lhs);
+        // Expressions
+        case OP_MATH:
+            switch((enum lox_vm_math) pc->arg) {
+            case MATH_BINARY_AND:
+                BINARY_METHOD(op_band);
+                break;
+            case MATH_BINARY_OR:
+                BINARY_METHOD(op_bor);
+                break;
+            case MATH_BINARY_XOR:
+                BINARY_METHOD(op_xor);
+                break;
+            case MATH_BINARY_PLUS:
+                BINARY_METHOD(op_plus);
+                break;
+            case MATH_BINARY_MINUS:
+                BINARY_METHOD(op_minus);
+                break;
+            case MATH_BINARY_STAR:
+                BINARY_METHOD(op_star);
+                break;
+            case MATH_BINARY_SLASH:
+                BINARY_METHOD(op_slash);
+                break;
+            case MATH_BINARY_LSHIFT:
+                BINARY_METHOD(op_lshift);
+                break;
+            case MATH_BINARY_RSHIFT:
+                BINARY_METHOD(op_rshift);
+                break;
+            case MATH_BINARY_MODULUS:
+                BINARY_METHOD(op_mod);
+                break;
+            case MATH_UNARY_NEGATIVE:
+                lhs = POP(stack);
+                PUSH(stack, (Object*) lhs->type->op_neg(lhs));
+                DECREF(lhs);
+                break;
+            case MATH_UNARY_INVERT:
+                break;
+            }
             break;
 
         case OP_GET_ITEM:

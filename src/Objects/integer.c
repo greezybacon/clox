@@ -134,6 +134,46 @@ integer_op_minus(Object* self, Object* other) {
 }
 
 static struct object*
+integer_op_mod(Object* self, Object* other) {
+    assert(self->type == &IntegerType);
+
+    other = coerce_integer(other);
+    return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value % ((IntegerObject*) other)->value);
+}
+
+static struct object*
+integer_op_lshift(Object* self, Object* other) {
+    assert(self->type == &IntegerType);
+
+    other = coerce_integer(other);
+    return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value << ((IntegerObject*) other)->value);
+}
+
+static struct object*
+integer_op_rshift(Object* self, Object* other) {
+    assert(self->type == &IntegerType);
+
+    other = coerce_integer(other);
+    return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value >> ((IntegerObject*) other)->value);
+}
+
+static struct object*
+integer_op_band(Object* self, Object* other) {
+    assert(self->type == &IntegerType);
+
+    other = coerce_integer(other);
+    return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value & ((IntegerObject*) other)->value);
+}
+
+static struct object*
+integer_op_bor(Object* self, Object* other) {
+    assert(self->type == &IntegerType);
+
+    other = coerce_integer(other);
+    return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value | ((IntegerObject*) other)->value);
+}
+
+static struct object*
 integer_op_neg(Object* self) {
     assert(self->type == &IntegerType);
 
@@ -228,9 +268,14 @@ static struct object_type IntegerType = (ObjectType) {
 
     // math operations
     .op_plus = integer_op_plus,
-	.op_minus = integer_op_minus,
-	.op_star = integer_op_multiply,
-	.op_slash = integer_op_divide,
+    .op_minus = integer_op_minus,
+    .op_star = integer_op_multiply,
+    .op_slash = integer_op_divide,
+    .op_mod = integer_op_mod,
+    .op_lshift = integer_op_lshift,
+    .op_rshift = integer_op_rshift,
+    .op_bor = integer_op_bor,
+    .op_band = integer_op_band,
     .op_neg = integer_op_neg,
 
     // comparison
