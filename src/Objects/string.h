@@ -33,12 +33,16 @@ typedef struct string_object {
 StringObject* String_fromCharArrayAndSize(char*, size_t);
 bool String_isString(Object*);
 StringObject* String_fromObject(Object*);
-StringObject* String_fromLiteral(char*, size_t);
+StringObject* String_fromLiteral(const char*, size_t);
 StringObject* String_fromConstant(const char *);
 StringObject* String_fromMalloc(const char *, size_t);
 size_t String_getLength(Object* self);
 int String_compare(StringObject*, const char*);
 StringObject* String_fromConstant(const char*);
+Object* LoxString_Build(int, ...);
+Object* LoxString_BuildFromList(int, Object **);
+
+const StringObject *LoxEmptyString;
 
 typedef struct stringtree_object {
     // Inherits from Object
@@ -49,7 +53,7 @@ typedef struct stringtree_object {
 } StringTreeObject;
 
 StringTreeObject* StringTree_fromStrings(Object*, Object*);
-const StringObject *LoxEmptyString;
+bool StringTree_isStringTree(Object *);
 
 typedef struct string_chunk_iterator {
     union {

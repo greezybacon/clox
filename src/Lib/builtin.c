@@ -152,16 +152,16 @@ static ModuleDescription
 builtins_module_def = {
     .name = "__builtins__",
     .methods = {
-        { "print", builtin_print },
-        { "int", builtin_int },
-        { "len", builtin_len },
-        { "eval", builtin_eval },
-        { "tuple", builtin_tuple },
-        { "table", builtin_table, },
-        { "open", builtin_open },
-        { "hash", builtin_hash },
+        { "print",  builtin_print },
+        { "int",    builtin_int },
+        { "len",    builtin_len },
+        { "eval",   builtin_eval },
+        { "tuple",  builtin_tuple },
+        { "table",  builtin_table, },
+        { "open",   builtin_open },
+        { "hash",   builtin_hash },
         { "format", builtin_format },
-        { "type", builtin_type },
+        { "type",   builtin_type },
         { 0 },
     }
 };

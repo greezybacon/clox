@@ -26,6 +26,8 @@ enum ast_type {
     AST_MAGIC,
     AST_SLICE,
     AST_TUPLE_LITERAL,
+    AST_INTERPOL_STRING,
+    AST_INTERPOLATED,
 };
 
 enum associativity {
@@ -90,6 +92,18 @@ typedef struct ast_literal {
     Object*             literal;
 } ASTLiteral;
 
+typedef struct ast_interpolated_string {
+    ASTNode             node;
+    ASTNode             *items;
+} ASTInterpolatedString;
+
+typedef struct ast_interpolated_expr {
+    ASTNode             node;
+    ASTNode             *expr;
+    const char          *flags;
+    const char          *format;
+} ASTInterpolatedExpr;
+
 typedef struct ast_invoke {
     ASTNode             node;
     struct ast_node     *callable;
@@ -99,7 +113,7 @@ typedef struct ast_invoke {
 
 typedef struct ast_parameter {
     ASTNode             node;
-    char *              name;
+    const char          *name;
     unsigned            name_length;
     struct ast_node     *default_value;
 } ASTFuncParam;

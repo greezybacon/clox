@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -7,6 +8,8 @@
 #include "boolean.h"
 #include "integer.h"
 #include "string.h"
+
+#include "Lib/builtin.h"
 
 #include "Vendor/bdwgc/include/gc.h"
 
@@ -42,14 +45,48 @@ String_fromObject(Object* value) {
 }
 
 StringObject*
-String_fromLiteral(char* value, size_t size) {
+String_fromLiteral(const char* value, size_t size) {
     // TODO: Interpret backslash-escaped characters
-    return String_fromCharArrayAndSize(value + 1, size - 2);
+    return String_fromCharArrayAndSize(value, size);
 }
 
 StringObject*
 String_fromConstant(const char* value) {
     return String_fromMalloc(value, strlen(value));
+}
+
+Object*
+LoxString_Build(int count, ...) {
+    va_list strings;
+    va_start(strings, count);
+
+    Object *result = NULL;
+
+    while (count--) {
+        if (!result)
+            result = va_arg(strings, Object*);
+        else
+            result = result->type->op_plus(result, va_arg(strings, Object*));
+    }
+
+    va_end(strings);
+    return result;
+}
+
+Object*
+LoxString_BuildFromList(int count, Object **first) {
+    Object *result = NULL, *current;
+
+    while (count--) {
+        current = *first++;
+        if (!String_isString(current))
+            current = LoxObject_Format(current, "");
+        if (!result)
+            result = current;
+        else
+            result = result->type->op_plus(result, current);
+    }
+    return result;
 }
 
 static void
@@ -347,6 +384,11 @@ StringTree_fromStrings(Object *a, Object *b) {
     INCREF(b);
 
     return O;
+}
+
+bool
+StringTree_isStringTree(Object *O) {
+    return O->type == &StringTreeType;
 }
 
 static void

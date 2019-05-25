@@ -182,6 +182,21 @@ print_tuple_literal(FILE *output, ASTTupleLiteral *node) {
     fprintf(output, ")");
 }
 
+static void
+print_interpol_string(FILE *output, ASTInterpolatedString *node) {
+    fprintf(output, "Concat(");
+    print_node_list(output, node->items, " + ");
+    fprintf(output, ")");
+}
+
+static void
+print_interpol_expr(FILE *output, ASTInterpolatedExpr *node) {
+    print_node(output, node->expr);
+    if (node->format) {
+        fprintf(output, " : %s ", node->format);
+    }
+}
+
 void
 print_node_list(FILE* output, ASTNode* node, const char * separator) {
     ASTNode* current = node;
@@ -243,6 +258,12 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
             break;
         case AST_TUPLE_LITERAL:
             print_tuple_literal(output, (ASTTupleLiteral*) current);
+            break;
+        case AST_INTERPOL_STRING:
+            print_interpol_string(output, (ASTInterpolatedString*) current);
+            break;
+        case AST_INTERPOLATED:
+            print_interpol_expr(output, (ASTInterpolatedExpr*) current);
             break;
         default:
             fprintf(output, "Unexpected AST type: %d", current->type);

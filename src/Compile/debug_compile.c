@@ -76,6 +76,8 @@ static struct named_opcode OpcodeNames[] = {
 
     // Complex literals
     { OP_BUILD_TUPLE,   "BUILD_TUPLE" },
+    { OP_BUILD_STRING,  "BUILD_STRING" },
+    { OP_FORMAT,        "APPLY_FORMAT" },
 };
 
 static int cmpfunc (const void * a, const void * b) {
@@ -92,6 +94,7 @@ print_opcode(const CodeContext *context, const Instruction *op) {
 
     // For opcodes which use constants, print the constant value too
     switch (op->op) {
+    case OP_FORMAT:
     case OP_GET_ATTR:
     case OP_SET_ATTR:
     case OP_CONSTANT:

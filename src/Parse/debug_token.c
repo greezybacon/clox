@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -50,6 +51,8 @@ TokenDescriptions[] = {
     { T_COMMA, "T_COMMA" },
     { T_RETURN, "T_RETURN" },
     { T_COMMENT, "T_COMMENT" },
+    { T_THIS, "T_THIS" },
+    { T_SUPER, "T_SUPER" },
 };
 static const int cTokenDescriptions = sizeof(TokenDescriptions) / sizeof(TokenDescriptions[0]);
 
@@ -77,20 +80,29 @@ OperatorChars[] = {
 static const int cOperatorChars = sizeof(OperatorChars) / sizeof(OperatorChars[0]);
 
 static int
-compare_token_desc(const void *a, const void *b) {
+compare_token_type(const void *a, const void *b) {
     return ((struct token_description*)a)->type - ((struct token_description*)b)->type;
 }
-    
+
 void
 print_token(FILE* output, Token* token) {
+    static bool sorted = false;
+    if (!sorted) {
+        qsort(TokenDescriptions, sizeof(TokenDescriptions) / sizeof(struct token_description),
+            sizeof(struct token_description), compare_token_type);
+    }
+
     struct token_description* T, key = { .type = token->type };
     T = bsearch(&key, TokenDescriptions, cTokenDescriptions, 
-        sizeof(struct token_description), compare_token_desc);
+        sizeof(struct token_description), compare_token_type);
     if (T == NULL) {
         fprintf(output, "%d: No such token type", token->type);
         return;
     }
-    fprintf(output, "{%s (%d:%d)}", T->description, token->line, token->pos);
+    if (token->length)
+        fprintf(output, "{%s:'%.*s' (%d:%d)}", T->description, token->length, token->text, token->line, token->pos);
+    else
+        fprintf(output, "{%s: (%d:%d)}", T->description, token->line, token->pos);
 }
 
 void
@@ -103,7 +115,7 @@ char*
 get_token_type(enum token_type type) {
     struct token_description* T, key = { .type = type };
     T = bsearch(&key, TokenDescriptions, cTokenDescriptions, 
-        sizeof(struct token_description), compare_token_desc);
+        sizeof(struct token_description), compare_token_type);
     if (T == NULL)
         return NULL;
     return T->description;
@@ -113,7 +125,7 @@ char*
 get_operator(enum token_type type) {
     struct operator_description* T, key = { .type = type };
     T = bsearch(&key, OperatorChars, cOperatorChars, 
-        sizeof(struct operator_description), compare_token_desc);
+        sizeof(struct operator_description), compare_token_type);
     if (T == NULL) {
         return NULL;
     }

@@ -403,10 +403,25 @@ vmeval_eval(VmEvalContext *ctx) {
             break;
 
         case OP_BUILD_TUPLE:
-            item = Tuple_fromList(pc->arg, stack - pc->arg);
+            item = (Object*) Tuple_fromList(pc->arg, stack - pc->arg);
             i = pc->arg;
             while (i--)
                 XPOP(stack);
+            PUSH(stack, item);
+            break;
+
+        case OP_BUILD_STRING:
+            item = LoxString_BuildFromList(pc->arg, stack - pc->arg);
+            i = pc->arg;
+            while (i--)
+                XPOP(stack);
+            PUSH(stack, item);
+            break;
+
+        case OP_FORMAT:
+            C = ctx->code->constants + pc->arg;
+            assert(String_isString(C->value));
+            item = LoxObject_Format(POP(stack), ((StringObject*) C->value)->characters);
             PUSH(stack, item);
             break;
 

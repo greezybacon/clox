@@ -35,7 +35,7 @@ parser_with_flags(Parser* current, Parser *new, LoxParserFlag flags) {
 static void
 parse_syntax_error(Parser* self, char* message) {
     Tokenizer* tokens = self->tokens;
-    Token* next = tokens->peek(tokens);
+    Token* next = tokens->current;
 
     fprintf(stderr, "Syntax Error: line %d, at %d: %s\n",
         tokens->stream->line, tokens->stream->offset, message);
@@ -214,6 +214,108 @@ parse_expression_attr(Parser *self, ASTNode *lhs) {
     return (ASTNode*) attr;
 }
 
+#define IFNULL3(a,b,c) ((a) == NULL ? ((b) == NULL ? (c) : (b)) : (a))
+#define IFNULL2(a,b) ((a) == NULL ? (b) : (a))
+
+static inline ASTNode*
+parse_interpolated(Parser *self, const char *text, int length, const char **end) {
+    const char *start, *flag_start = 0, *format_start = 0;
+
+    start = text;
+    while (length--) {
+        if (*text == '}')
+            break;
+        if (*text == '!')
+            flag_start = text + 1;
+        else if (*text == ':')
+            format_start = text + 1;
+        text++;
+    }
+    // Skip closing brace char
+    text++;
+
+    Parser eval;
+    Stream stream;
+    stream_init_buffer(&stream, start, IFNULL3(flag_start, format_start, text) - start);
+
+    // Preseve current location for better error output
+    stream.line = self->tokens->stream->line;
+    stream.offset = self->tokens->stream->offset;
+    parser_init(&eval, &stream);
+
+    ASTNode* expr = parse_expression(&eval);
+
+    ASTInterpolatedExpr *interpol = GC_NEW(ASTInterpolatedExpr);
+    parser_node_init((ASTNode*) interpol, AST_INTERPOLATED, self->tokens->current);
+
+    interpol->expr = expr;
+
+    if (format_start) {
+        interpol->format = GC_STRNDUP(format_start, text - format_start - 1);
+    }
+
+    *end = text;
+    return (ASTNode*) interpol;
+}
+
+static ASTNode*
+parse_string_literal(Parser *self, const char *text, int length) {
+    ASTNode *result = NULL, *interpol, *items = NULL;
+    ASTLiteral *literal;
+    Object *string;
+    const char *start = text, *end;
+    Token *current = self->tokens->current;
+
+    while (length--) {
+        if (*text == '#' && *(text + 1) == '{') {
+            if (!result) {
+                result = GC_MALLOC(sizeof(ASTInterpolatedString));
+                parser_node_init((ASTNode*) result, AST_INTERPOL_STRING, current);
+            }
+
+            // XXX: This assumes we will always start with non-zero-width string
+            string = (Object*) String_fromLiteral(start, text - start);
+            literal = GC_MALLOC(sizeof(ASTLiteral));
+            parser_node_init((ASTNode*) literal, AST_LITERAL, current);
+            literal->literal = string;
+
+            if (!items) {
+                assert(result->type == AST_INTERPOL_STRING);
+                ((ASTInterpolatedString*) result)->items = items = (ASTNode*) literal;
+            }
+            else {
+                items = items->next = (ASTNode*) literal;
+            }
+
+            // Parse the interpolated expression
+            interpol = parse_interpolated(self, text + 2, length, &end);
+            items = items->next = interpol;
+
+            length -= end - text - 1;
+            start = text = end;
+        }
+        else
+            text++;
+    }
+
+    if (text - start) {
+        string = (Object*) String_fromLiteral(start, text - start);
+        literal = GC_MALLOC(sizeof(ASTLiteral));
+        parser_node_init((ASTNode*) literal, AST_LITERAL, current);
+        literal->literal = string;
+
+        if (result != NULL && items != NULL) {
+            items->next = (ASTNode*) literal;
+        }
+        else {
+            // Plain old string
+            result = (ASTNode*) literal;
+        }
+    }
+
+    return result;
+}
+
 static ASTNode*
 parse_TERM(Parser* self) {
     Tokenizer* T = self->tokens;
@@ -242,8 +344,13 @@ parse_TERM(Parser* self) {
         result = (ASTNode*) lookup;
         break;
     }
+    case T_STRING: {
+        const char *text = self->tokens->fetch_text(self->tokens, next);
+        int length = next->length;
+        result = (ASTNode*) parse_string_literal(self, text, length);
+        break;
+    }
     case T_NUMBER:
-    case T_STRING:
     case T_TRUE:
     case T_FALSE:
     case T_NULL: {
@@ -308,8 +415,9 @@ parse_TERM(Parser* self) {
         result = (ASTNode*) astfun;
         break;
     }
+
     default:
-        fprintf(stderr, "Parse error: Unexpected statement token: %d\n", next->type);
+        fprintf(stderr, "Parse error: Unexpected TERM token: %d\n", next->type);
     }
 
     return (ASTNode*) result;

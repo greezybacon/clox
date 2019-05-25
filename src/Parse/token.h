@@ -57,7 +57,7 @@ typedef struct token {
     int                 pos;
     int                 stream_pos;
     int                 length;
-    char*               text;
+    const char*         text;
 } Token;
 
 typedef struct tokenize_context {

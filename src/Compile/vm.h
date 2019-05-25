@@ -73,6 +73,8 @@ enum opcode {
 
     // Complex literals
     OP_BUILD_TUPLE,
+    OP_BUILD_STRING,
+    OP_FORMAT,
 }
 __attribute__((packed));
 

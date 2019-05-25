@@ -9,6 +9,7 @@
 #include "Objects/function.h"
 #include "Vendor/bdwgc/include/gc.h"
 
+static unsigned compile_node_count(Compiler *self, ASTNode* ast, unsigned *count);
 static unsigned compile_node(Compiler *self, ASTNode* ast);
 static unsigned compile_node1(Compiler *self, ASTNode* ast);
 
@@ -393,6 +394,27 @@ compile_literal(Compiler *self, ASTLiteral *node) {
 }
 
 static unsigned
+compile_interpolated_string(Compiler *self, ASTInterpolatedString *node) {
+    unsigned length = 0, count;
+    length += compile_node_count(self, node->items, &count);
+    return length + compile_emit(self, OP_BUILD_STRING, count);
+}
+
+static unsigned
+compile_interpolated_expr(Compiler *self, ASTInterpolatedExpr *node) {
+    unsigned length;
+    length = compile_node(self, node->expr);
+
+    if (node->format) {
+        Object *format = String_fromLiteral(node->format, strlen(node->format));
+        unsigned index = compile_emit_constant(self, format);
+        length += compile_emit(self, OP_FORMAT, index);
+    }
+
+    return length;
+}
+
+static unsigned
 compile_lookup(Compiler *self, ASTLookup *node) {
     // See if the name is in the locals list
     int index;
@@ -413,6 +435,9 @@ compile_magic(Compiler *self, ASTMagic *node) {
         return compile_emit(self, OP_THIS, 0);
     else if (node->super)
         return compile_emit(self, OP_SUPER, 0);
+
+    compile_error(self, "Unhandled magic");
+    return 0;
 }
 
 static unsigned
@@ -648,7 +673,7 @@ compile_class(Compiler *self, ASTClass *node) {
 static unsigned
 compile_attribute(Compiler *self, ASTAttribute *attr) {
     unsigned index,
-             length = compile_node(self, attr->object);
+    length = compile_node(self, attr->object);
 
     index = compile_emit_constant(self, attr->attribute);
     if (attr->value) {
@@ -710,6 +735,10 @@ compile_node1(Compiler* self, ASTNode* ast) {
         return compile_slice(self, (ASTSlice*) ast);
     case AST_TUPLE_LITERAL:
         return compile_tuple_literal(self, (ASTTupleLiteral*) ast);
+    case AST_INTERPOL_STRING:
+        return compile_interpolated_string(self, (ASTInterpolatedString*) ast);
+    case AST_INTERPOLATED:
+        return compile_interpolated_expr(self, (ASTInterpolatedExpr*) ast);
     default:
         compile_error(self, "Unexpected AST node type");
     }
@@ -717,14 +746,22 @@ compile_node1(Compiler* self, ASTNode* ast) {
 }
 
 static unsigned
-compile_node(Compiler *self, ASTNode* ast) {
+compile_node_count(Compiler *self, ASTNode *ast, unsigned *count) {
     unsigned length = 0;
+    *count = 0;
 
     while (ast) {
         length += compile_node1(self, ast);
         ast = ast->next;
+        (*count)++;
     }
     return length;
+}
+
+static unsigned
+compile_node(Compiler *self, ASTNode* ast) {
+    unsigned count;
+    return compile_node_count(self, ast, &count);
 }
 
 void

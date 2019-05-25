@@ -31,7 +31,7 @@ next_token(Tokenizer *self) {
         return T;
     }
 
-    char c, begin;
+    signed char c, begin;
 
     // Ignore whitespace
     do {
@@ -57,14 +57,19 @@ next_token(Tokenizer *self) {
     case '\'':
         // Read to ending char
         begin = c;
+        // Ignore opening char
+        token->stream_pos++;
+
         do {
             c = next_char(self);
             if (c == '\\')
                 c = next_char(self);
         }
-        while (c != begin && c != 0);
+        while (c != begin && c > 0);
         token->type = T_STRING;
         token->text = self->fetch_text(self, token);
+        // Ignore closing char
+        token->length--;
         break;
 
     // Operators
@@ -266,6 +271,13 @@ read_from_token(Tokenizer *self, Token* token) {
     if (!token->text)
         token->text = self->stream->read(self->stream, token->stream_pos, token->length);
     return token->text;
+}
+
+static Token*
+debug_next_token(Tokenizer *self) {
+    Token *next = next_token(self);
+    print_token(stderr, next);
+    return next;
 }
 
 Tokenizer*
