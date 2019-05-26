@@ -315,7 +315,7 @@ string_upper(VmScope *state, Object *self, Object *args) {
     assert(self->type == &StringType);
 
     StringObject *S = (StringObject*) self;
-    char *upper = strndup(S->characters, S->length), *eupper = upper;
+    char *upper = malloc(S->length), *eupper = upper;
     int i;
     for (i=0; i<S->length; i++)
         *eupper++ = toupper(upper[i]);
