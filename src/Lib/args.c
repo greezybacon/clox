@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include "Include/Lox.h"
 #include "Objects/tuple.h"
@@ -24,20 +25,25 @@ Lox_ParseArgs(Object *args, const char *format, ...) {
         case 's': {
             StringObject *string;
             if (!String_isString(oArg)) {
-                if (oArg->type->as_string)
+                if (oArg->type->as_string) {
                     string = (StringObject*) oArg->type->as_string(oArg);
-                else
+                }
+                else {
                     // Error
                     printf("eval: cannot coerce argument to string\n");
+                    return -1;
+                }
             }
             else {
                 string = (StringObject*) oArg;
             }
-            *(va_arg(output, const char**)) = string->characters;
+            INCREF(string);
+            *(va_arg(output, const char**)) = strndup(string->characters, string->length);
             if (*(format+1) == '#') { // 's#'
                 *(va_arg(output, int*)) = string->length;
                 format++;
             }
+            DECREF(string);
             break;
         }
 

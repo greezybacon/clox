@@ -16,13 +16,26 @@ builtin_print(VmScope* state, Object* self, Object* args) {
 
     for (; i < argc; i++) {
         arg = Tuple_getItem((TupleObject*) args, i);
-        if (!String_isString(arg)) {
-            sarg = String_fromObject(arg);
+        if (StringTree_isStringTree(arg)) {
+            Object *chunk;
+            Iterator *chunks = LoxStringTree_iterChunks((StringTreeObject*) self);
+            while (LoxStopIteration != (chunk = chunks->next(chunks))) {
+                assert(String_isString(chunk));
+                StringObject *schunk = (StringObject*) chunk;
+                fprintf(stdout, "%.*s", schunk->length, schunk->characters);
+            }
         }
-        else
-            sarg = (StringObject*) arg;
+        else {
+            if (!String_isString(arg)) {
+                sarg = String_fromObject(arg);
+            }
+            else
+                sarg = (StringObject*) arg;
 
-        fprintf(stdout, "%.*s", sarg->length, sarg->characters);
+            INCREF(sarg);
+            fprintf(stdout, "%.*s", sarg->length, sarg->characters);
+            DECREF(sarg);
+        }
     }
 
     fprintf(stdout, "\n");
@@ -62,27 +75,17 @@ static Object*
 builtin_eval(VmScope *state, Object *self, Object *args) {
     assert(Tuple_isTuple(args));
 
-    size_t argc = Tuple_getSize(args);
-    if (argc != 1)
-        printf("eval() takes exactly one argument\n");
-
-    Object* arg = Tuple_getItem((TupleObject*) args, 0);
-    StringObject *string;
-    if (!String_isString(arg)) {
-        if (arg->type->as_string)
-            string = (StringObject*) arg->type->as_string(arg);
-        else
-            // Error
-            printf("eval: cannot coerce argument to string\n");
-    }
-    else {
-        string = (StringObject*) arg;
-    }
+    char *text;
+    int length;
+    Lox_ParseArgs(args, "s#", &text, &length);
 
     VmScope scope = (VmScope) {
         .globals = state->globals,
     };
-    return vmeval_string_inscope(string->characters, string->length, &scope);
+
+    Object *rv = vmeval_string_inscope(text, length, &scope);
+
+    return rv;
 }
 
 static Object*
