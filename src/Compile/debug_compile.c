@@ -103,9 +103,16 @@ static int math_cmpfunc (const void * a, const void * b) {
 
 static inline void
 print_opcode(const CodeContext *context, const Instruction *op) {
-    struct named_opcode* T, key = { .code = op->op };
+    struct named_opcode* T, key = { .code = op->op }, unknown;
     T = bsearch(&key, OpcodeNames, sizeof(OpcodeNames) / sizeof(struct named_opcode),
         sizeof(struct named_opcode), cmpfunc);
+
+    if (T == NULL) {
+        unknown = (struct named_opcode) {
+            .name = "(unknown)",
+        };
+        T = &unknown;
+    }
 
     printf("%-20s %d", T->name, op->arg);
 
