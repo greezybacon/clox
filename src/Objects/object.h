@@ -52,6 +52,7 @@ typedef struct object_type {
     Object* (*as_float)(Object*);
     BoolObject* (*as_bool)(Object*);
     Object* (*as_string)(Object*);
+    Object* (*format)(Object*, Object*);
 
     // Item access
     Object* (*get_item)(Object*, Object*);
