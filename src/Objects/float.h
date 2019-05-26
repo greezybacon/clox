@@ -8,10 +8,10 @@ typedef struct float_object {
     Object  base;
 
     long double value;
-} FloatObject;
+} LoxFloat;
 
-FloatObject* Float_fromLongDouble(long double);
-FloatObject* Float_fromLongLong(long long);
+LoxFloat* Float_fromLongDouble(long double);
+LoxFloat* Float_fromLongLong(long long);
 Object* Float_fromObject(Object*);
 bool Float_isFloat(Object*);
 long double Float_toLongDouble(Object*);

@@ -17,7 +17,7 @@ typedef struct string_object {
     unsigned length;
     unsigned char_count;
     const char *characters;
-} StringObject;
+} LoxString;
 
 #undef get16bits
 #if (defined(__GNUC__) && defined(__i386__)) || defined(__WATCOMC__) \
@@ -30,19 +30,19 @@ typedef struct string_object {
                        +(uint32_t)(((const uint8_t *)(d))[0]) )
 #endif
 
-StringObject* String_fromCharArrayAndSize(char*, size_t);
+LoxString* String_fromCharArrayAndSize(char*, size_t);
 bool String_isString(Object*);
-StringObject* String_fromObject(Object*);
-StringObject* String_fromLiteral(const char*, size_t);
-StringObject* String_fromConstant(const char *);
-StringObject* String_fromMalloc(const char *, size_t);
+LoxString* String_fromObject(Object*);
+LoxString* String_fromLiteral(const char*, size_t);
+LoxString* String_fromConstant(const char *);
+LoxString* String_fromMalloc(const char *, size_t);
 size_t String_getLength(Object* self);
-int String_compare(StringObject*, const char*);
-StringObject* String_fromConstant(const char*);
+int String_compare(LoxString*, const char*);
+LoxString* String_fromConstant(const char*);
 Object* LoxString_Build(int, ...);
 Object* LoxString_BuildFromList(int, Object **);
 
-const StringObject *LoxEmptyString;
+const LoxString *LoxEmptyString;
 
 typedef struct stringtree_object {
     // Inherits from Object
@@ -50,9 +50,9 @@ typedef struct stringtree_object {
 
     Object  *left;
     Object  *right;
-} StringTreeObject;
+} LoxStringTree;
 
-StringTreeObject* StringTree_fromStrings(Object*, Object*);
+LoxStringTree* StringTree_fromStrings(Object*, Object*);
 bool StringTree_isStringTree(Object *);
 
 typedef struct string_chunk_iterator {
@@ -60,10 +60,10 @@ typedef struct string_chunk_iterator {
         Object      object;
         Iterator    iterator;
     };
-    StringTreeObject *tree;
-    int         pos;
+    LoxStringTree   *tree;
+    int             pos;
     struct string_chunk_iterator *inner;
 } ChunkIterator;
 
-Iterator* LoxStringTree_iterChunks(StringTreeObject*);
+Iterator* LoxStringTree_iterChunks(LoxStringTree*);
 #endif

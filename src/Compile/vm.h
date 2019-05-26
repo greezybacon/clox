@@ -131,7 +131,7 @@ typedef struct vmeval_scope {
     Object              **locals;
     size_t              locals_count;
     CodeContext         *code;
-    HashObject          *globals;
+    LoxTable            *globals;
 } VmScope;
 
 VmScope* VmScope_create(VmScope*, CodeContext*, Object**, unsigned);
@@ -157,7 +157,7 @@ typedef struct vmeval_call_args {
 #define XPUSH(stack, what) *(stack++) = (what)
 
 #define PRINT(value) do { \
-    StringObject *S = (StringObject*) ((Object*) value)->type->as_string((Object*) value); \
+    LoxString *S = (LoxString*) ((Object*) value)->type->as_string((Object*) value); \
     printf("(%s) %.*s #%d\n", ((Object*) value)->type->name, S->length, S->characters); \
 } while(0)
 

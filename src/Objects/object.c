@@ -113,7 +113,7 @@ object_getattr(Object* self, Object *name) {
 
     // Build a HashTable for faster access to methods
     if (self->type->methods) {
-        HashObject *methods = self->type->_methodTable;
+        LoxTable *methods = self->type->_methodTable;
         if (!methods) {
             unsigned count;
             ObjectMethod* method = self->type->methods;

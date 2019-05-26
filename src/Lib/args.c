@@ -19,14 +19,14 @@ Lox_ParseArgs(Object *args, const char *format, ...) {
     while (*format) {
         if (iArg >= cArgs)
             break;
-        oArg = Tuple_getItem((TupleObject*) args, iArg++);
+        oArg = Tuple_getItem((LoxTuple*) args, iArg++);
 
         switch (*format) {
         case 's': {
-            StringObject *string;
+            LoxString *string;
             if (!String_isString(oArg)) {
                 if (oArg->type->as_string) {
-                    string = (StringObject*) oArg->type->as_string(oArg);
+                    string = (LoxString*) oArg->type->as_string(oArg);
                 }
                 else {
                     // Error
@@ -35,7 +35,7 @@ Lox_ParseArgs(Object *args, const char *format, ...) {
                 }
             }
             else {
-                string = (StringObject*) oArg;
+                string = (LoxString*) oArg;
             }
             INCREF(string);
             *(va_arg(output, const char**)) = strndup(string->characters, string->length);
@@ -53,9 +53,9 @@ Lox_ParseArgs(Object *args, const char *format, ...) {
         case 'k':
         case 'L':
         case 'K': {
-            IntegerObject *value;
+            LoxInteger *value;
             if (oArg->type->as_int)
-                value = (IntegerObject*) oArg->type->as_int(oArg);
+                value = (LoxInteger*) oArg->type->as_int(oArg);
             else
                 // Error
                 printf("eval: cannot coerce argument to integer\n");

@@ -548,7 +548,7 @@ compile_function_inner(Compiler *self, ASTFunction *node) {
 
     // Create a constant for the function
     index = compile_emit_constant(self,
-        CodeObject_fromContext(node, compile_pop_context(self)));
+        VmCode_fromContext(node, compile_pop_context(self)));
 
     // (Meanwhile, back in the original context)
     return length + compile_emit(self, OP_CONSTANT, index);

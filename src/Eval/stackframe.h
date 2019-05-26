@@ -10,7 +10,7 @@ typedef struct interp_stack_frame {
     struct eval_scope           *scope;
     // Variables local to the stack frame. Closure and global variables are
     // accessible via the scope
-    HashObject                  *locals;
+    LoxTable                  *locals;
 
     // For AST interpretation, this would be both the original file and
     // location of the parsed code as well as the code to be interpreted

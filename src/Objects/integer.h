@@ -8,9 +8,9 @@ typedef struct integer_object {
     Object  base;
 
     long long value;
-} IntegerObject;
+} LoxInteger;
 
-IntegerObject* Integer_fromLongLong(long long value);
+LoxInteger* Integer_fromLongLong(long long value);
 long long Integer_toInt(Object*);
 bool Integer_isInteger(Object*);
 Object* Integer_fromObject(Object*);

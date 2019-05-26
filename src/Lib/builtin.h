@@ -3,7 +3,7 @@
 
 #include "Objects/module.h"
 
-ModuleObject* BuiltinModule_init(void);
+LoxModule* BuiltinModule_init(void);
 
 // args.c
 int Lox_ParseArgs(Object *, const char *, ...);

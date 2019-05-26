@@ -62,7 +62,7 @@ repl_onecmd(CmdLoop *self, const char* line) {
 
     if (result && result != LoxNIL) {
         Hash_setItem(self->scope->globals, _, result);
-        StringObject *S = String_fromObject(result);
+        LoxString *S = String_fromObject(result);
         printf("%.*s\n", S->length, S->characters);
         LoxObject_Cleanup((Object*) S);
     }

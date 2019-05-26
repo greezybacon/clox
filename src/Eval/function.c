@@ -27,7 +27,7 @@ eval_invoke(Interpreter* self, ASTInvoke* invoke) {
     // Create an args tuple to pass to the function call. A tuple is used
     // rather than setting the stack variables here to support both user-defined
     // functions as well as native functions.
-    TupleObject* args = Tuple_new(invoke->nargs);
+    LoxTuple* args = Tuple_new(invoke->nargs);
     ASTNode* a = invoke->args;
     size_t i = 0;
     Object* T;

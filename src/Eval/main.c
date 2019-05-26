@@ -28,7 +28,7 @@ pretty_print(Object* value) {
     
     printf("Result: (%s)", value->type->name);
     if (value->type->as_string) {
-        StringObject* text = (StringObject*) value->type->as_string(value);
+        LoxString* text = (LoxString*) value->type->as_string(value);
         // TODO: assert(text->type->code == TYPE_STRING);
         printf(" %.*s\n", text->length, text->characters);
     }

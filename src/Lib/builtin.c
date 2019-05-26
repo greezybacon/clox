@@ -11,17 +11,17 @@ builtin_print(VmScope* state, Object* self, Object* args) {
     assert(Tuple_isTuple(args));
 
     Object* arg;
-    StringObject* sarg;
+    LoxString* sarg;
     size_t i = 0, argc = Tuple_getSize(args);
 
     for (; i < argc; i++) {
-        arg = Tuple_getItem((TupleObject*) args, i);
+        arg = Tuple_getItem((LoxTuple*) args, i);
         if (StringTree_isStringTree(arg)) {
             Object *chunk;
-            Iterator *chunks = LoxStringTree_iterChunks((StringTreeObject*) self);
+            Iterator *chunks = LoxStringTree_iterChunks((LoxStringTree*) self);
             while (LoxStopIteration != (chunk = chunks->next(chunks))) {
                 assert(String_isString(chunk));
-                StringObject *schunk = (StringObject*) chunk;
+                LoxString *schunk = (LoxString*) chunk;
                 fprintf(stdout, "%.*s", schunk->length, schunk->characters);
             }
         }
@@ -30,7 +30,7 @@ builtin_print(VmScope* state, Object* self, Object* args) {
                 sarg = String_fromObject(arg);
             }
             else
-                sarg = (StringObject*) arg;
+                sarg = (LoxString*) arg;
 
             INCREF(sarg);
             fprintf(stdout, "%.*s", sarg->length, sarg->characters);
@@ -46,7 +46,7 @@ static Object*
 builtin_int(VmScope* state, Object* self, Object* args) {
     assert(Tuple_isTuple(args));
 
-    Object* arg = Tuple_getItem((TupleObject*) args, 0);
+    Object* arg = Tuple_getItem((LoxTuple*) args, 0);
 
     if (arg->type->as_int) {
         return arg->type->as_int(arg);
@@ -61,7 +61,7 @@ builtin_len(VmScope* state, Object* self, Object* args) {
     assert(Tuple_isTuple(args));
 
     size_t argc = Tuple_getSize(args);
-    Object* arg = Tuple_getItem((TupleObject*) args, 0);
+    Object* arg = Tuple_getItem((LoxTuple*) args, 0);
 
     if (arg->type->len) {
         return arg->type->len(arg);
@@ -169,7 +169,7 @@ builtins_module_def = {
     }
 };
 
-ModuleObject*
+LoxModule*
 BuiltinModule_init() {
-    return (ModuleObject*) Module_init(&builtins_module_def);
+    return (LoxModule*) Module_init(&builtins_module_def);
 }

@@ -108,7 +108,7 @@ LoxObject_ParseFormatSpec(const char *spec, struct format_spec *format) {
 Object*
 LoxObject_Format(Object *object, const char *spec) {
     if (object->type->format != NULL) {
-        StringObject *spec_string = String_fromCharArrayAndSize(spec, strlen(spec));
+        LoxString *spec_string = String_fromCharArrayAndSize(spec, strlen(spec));
         Object *rv = object->type->format(object, (Object*) spec_string);
         LoxObject_Cleanup((Object*) spec_string);
         return rv;

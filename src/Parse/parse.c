@@ -400,7 +400,7 @@ parse_TERM(Parser* self) {
 
         if (T->peek(T)->type == T_WORD) {
             next = T->next(T);
-            // XXX: Use a StringObject for better memory management
+            // XXX: Use a LoxString for better memory management
             astfun->name = strndup(
                 self->tokens->fetch_text(self->tokens, next),
                 next->length
@@ -733,7 +733,7 @@ parse_statement(Parser* self) {
             ASTFunction* astfun = GC_MALLOC(sizeof(ASTFunction));
             parser_node_init((ASTNode*) astfun, AST_FUNCTION, next);
 
-            // XXX: Use a StringObject for better memory management
+            // XXX: Use a LoxString for better memory management
             astfun->name = GC_STRNDUP(
                 self->tokens->fetch_text(self->tokens, next),
                 next->length

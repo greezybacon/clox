@@ -8,9 +8,9 @@ typedef struct module_object {
     // Inherits from Object
     Object          base;
 
-    HashObject*     properties;
+    LoxTable*       properties;
     Object*         name;
-} ModuleObject;
+} LoxModule;
 
 typedef struct module_description {
     char*       name;

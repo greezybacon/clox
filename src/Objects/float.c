@@ -12,16 +12,16 @@
 
 static struct object_type FloatType;
 
-FloatObject*
+LoxFloat*
 Float_fromLongDouble(long double value) {
-    FloatObject* O = object_new(sizeof(FloatObject), &FloatType);
+    LoxFloat* O = object_new(sizeof(LoxFloat), &FloatType);
     O->value = value;
     return O;
 }
 
-FloatObject*
+LoxFloat*
 Float_fromLongLong(long long value) {
-    FloatObject* O = object_new(sizeof(FloatObject), &FloatType);
+    LoxFloat* O = object_new(sizeof(LoxFloat), &FloatType);
     O->value = (long double) value;
     return O;
 }
@@ -58,14 +58,14 @@ Float_toLongDouble(Object* value) {
 
     assert(value->type == &FloatType);
 
-    return ((FloatObject*) value)->value;
+    return ((LoxFloat*) value)->value;
 }
 
 hashval_t
 float_hash(Object* self) {
     assert(self->type == &FloatType);
 
-    FloatObject* S = (FloatObject*) self;
+    LoxFloat* S = (LoxFloat*) self;
     unsigned long long value = (unsigned long long) S->value;
     return (int) (value >> 32) ^ (value & 0xffffffff);
 }
@@ -73,7 +73,7 @@ float_hash(Object* self) {
 static Object*
 float_asint(Object* self) {
     assert(self->type == &FloatType);
-    return (Object*) Integer_fromLongLong((long long) ((FloatObject*) self)->value);
+    return (Object*) Integer_fromLongLong((long long) ((LoxFloat*) self)->value);
 }
 
 static Object*
@@ -87,7 +87,7 @@ float_asstring(Object* self) {
     assert(self->type == &FloatType);
 
     char buffer[40];
-    snprintf(buffer, sizeof(buffer), "%Lg", ((FloatObject*) self)->value);
+    snprintf(buffer, sizeof(buffer), "%Lg", ((LoxFloat*) self)->value);
     return (Object*) String_fromCharArrayAndSize(buffer, strlen(buffer));
 }
 
@@ -101,7 +101,7 @@ float_op_plus(Object* self, Object* other) {
         }
         other = other->type->as_float(other);
     }
-    return (Object*) Float_fromLongDouble(((FloatObject*) self)->value + ((FloatObject*) other)->value);
+    return (Object*) Float_fromLongDouble(((LoxFloat*) self)->value + ((LoxFloat*) other)->value);
 }
 
 static struct object*
@@ -114,14 +114,14 @@ float_op_minus(Object* self, Object* other) {
         }
         other = other->type->as_float(other);
     }
-    return (Object*) Float_fromLongDouble(((FloatObject*) self)->value - ((FloatObject*) other)->value);
+    return (Object*) Float_fromLongDouble(((LoxFloat*) self)->value - ((LoxFloat*) other)->value);
 }
 
 static struct object*
 float_op_neg(Object* self) {
     assert(self->type == &FloatType);
 
-    return (Object*) Float_fromLongDouble(- ((FloatObject*) self)->value);
+    return (Object*) Float_fromLongDouble(- ((LoxFloat*) self)->value);
 }
 
 static struct object*
@@ -134,7 +134,7 @@ float_op_star(Object* self, Object* other) {
         }
         other = other->type->as_float(other);
     }
-    return (Object*) Float_fromLongDouble(((FloatObject*) self)->value * ((FloatObject*) other)->value);
+    return (Object*) Float_fromLongDouble(((LoxFloat*) self)->value * ((LoxFloat*) other)->value);
 }
 
 static struct object*
@@ -147,7 +147,7 @@ float_op_slash(Object* self, Object* other) {
         }
         other = other->type->as_float(other);
     }
-    return (Object*) Float_fromLongDouble(((FloatObject*) self)->value / ((FloatObject*) other)->value);
+    return (Object*) Float_fromLongDouble(((LoxFloat*) self)->value / ((LoxFloat*) other)->value);
 }
 
 static inline Object*
@@ -161,36 +161,36 @@ coerce_float(Object* value) {
    return value;
 }
 
-static BoolObject*
+static LoxBool*
 float_op_eq(Object* self, Object* other) {
     assert(self->type->code == TYPE_FLOAT);
 
     other = coerce_float(other);
-    return ((FloatObject*) self)->value == ((FloatObject*) other)->value ? LoxTRUE : LoxFALSE;
+    return ((LoxFloat*) self)->value == ((LoxFloat*) other)->value ? LoxTRUE : LoxFALSE;
 }
 
-static BoolObject*
+static LoxBool*
 float_op_ne(Object* self, Object* other) {
     assert(self->type->code == TYPE_FLOAT);
 
     other = coerce_float(other);
-    return ((FloatObject*) self)->value == ((FloatObject*) other)->value ? LoxFALSE : LoxTRUE;
+    return ((LoxFloat*) self)->value == ((LoxFloat*) other)->value ? LoxFALSE : LoxTRUE;
 }
 
-static BoolObject*
+static LoxBool*
 float_op_lt(Object* self, Object* other) {
     assert(self->type->code == TYPE_FLOAT);
 
     other = coerce_float(other);
-    return ((FloatObject*) self)->value < ((FloatObject*) other)->value ? LoxTRUE : LoxFALSE;
+    return ((LoxFloat*) self)->value < ((LoxFloat*) other)->value ? LoxTRUE : LoxFALSE;
 }
 
-static BoolObject*
+static LoxBool*
 float_op_gt(Object* self, Object* other) {
     assert(self->type->code == TYPE_FLOAT);
 
     other = coerce_float(other);
-    return ((FloatObject*) self)->value > ((FloatObject*) other)->value ? LoxTRUE : LoxFALSE;
+    return ((LoxFloat*) self)->value > ((LoxFloat*) other)->value ? LoxTRUE : LoxFALSE;
 }
 
 

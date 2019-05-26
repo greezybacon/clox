@@ -22,9 +22,9 @@ print_expression(FILE* output, ASTExpression* node) {
 
 static void
 print_object(FILE* output, Object *object) {
-    StringObject* S;
+    LoxString* S;
     if (object->type->as_string) {
-        S = (StringObject*) object->type->as_string(object);
+        S = (LoxString*) object->type->as_string(object);
         fprintf(output, "%.*s", S->length, S->characters);
     }
     else {
@@ -35,7 +35,7 @@ print_object(FILE* output, Object *object) {
 static void
 print_assignment(FILE* output, ASTAssignment* node) {
     assert(String_isString(node->name));
-    StringObject* S = (StringObject*) node->name;
+    LoxString* S = (LoxString*) node->name;
     fprintf(output, "%.*s := ", S->length, S->characters);
     print_node(output, node->expression);
 }
@@ -48,7 +48,7 @@ print_term(FILE* output, ASTTerm* node) {
 
 static void
 print_literal(FILE* output, ASTLiteral* node) {
-    StringObject* S = (StringObject*) node->literal->type->as_string(node->literal);
+    LoxString* S = (LoxString*) node->literal->type->as_string(node->literal);
     fprintf(output, "(%.*s)", S->length, S->characters);
 }
 
@@ -111,7 +111,7 @@ print_param(FILE* output, ASTFuncParam* node) {
 static void
 print_lookup(FILE* output, ASTLookup* node) {
     assert(String_isString(node->name));
-    StringObject* S = (StringObject*) node->name;
+    LoxString* S = (LoxString*) node->name;
     fprintf(output, "@%.*s", S->length, S->characters);
 }
 

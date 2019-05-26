@@ -8,15 +8,15 @@ typedef struct bool_object {
     // Inherits from Object
     Object  base;
     bool value;
-} BoolObject;
+} LoxBool;
 
-BoolObject* Bool_fromBool(bool);
-BoolObject* Bool_fromObject(Object*);
+LoxBool* Bool_fromBool(bool);
+LoxBool* Bool_fromObject(Object*);
 bool Bool_isBool(Object*);
 bool Bool_isTrue(Object*);
-#define Bool_ISTRUE(value) (((BoolObject*) (value)) == LoxTRUE)
+#define Bool_ISTRUE(value) (((LoxBool*) (value)) == LoxTRUE)
 
-BoolObject *LoxTRUE, *LoxFALSE;
+LoxBool *LoxTRUE, *LoxFALSE;
 Object *LoxNIL;
 Object *LoxUndefined;
 

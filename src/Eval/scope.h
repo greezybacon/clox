@@ -5,7 +5,7 @@
 
 typedef struct eval_scope {
     struct eval_scope   *outer;
-    HashObject          *locals;
+    LoxTable          *locals;
 } Scope;
 
 #endif

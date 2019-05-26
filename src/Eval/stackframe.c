@@ -28,7 +28,7 @@ StackFrame_createScope(StackFrame* self) {
 
 Object*
 StackFrame_lookup(StackFrame *self, Object *key) {
-    HashObject *table = self->locals;
+    LoxTable *table = self->locals;
     Object *rv;
 
     if (table && NULL != (rv = Hash_getItem(table, key)))
@@ -37,7 +37,7 @@ StackFrame_lookup(StackFrame *self, Object *key) {
     if ((rv = Scope_lookup(self->scope, key)))
         return rv;
 
-    StringObject* skey = (StringObject*) key->type->as_string(key);
+    LoxString* skey = (LoxString*) key->type->as_string(key);
     eval_error(NULL, "%.*s: Variable has not yet been set in this scope\n", skey->length, skey->characters);
 
     return NULL;
@@ -45,7 +45,7 @@ StackFrame_lookup(StackFrame *self, Object *key) {
 
 void
 StackFrame_assign_local(StackFrame *self, Object *name, Object *value) {
-    HashObject *table = self->locals;
+    LoxTable *table = self->locals;
     if (!table)
         table = self->locals = Hash_new();
 
@@ -54,7 +54,7 @@ StackFrame_assign_local(StackFrame *self, Object *name, Object *value) {
 
 void
 StackFrame_assign(StackFrame* self, Object* name, Object* value) {
-    HashObject *table = self->locals;
+    LoxTable *table = self->locals;
     if (table && table->base.type->contains((Object*) table, name))
         return StackFrame_assign_local(self, name, value);
 

@@ -10,9 +10,9 @@
 
 static struct object_type IntegerType;
 
-IntegerObject*
+LoxInteger*
 Integer_fromLongLong(long long value) {
-    IntegerObject* O = object_new(sizeof(IntegerObject), &IntegerType);
+    LoxInteger* O = object_new(sizeof(LoxInteger), &IntegerType);
     O->value = value;
     return O;
 }
@@ -30,7 +30,7 @@ Integer_toInt(Object* value) {
 
     assert(value->type == &IntegerType);
 
-    return ((IntegerObject*) value)->value;
+    return ((LoxInteger*) value)->value;
 }
 
 bool
@@ -56,7 +56,7 @@ integer_hash(Object* self) {
     assert(self != NULL);
     assert(self->type == &IntegerType);
 
-    IntegerObject* S = (IntegerObject*) self;
+    LoxInteger* S = (LoxInteger*) self;
     return (int) (S->value >> 32) ^ (S->value & 0xffffffff);
 }
 
@@ -70,7 +70,7 @@ integer_asfloat(Object* self) {
     assert(self != NULL);
     assert(self->type == &IntegerType);
 
-    return (Object*) Float_fromLongLong(((IntegerObject*) self)->value);
+    return (Object*) Float_fromLongLong(((LoxInteger*) self)->value);
 }
 
 static Object*
@@ -81,16 +81,16 @@ integer_asstring(Object* self) {
     char buffer[32];
     int length;
 
-    length = snprintf(buffer, sizeof(buffer), "%lld", ((IntegerObject*) self)->value);
+    length = snprintf(buffer, sizeof(buffer), "%lld", ((LoxInteger*) self)->value);
     return (Object*) String_fromCharArrayAndSize(buffer, length);
 }
 
-static BoolObject*
+static LoxBool*
 integer_asbool(Object* self) {
     assert(self != NULL);
     assert(self->type == &IntegerType);
 
-    return ((IntegerObject*) self)->value == 0 ? LoxFALSE : LoxTRUE;
+    return ((LoxInteger*) self)->value == 0 ? LoxFALSE : LoxTRUE;
 }
 
 static inline Object*
@@ -116,7 +116,7 @@ integer_op_plus(Object* self, Object* other) {
     // Else coerce to integer
     else other = coerce_integer(other);
 
-    return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value + ((IntegerObject*) other)->value);
+    return (Object*) Integer_fromLongLong(((LoxInteger*) self)->value + ((LoxInteger*) other)->value);
 }
 
 static struct object*
@@ -130,7 +130,7 @@ integer_op_minus(Object* self, Object* other) {
     // Else coerce to integer
     else other = coerce_integer(other);
 
-    return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value - ((IntegerObject*) other)->value);
+    return (Object*) Integer_fromLongLong(((LoxInteger*) self)->value - ((LoxInteger*) other)->value);
 }
 
 static struct object*
@@ -138,7 +138,7 @@ integer_op_mod(Object* self, Object* other) {
     assert(self->type == &IntegerType);
 
     other = coerce_integer(other);
-    return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value % ((IntegerObject*) other)->value);
+    return (Object*) Integer_fromLongLong(((LoxInteger*) self)->value % ((LoxInteger*) other)->value);
 }
 
 static struct object*
@@ -146,7 +146,7 @@ integer_op_lshift(Object* self, Object* other) {
     assert(self->type == &IntegerType);
 
     other = coerce_integer(other);
-    return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value << ((IntegerObject*) other)->value);
+    return (Object*) Integer_fromLongLong(((LoxInteger*) self)->value << ((LoxInteger*) other)->value);
 }
 
 static struct object*
@@ -154,7 +154,7 @@ integer_op_rshift(Object* self, Object* other) {
     assert(self->type == &IntegerType);
 
     other = coerce_integer(other);
-    return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value >> ((IntegerObject*) other)->value);
+    return (Object*) Integer_fromLongLong(((LoxInteger*) self)->value >> ((LoxInteger*) other)->value);
 }
 
 static struct object*
@@ -162,7 +162,7 @@ integer_op_band(Object* self, Object* other) {
     assert(self->type == &IntegerType);
 
     other = coerce_integer(other);
-    return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value & ((IntegerObject*) other)->value);
+    return (Object*) Integer_fromLongLong(((LoxInteger*) self)->value & ((LoxInteger*) other)->value);
 }
 
 static struct object*
@@ -170,14 +170,14 @@ integer_op_bor(Object* self, Object* other) {
     assert(self->type == &IntegerType);
 
     other = coerce_integer(other);
-    return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value | ((IntegerObject*) other)->value);
+    return (Object*) Integer_fromLongLong(((LoxInteger*) self)->value | ((LoxInteger*) other)->value);
 }
 
 static struct object*
 integer_op_neg(Object* self) {
     assert(self->type == &IntegerType);
 
-    return (Object*) Integer_fromLongLong(- ((IntegerObject*) self)->value);
+    return (Object*) Integer_fromLongLong(- ((LoxInteger*) self)->value);
 }
 
 static struct object*
@@ -190,7 +190,7 @@ integer_op_multiply(Object* self, Object* other) {
     }
     // Else coerce to integer
     else other = coerce_integer(other);
-    return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value * ((IntegerObject*) other)->value);
+    return (Object*) Integer_fromLongLong(((LoxInteger*) self)->value * ((LoxInteger*) other)->value);
 }
 
 static struct object*
@@ -199,58 +199,58 @@ integer_op_divide(Object* self, Object* other) {
 
     // Promote floating point operations
     if (other->type->code == TYPE_FLOAT) {
-        FloatObject *F = (FloatObject*) self->type->as_float(self);
+        LoxFloat *F = (LoxFloat*) self->type->as_float(self);
         return F->base.type->op_slash((Object*) F, other);
     }
     // Else coerce to integer
     else other = coerce_integer(other);
-    return (Object*) Integer_fromLongLong(((IntegerObject*) self)->value / ((IntegerObject*) other)->value);
+    return (Object*) Integer_fromLongLong(((LoxInteger*) self)->value / ((LoxInteger*) other)->value);
 }
 
-static BoolObject*
+static LoxBool*
 integer_op_eq(Object* self, Object* other) {
     assert(self->type == &IntegerType);
 
     if (!(other = coerce_integer(other)))
         return LoxFALSE;
 
-    return ((IntegerObject*) self)->value == ((IntegerObject*) other)->value ? LoxTRUE : LoxFALSE;
+    return ((LoxInteger*) self)->value == ((LoxInteger*) other)->value ? LoxTRUE : LoxFALSE;
 }
 
-static BoolObject*
+static LoxBool*
 integer_op_ne(Object* self, Object* other) {
     return integer_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;
 }
 
-static BoolObject*
+static LoxBool*
 integer_op_lt(Object* self, Object* other) {
     assert(self->type == &IntegerType);
     Object* rhs = coerce_integer(other);
-    return ((IntegerObject*)self)->value < ((IntegerObject*)rhs)->value
+    return ((LoxInteger*)self)->value < ((LoxInteger*)rhs)->value
         ? LoxTRUE : LoxFALSE;
 }
 
-static BoolObject*
+static LoxBool*
 integer_op_lte(Object* self, Object* other) {
     assert(self->type == &IntegerType);
     Object* rhs = coerce_integer(other);
-    return ((IntegerObject*)self)->value <= ((IntegerObject*)rhs)->value
+    return ((LoxInteger*)self)->value <= ((LoxInteger*)rhs)->value
         ? LoxTRUE : LoxFALSE;
 }
 
-static BoolObject*
+static LoxBool*
 integer_op_gt(Object* self, Object* other) {
     assert(self->type == &IntegerType);
     Object* rhs = coerce_integer(other);
-    return ((IntegerObject*)self)->value > ((IntegerObject*)rhs)->value
+    return ((LoxInteger*)self)->value > ((LoxInteger*)rhs)->value
         ? LoxTRUE : LoxFALSE;
 }
 
-static BoolObject*
+static LoxBool*
 integer_op_gte(Object* self, Object* other) {
     assert(self->type == &IntegerType);
     Object* rhs = coerce_integer(other);
-    return ((IntegerObject*)self)->value >= ((IntegerObject*)rhs)->value
+    return ((LoxInteger*)self)->value >= ((LoxInteger*)rhs)->value
         ? LoxTRUE : LoxFALSE;
 }
 

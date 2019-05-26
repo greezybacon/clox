@@ -129,7 +129,7 @@ print_opcode(const CodeContext *context, const Instruction *op) {
         Constant *C = context->constants + op->arg;
         Object *T = C->value;
         if (T && T->type && T->type->as_string) {
-            StringObject *S = (StringObject*) T->type->as_string(T);
+            LoxString *S = (LoxString*) T->type->as_string(T);
             assert(String_isString((Object*) S));
             printf(" (%.*s)", S->length, S->characters);
         }
@@ -140,7 +140,7 @@ print_opcode(const CodeContext *context, const Instruction *op) {
     case OP_LOOKUP_LOCAL: {
         Object *T = (context->locals.names + op->arg)->value;
         if (T && T->type && T->type->as_string) {
-            StringObject *S = (StringObject*) T->type->as_string(T);
+            LoxString *S = (LoxString*) T->type->as_string(T);
             assert(String_isString((Object*) S));
             printf(" (%.*s)", S->length, S->characters);
         }
@@ -153,7 +153,7 @@ print_opcode(const CodeContext *context, const Instruction *op) {
         if (outer) {
             Object *T = (outer->locals.names + op->arg)->value;
             if (T && T->type && T->type->as_string) {
-                StringObject *S = (StringObject*) T->type->as_string(T);
+                LoxString *S = (LoxString*) T->type->as_string(T);
                 assert(String_isString((Object*) S));
                 printf(" (%.*s)", S->length, S->characters);
             }

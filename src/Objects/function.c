@@ -44,8 +44,8 @@ Function_fromAST(ASTFunction* fun) {
         count++;
 
     if (count > 0) {
-        StringObject** names = calloc(count, sizeof(StringObject*));
-        StringObject** pname = names;
+        LoxString** names = calloc(count, sizeof(LoxString*));
+        LoxString** pname = names;
         for (p = fun->arglist; p != NULL; p = p->next) {
             assert(p->type == AST_PARAM);
             param = (ASTFuncParam*) p;
@@ -71,7 +71,7 @@ function_asstring(Object* self) {
     FunctionObject* F = (FunctionObject*) self;
     if (F->name != NULL) {
         assert(String_isString(F->name));
-        StringObject* S = (StringObject*) F->name;
+        LoxString* S = (LoxString*) F->name;
         bytes = snprintf(buffer, sizeof(buffer), "function<%.*s>@%p",
             S->length, S->characters, self);
     }
@@ -97,7 +97,7 @@ Function_isNativeFunction(Object* object) {
 
 Object*
 NativeFunction_new(NativeFunctionCall callable) {
-    NFunctionObject* self = object_new(sizeof(NFunctionObject), &NativeFunctionType);
+    LoxNativeFunc* self = object_new(sizeof(LoxNativeFunc), &NativeFunctionType);
     self->callable = callable;
     return (Object*) self;
 }
@@ -106,8 +106,8 @@ Object*
 NativeFunction_bind(Object *self, Object *object) {
     assert(self->type == &NativeFunctionType);
 
-    NFunctionObject* this = object_new(sizeof(NFunctionObject), &NativeFunctionType);
-    this->callable = ((NFunctionObject*)self)->callable;
+    LoxNativeFunc* this = object_new(sizeof(LoxNativeFunc), &NativeFunctionType);
+    this->callable = ((LoxNativeFunc*)self)->callable;
     this->self = object;
     INCREF(object);
 
@@ -117,7 +117,7 @@ NativeFunction_bind(Object *self, Object *object) {
 static Object*
 nfunction_call(Object* self, VmScope *scope, Object* object, Object* args) {
     assert(self->type == &NativeFunctionType);
-    return ((NFunctionObject*) self)->callable(scope, ((NFunctionObject*)self)->self, args);
+    return ((LoxNativeFunc*) self)->callable(scope, ((LoxNativeFunc*)self)->self, args);
 }
 
 static Object*
@@ -130,8 +130,8 @@ static void
 nfunction_cleanup(Object* self) {
     assert(self->type == &NativeFunctionType);
 
-    if (((NFunctionObject*)self)->self)
-        DECREF(((NFunctionObject*)self)->self);
+    if (((LoxNativeFunc*)self)->self)
+        DECREF(((LoxNativeFunc*)self)->self);
 }
 
 static struct object_type NativeFunctionType = (ObjectType) {
@@ -145,11 +145,11 @@ static struct object_type NativeFunctionType = (ObjectType) {
 
 
 
-static struct object_type CodeObjectType;
+static struct object_type LoxVmCodeType;
 
 Object*
-CodeObject_fromContext(ASTFunction *fun, CodeContext *context) {
-    CodeObject* O = object_new(sizeof(CodeObject), &CodeObjectType);
+VmCode_fromContext(ASTFunction *fun, CodeContext *context) {
+    LoxVmCode* O = object_new(sizeof(LoxVmCode), &LoxVmCodeType);
     O->context = context;
 
     if (fun->name_length)
@@ -159,22 +159,22 @@ CodeObject_fromContext(ASTFunction *fun, CodeContext *context) {
 }
 
 bool
-CodeObject_isCodeObject(Object *callable) {
+VmCode_isVmCode(Object *callable) {
     assert(callable);
     assert(callable->type);
-    return callable->type == &CodeObjectType;
+    return callable->type == &LoxVmCodeType;
 }
 
 Object*
 code_asstring(Object* self) {
-    assert(self->type == &CodeObjectType);
+    assert(self->type == &LoxVmCodeType);
 
     char buffer[256];
     int bytes;
-    CodeObject* F = (CodeObject*) self;
+    LoxVmCode* F = (LoxVmCode*) self;
     if (F->name != NULL) {
         assert(String_isString(F->name));
-        StringObject* S = (StringObject*) F->name;
+        LoxString* S = (LoxString*) F->name;
         bytes = snprintf(buffer, sizeof(buffer), "code<%.*s>@%p",
             S->length, S->characters, self);
     }
@@ -186,22 +186,22 @@ code_asstring(Object* self) {
 
 static Object*
 codeobject_call(Object* self, VmScope *scope, Object *object, Object *args) {
-    assert(self->type == &CodeObjectType);
+    assert(self->type == &LoxVmCodeType);
     assert(Tuple_isTuple(args));
 
     VmEvalContext call_ctx = (VmEvalContext) {
-        .code = ((CodeObject*) self)->context,
+        .code = ((LoxVmCode*) self)->context,
         .scope = scope,
         .this = object,
         .args = (VmCallArgs) {
-            .values = ((TupleObject*) args)->items,
-            .count = ((TupleObject*) args)->count,
+            .values = ((LoxTuple*) args)->items,
+            .count = ((LoxTuple*) args)->count,
         },
     };
     return vmeval_eval(&call_ctx);
 }
 
-static struct object_type CodeObjectType = (ObjectType) {
+static struct object_type LoxVmCodeType = (ObjectType) {
     .name = "code",
     .hash = MYADDRESS,
     .op_eq = IDENTITY,
@@ -217,7 +217,7 @@ static void
 vmfun_cleanup(Object* self) {
     assert(self->type == &VmFunctionObjectType);
 
-    VmFunction *this = (VmFunction*) self;
+    LoxVmFunction *this = (LoxVmFunction*) self;
     if (this->scope)
         VmScope_leave(this->scope);
 }
@@ -228,12 +228,12 @@ vmfun_call(Object* self, VmScope *ignored, Object *object, Object *args) {
     assert(Tuple_isTuple(args));
 
     VmEvalContext call_ctx = (VmEvalContext) {
-        .code = ((VmFunction*) self)->code->context,
-        .scope = ((VmFunction*) self)->scope,
+        .code = ((LoxVmFunction*) self)->code->context,
+        .scope = ((LoxVmFunction*) self)->scope,
         .this = object,
         .args = (VmCallArgs) {
-            .values = ((TupleObject*) args)->items,
-            .count = ((TupleObject*) args)->count,
+            .values = ((LoxTuple*) args)->items,
+            .count = ((LoxTuple*) args)->count,
         },
     };
     return vmeval_eval(&call_ctx);
@@ -244,12 +244,12 @@ vmfun_asstring(Object *self) {
     return (Object*) String_fromConstant("function() {}");
 }
 
-VmFunction*
-CodeObject_makeFunction(Object *code, VmScope *scope) {
-    assert(code->type == &CodeObjectType);
+LoxVmFunction*
+VmCode_makeFunction(Object *code, VmScope *scope) {
+    assert(code->type == &LoxVmCodeType);
 
-    VmFunction* O = object_new(sizeof(VmFunction), &VmFunctionObjectType);
-    O->code = (CodeObject*) code;
+    LoxVmFunction* O = object_new(sizeof(LoxVmFunction), &VmFunctionObjectType);
+    O->code = (LoxVmCode*) code;
     O->scope = scope;
 
     return O;

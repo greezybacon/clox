@@ -10,15 +10,15 @@
 
 static struct object_type BooleanType;
 
-BoolObject*
+LoxBool*
 Bool_fromBool(bool value) {
     return value ? LoxTRUE : LoxFALSE;
 }
 
-BoolObject*
+LoxBool*
 Bool_fromObject(Object* value) {
     if (value->type == &BooleanType)
-        return (BoolObject*) value;
+        return (LoxBool*) value;
     else if (value->type->as_bool)
         return value->type->as_bool(value);
     // TODO: If type has a len() method, compare > zero
@@ -44,25 +44,25 @@ Bool_isTrue(Object* value) {
     return value == (Object*) LoxTRUE;
 }
 
-static BoolObject*
+static LoxBool*
 bool_self(Object* self) {
     assert(self->type == &BooleanType);
-    return (BoolObject*) self;
+    return (LoxBool*) self;
 }
 
 static Object*
 bool_asint(Object* self) {
     assert(self->type == &BooleanType);
-    return (Object*) Integer_fromLongLong(((BoolObject*)self)->value ? 1 : 0);
+    return (Object*) Integer_fromLongLong(((LoxBool*)self)->value ? 1 : 0);
 }
 
 static Object*
 bool_asstring(Object* self) {
     assert(self->type == &BooleanType);
-    return (Object*) String_fromConstant(((BoolObject*)self)->value ? "true" : "false");
+    return (Object*) String_fromConstant(((LoxBool*)self)->value ? "true" : "false");
 }
 
-static BoolObject*
+static LoxBool*
 bool_op_eq(Object* self, Object* other) {
     assert(self->type == &BooleanType);
     if (other->type != self->type) {
@@ -71,11 +71,11 @@ bool_op_eq(Object* self, Object* other) {
         }
         other = (Object*) other->type->as_bool(other);
     }
-    return (((BoolObject*)self)->value == ((BoolObject*)other)->value
+    return (((LoxBool*)self)->value == ((LoxBool*)other)->value
         ? LoxTRUE : LoxFALSE);
 }
 
-static BoolObject*
+static LoxBool*
 bool_op_ne(Object* self, Object* other) {
     return (bool_op_eq(self, other) == LoxTRUE) ? LoxFALSE : LoxTRUE;
 }
@@ -94,24 +94,24 @@ static struct object_type BooleanType = (ObjectType) {
     .cleanup = ERROR,
 };
 
-static BoolObject _LoxTRUE = (BoolObject) {
+static LoxBool _LoxTRUE = (LoxBool) {
     .base.type = &BooleanType,
     .base.refcount = 1,
     .value = true,
 };
-BoolObject *LoxTRUE = &_LoxTRUE;
+LoxBool *LoxTRUE = &_LoxTRUE;
 
-static BoolObject _LoxFALSE = (BoolObject) {
+static LoxBool _LoxFALSE = (LoxBool) {
     .base.type = &BooleanType,
     .base.refcount = 1,
     .value = false,
 };
-BoolObject *LoxFALSE = &_LoxFALSE;
+LoxBool *LoxFALSE = &_LoxFALSE;
 
 
 
 
-static BoolObject*
+static LoxBool*
 null_asbool(Object* self) {
     return LoxFALSE;
 }
@@ -147,7 +147,7 @@ Object *LoxNIL = &_LoxNIL;
 
 
 
-static BoolObject*
+static LoxBool*
 undef_asbool(Object* self) {
     return LoxFALSE;
 }

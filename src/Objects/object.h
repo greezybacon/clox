@@ -26,9 +26,9 @@ enum object_type_feature {
 
 typedef struct object Object;
 typedef long long int hashval_t;
-typedef struct bool_object BoolObject;
+typedef struct bool_object LoxBool;
 typedef struct vmeval_scope VmScope;
-typedef struct hash_object HashObject;
+typedef struct hash_object LoxTable;
 
 typedef struct lox_iterator Iterator;
 
@@ -50,7 +50,7 @@ typedef struct object_type {
     // Coercion to simple type
     Object* (*as_int)(Object*);
     Object* (*as_float)(Object*);
-    BoolObject* (*as_bool)(Object*);
+    LoxBool* (*as_bool)(Object*);
     Object* (*as_string)(Object*);
     Object* (*format)(Object*, Object*);
 
@@ -58,7 +58,7 @@ typedef struct object_type {
     Object* (*get_item)(Object*, Object*);
     void (*set_item)(Object*, Object*, Object*);
     void (*remove_item)(Object*, Object*);
-    BoolObject* (*contains)(Object*, Object*);
+    LoxBool* (*contains)(Object*, Object*);
     Object* (*len)(Object*);
 
     // TODO: Binary operators (plus, etc.)
@@ -78,12 +78,12 @@ typedef struct object_type {
     Object* (*op_neg)(Object*);
 
     // TODO: Comparison
-    BoolObject* (*op_lt)(Object*, Object*);
-    BoolObject* (*op_lte)(Object*, Object*);
-    BoolObject* (*op_gt)(Object*, Object*);
-    BoolObject* (*op_gte)(Object*, Object*);
-    BoolObject* (*op_eq)(Object*, Object*);
-    BoolObject* (*op_ne)(Object*, Object*);
+    LoxBool* (*op_lt)(Object*, Object*);
+    LoxBool* (*op_lte)(Object*, Object*);
+    LoxBool* (*op_gt)(Object*, Object*);
+    LoxBool* (*op_gte)(Object*, Object*);
+    LoxBool* (*op_eq)(Object*, Object*);
+    LoxBool* (*op_ne)(Object*, Object*);
     Object* (*compare)(Object*, Object*);
 
     // TODO: Callable
@@ -94,7 +94,7 @@ typedef struct object_type {
 
     // TODO: Methods (stuff unique to each type)
     ObjectMethod* methods;
-    HashObject* _methodTable; // XXX: Move this to an opaque type? Something behind-the-scenes-ish
+    LoxTable* _methodTable; // XXX: Move this to an opaque type? Something behind-the-scenes-ish
     Object* (*getattr)(Object*, Object*);
     void (*setattr)(Object*, Object*, Object*);
 
@@ -127,7 +127,7 @@ static hashval_t MYADDRESS(Object *self) {
 #include "boolean.h"
 struct bool_object *LoxTRUE;
 struct bool_object *LoxFALSE;
-static inline BoolObject *IDENTITY(Object *self, Object *other) {
+static inline LoxBool *IDENTITY(Object *self, Object *other) {
     return self == other ? LoxTRUE : LoxFALSE;
 }
 

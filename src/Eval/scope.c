@@ -6,7 +6,7 @@
 #include "Objects/hash.h"
 
 Scope*
-Scope_create(Scope* outer, HashObject* locals) {
+Scope_create(Scope* outer, LoxTable* locals) {
     Scope *scope = malloc(sizeof(Scope));
     *scope = (Scope) {
         .outer = outer,
@@ -24,9 +24,9 @@ Scope_leave(Scope* self) {
 
 #include "Objects/string.h"
 
-static HashObject*
+static LoxTable*
 Scope_locate(Scope* self, Object* name) {
-    HashObject* table = self->locals;
+    LoxTable* table = self->locals;
     Object* rv;
 
     if (table && Hash_contains(table, name))
@@ -41,8 +41,8 @@ Scope_locate(Scope* self, Object* name) {
 
 Object*
 Scope_lookup(Scope* self, Object* name) {
-    // TODO: Use HashObject_lookup_fast();
-    HashObject* table = self->locals;
+    // TODO: Use LoxTable_lookup_fast();
+    LoxTable* table = self->locals;
     Object* rv;
 
     if (table && NULL != (rv = Hash_getItem(table, name)))
@@ -57,7 +57,7 @@ Scope_lookup(Scope* self, Object* name) {
 
 void
 Scope_assign_local(Scope* self, Object* name, Object* value) {
-    HashObject* locals = self->locals;
+    LoxTable* locals = self->locals;
 
     // Lazily setup locals dictionary
     if (!locals)
@@ -69,7 +69,7 @@ Scope_assign_local(Scope* self, Object* name, Object* value) {
 void
 Scope_assign(Scope* self, Object* name, Object* value) {
     // Check local variables
-    HashObject *table = Scope_locate(self, name);
+    LoxTable *table = Scope_locate(self, name);
     if (table)
          return table->base.type->set_item((Object*) table, name, value);
 

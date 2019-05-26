@@ -87,7 +87,7 @@ eval_init(Interpreter* self) {
     };
 
     // Load the __builtins__ module into the global scope
-    ModuleObject* builtins = BuiltinModule_init();
+    LoxModule* builtins = BuiltinModule_init();
     Scope* globals = Scope_create(NULL, builtins->properties);
 
     // Start with a root stack frame and a global scope

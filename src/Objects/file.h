@@ -12,8 +12,8 @@ typedef struct file_object {
     FILE        *file;
     const char  *filename;
     bool        isopen;
-} FileObject;
+} LoxFile;
 
-FileObject* Lox_FileOpen(const char *, const char *);
+LoxFile* Lox_FileOpen(const char *, const char *);
 
 #endif

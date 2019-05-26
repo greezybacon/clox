@@ -11,17 +11,17 @@ typedef struct tuple_object {
 
     int         count;
     Object**    items;
-} TupleObject;
+} LoxTuple;
 
-TupleObject* Tuple_new(size_t);
-TupleObject* Tuple_fromArgs(size_t, ...);
-TupleObject* Tuple_fromList(size_t, Object**);
-Object* Tuple_getItem(TupleObject*, int);
-void Tuple_setItem(TupleObject*, size_t, Object*);
+LoxTuple* Tuple_new(size_t);
+LoxTuple* Tuple_fromArgs(size_t, ...);
+LoxTuple* Tuple_fromList(size_t, Object**);
+Object* Tuple_getItem(LoxTuple*, int);
+void Tuple_setItem(LoxTuple*, size_t, Object*);
 bool Tuple_isTuple(Object*);
 size_t Tuple_getSize(Object*);
 
-#define Tuple_GETITEM(self, index) *(((TupleObject*) self)->items + index)
+#define Tuple_GETITEM(self, index) *(((LoxTuple*) self)->items + index)
 
-const TupleObject *LoxEmptyTuple;
+const LoxTuple *LoxEmptyTuple;
 #endif

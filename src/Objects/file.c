@@ -11,9 +11,9 @@
 
 static struct object_type FileType;
 
-FileObject*
+LoxFile*
 Lox_FileOpen(const char *filename, const char *flags) {
-    FileObject* O = object_new(sizeof(FileObject), &FileType);
+    LoxFile* O = object_new(sizeof(LoxFile), &FileType);
     O->file = fopen(filename, flags);
 
     if (!O->file) {
@@ -43,7 +43,7 @@ file_read(VmScope *state, Object *self, Object *args) {
         return LoxNIL;
 
     char *buffer = malloc(size);
-    size_t length = fread(buffer, 1, size, ((FileObject*) self)->file);
+    size_t length = fread(buffer, 1, size, ((LoxFile*) self)->file);
 
     if (length == 0) {
         free(buffer);
@@ -68,10 +68,10 @@ file_readline(VmScope *state, Object *self, Object *args) {
     char *buffer = malloc(8192), *result;
     int error, length = 0;
 
-    error = fgetpos(((FileObject*)self)->file, &before);
-    result = fgets(buffer, 8192, ((FileObject*) self)->file);
+    error = fgetpos(((LoxFile*)self)->file, &before);
+    result = fgets(buffer, 8192, ((LoxFile*) self)->file);
     if (!error) {
-        error = fgetpos(((FileObject*)self)->file, &after);
+        error = fgetpos(((LoxFile*)self)->file, &after);
         if (!error) {
             length = after - before;
         }
@@ -103,7 +103,7 @@ file_write(VmScope *state, Object *self, Object *args) {
 
     while (length > 0) {
         wrote = fwrite(buffer, sizeof(*buffer), length,
-            ((FileObject*) self)->file);
+            ((LoxFile*) self)->file);
         if (wrote < 0) {
             // TODO: Raise error
             perror("Unable to write to file");
@@ -121,9 +121,9 @@ file_close(VmScope *state, Object *self, Object *args) {
     assert(self);
     assert(self->type == &FileType);
 
-    ((FileObject*) self)->isopen = false;
+    ((LoxFile*) self)->isopen = false;
 
-    return (Object*) Bool_fromBool(0 == fclose(((FileObject*) self)->file));
+    return (Object*) Bool_fromBool(0 == fclose(((LoxFile*) self)->file));
 }
 
 static Object*
@@ -131,7 +131,7 @@ file_flush(VmScope *state, Object *self, Object *args) {
     assert(self);
     assert(self->type == &FileType);
 
-    return (Object*) Bool_fromBool(0 == fflush(((FileObject*) self)->file));
+    return (Object*) Bool_fromBool(0 == fflush(((LoxFile*) self)->file));
 }
 
 static Object*
@@ -139,11 +139,11 @@ file_tell(VmScope *state, Object *self, Object *args) {
     assert(self);
     assert(self->type == &FileType);
 
-    if (!((FileObject*) self)->isopen)
+    if (!((LoxFile*) self)->isopen)
         return LoxUndefined;
 
     fpos_t pos;
-    if (fgetpos(((FileObject*)self)->file, &pos)) {
+    if (fgetpos(((LoxFile*)self)->file, &pos)) {
         perror("Unable to fetch file position");
     }
 
@@ -157,8 +157,8 @@ file_asstring(Object *self) {
 
     char buffer[256];
     int length = snprintf(buffer, sizeof(buffer), "%s file '%s'",
-        ((FileObject*) self)->isopen ? "open" : "closed",
-        ((FileObject*) self)->filename);
+        ((LoxFile*) self)->isopen ? "open" : "closed",
+        ((LoxFile*) self)->filename);
 
     return (Object*) String_fromCharArrayAndSize(buffer, length);
 }
@@ -168,7 +168,7 @@ file_cleanup(Object *self) {
     assert(self);
     assert(self->type == &FileType);
 
-    FileObject* F = (FileObject*) self;
+    LoxFile* F = (LoxFile*) self;
 
     if (F->file && F->isopen)
         fclose(F->file);

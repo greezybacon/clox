@@ -11,7 +11,7 @@
 typedef struct interp_context {
     Object*     (*eval)(struct interp_context*, Parser*);
 
-    HashObject  *globals;
+    LoxTable  *globals;
     StackFrame  *stack;
 } Interpreter;
 
@@ -63,7 +63,7 @@ StackFrame* StackFrame_create(StackFrame*);
 // From scope.h
 
 Scope*
-Scope_create(Scope*, HashObject* );
+Scope_create(Scope*, LoxTable* );
 
 Scope*
 Scope_leave(Scope* );

@@ -16,41 +16,41 @@
 static struct object_type StringType;
 static struct object_type StringTreeType;
 
-StringObject*
+LoxString*
 String_fromCharArrayAndSize(char *characters, size_t size) {
-    StringObject* O = object_new(sizeof(StringObject), &StringType);
+    LoxString* O = object_new(sizeof(LoxString), &StringType);
     O->length = size;
     O->characters = strndup(characters, size);
     return O;
 }
 
-StringObject*
+LoxString*
 String_fromMalloc(const char *characters, size_t size) {
-    StringObject* O = object_new(sizeof(StringObject), &StringType);
+    LoxString* O = object_new(sizeof(LoxString), &StringType);
     O->length = size;
     O->characters = characters;
     return O;
 }
 
-StringObject*
+LoxString*
 String_fromObject(Object* value) {
     assert(value->type);
 
     if (value->type->as_string)
-        return (StringObject*) value->type->as_string(value);
+        return (LoxString*) value->type->as_string(value);
 
     char buffer[32];
     size_t length = snprintf(buffer, sizeof(buffer), "object<%s>@%p", value->type->name, value);
     return String_fromCharArrayAndSize(buffer, length);
 }
 
-StringObject*
+LoxString*
 String_fromLiteral(const char* value, size_t size) {
     // TODO: Interpret backslash-escaped characters
     return String_fromCharArrayAndSize(value, size);
 }
 
-StringObject*
+LoxString*
 String_fromConstant(const char* value) {
     return String_fromMalloc(value, strlen(value));
 }
@@ -93,7 +93,7 @@ static void
 string_cleanup(Object *self) {
     assert(self->type == &StringType);
 
-    StringObject* this = (StringObject*) self;
+    LoxString* this = (LoxString*) self;
     free((void*) this->characters);
 }
 
@@ -103,7 +103,7 @@ _string_hash_block(Object *self, hashval_t initial) {
     if (unlikely(self == NULL))
         return initial;
 
-    StringObject* S = (StringObject*) self;
+    LoxString* S = (LoxString*) self;
     const char *data = S->characters;
     unsigned length = S->length;
     hashval_t hash = initial, tmp;
@@ -164,7 +164,7 @@ string_hash(Object* self) {
     assert(self != NULL);
     assert(self->type == &StringType);
 
-    StringObject* S = (StringObject*) self;
+    LoxString* S = (LoxString*) self;
 
     return _string_hash_final(self, S->length);
 }
@@ -174,7 +174,7 @@ string_len(Object* self) {
     assert(self != NULL);
     assert(self->type == &StringType);
 
-    StringObject* S = (StringObject*) self;
+    LoxString* S = (LoxString*) self;
     if (S->length > 0 && S->char_count == 0) {
 		// Faster counting, http://www.daemonology.net/blog/2008-06-05-faster-utf8-strlen.html
    		int i = S->length, j = 0;
@@ -193,17 +193,17 @@ string_asstring(Object* self) {
     return self;
 }
 
-static BoolObject*
+static LoxBool*
 string_asbool(Object* self) {
     assert(self != NULL);
     assert(self->type == &StringType);
 
-    return ((StringObject*) self)->length == 0 ? LoxFALSE : LoxTRUE;
+    return ((LoxString*) self)->length == 0 ? LoxFALSE : LoxTRUE;
 }
 
 static Object*
 string_asint(Object* self) {
-    StringObject* string = (StringObject*) self;
+    LoxString* string = (LoxString*) self;
     // TODO: (asint) should support base (10 or 16)
     char* endpos;
     long long value = strtoll(string->characters, &endpos, 10);
@@ -218,15 +218,15 @@ string_compare(Object *self, Object *other) {
     assert(self->type == &StringType);
     assert(other->type == &StringType);
 
-    int cmp = strncmp(((StringObject*) self)->characters,
-        ((StringObject*) other)->characters,
-        ((StringObject*) self)->length);
+    int cmp = strncmp(((LoxString*) self)->characters,
+        ((LoxString*) other)->characters,
+        ((LoxString*) self)->length);
 
         return cmp != 0 ? cmp
-            : ((StringObject*) self)->length - ((StringObject*) other)->length;
+            : ((LoxString*) self)->length - ((LoxString*) other)->length;
 }
 
-static BoolObject*
+static LoxBool*
 string_op_eq(Object* self, Object* other) {
     assert(self->type == &StringType);
     assert(other);
@@ -240,7 +240,7 @@ string_op_eq(Object* self, Object* other) {
     return string_compare(self, other) == 0 ? LoxTRUE : LoxFALSE;
 }
 
-static BoolObject*
+static LoxBool*
 string_op_ne(Object* self, Object* other) {
     return string_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;
 }
@@ -274,7 +274,7 @@ string_getitem(Object* self, Object* index) {
     }
 
     int i = Integer_toInt(index);
-    StringObject *S = (StringObject*) self;
+    LoxString *S = (LoxString*) self;
     int length = S->length, j = 0;
 
     if (length <= i)
@@ -314,7 +314,7 @@ string_upper(VmScope *state, Object *self, Object *args) {
     assert(self);
     assert(self->type == &StringType);
 
-    StringObject *S = (StringObject*) self;
+    LoxString *S = (LoxString*) self;
     char *upper = malloc(S->length), *eupper = upper;
     int i;
     for (i=0; i<S->length; i++)
@@ -346,7 +346,7 @@ static struct object_type StringType = (ObjectType) {
     },
 };
 
-static StringObject _LoxEmptyString = (StringObject) {
+static LoxString _LoxEmptyString = (LoxString) {
     .base = (Object) {
         .type = &StringType,
         .refcount = 1,
@@ -354,7 +354,7 @@ static StringObject _LoxEmptyString = (StringObject) {
     .length = 0,
     .characters = "",
 };
-const StringObject *LoxEmptyString = &_LoxEmptyString;
+const LoxString *LoxEmptyString = &_LoxEmptyString;
 
 bool
 String_isString(Object* value) {
@@ -365,7 +365,7 @@ String_isString(Object* value) {
 }
 
 int
-String_compare(StringObject* left, const char* right) {
+String_compare(LoxString* left, const char* right) {
     assert(left);
     assert(right);
     assert(left->base.type == &StringType);
@@ -374,9 +374,9 @@ String_compare(StringObject* left, const char* right) {
 }
 
 
-StringTreeObject*
+LoxStringTree*
 StringTree_fromStrings(Object *a, Object *b) {
-    StringTreeObject* O = object_new(sizeof(StringTreeObject), &StringTreeType);
+    LoxStringTree* O = object_new(sizeof(LoxStringTree), &StringTreeType);
 
     O->left = (Object*) a;
     O->right = (Object*) b;
@@ -395,7 +395,7 @@ static void
 stringtree_cleanup(Object* self) {
     assert(self->type == &StringTreeType);
 
-    StringTreeObject* this = (StringTreeObject*) self;
+    LoxStringTree* this = (LoxStringTree*) self;
     DECREF(this->left);
     DECREF(this->right);
 }
@@ -405,7 +405,7 @@ stringtree_len(Object* self) {
     assert(self != NULL);
     assert(self->type == &StringTreeType);
 
-    StringTreeObject* S = (StringTreeObject*) self;
+    LoxStringTree* S = (LoxStringTree*) self;
 
     int total = Integer_toInt(S->left->type->len(S->left));
     return (Object*) Integer_fromLongLong(total + Integer_toInt(S->right->type->len(S->right)));
@@ -417,7 +417,7 @@ stringtree_hash(Object* self) {
     assert(self->type == &StringTreeType);
 
     Object *chunk;
-    Iterator *chunks = LoxStringTree_iterChunks((StringTreeObject*) self);
+    Iterator *chunks = LoxStringTree_iterChunks((LoxStringTree*) self);
     hashval_t value = Integer_toInt(stringtree_len(self));
 
     while (LoxStopIteration != (chunk = chunks->next(chunks))) {
@@ -435,14 +435,14 @@ static int
 stringtree_copy_buffer(Object* object, char *buffer, size_t size) {
     if (object->type == &StringType) {
         return snprintf(buffer, size, "%.*s",
-            ((StringObject*) object)->length, ((StringObject*) object)->characters);
+            ((LoxString*) object)->length, ((LoxString*) object)->characters);
     }
     else if (object->type == &StringTreeType) {
         size_t length;
-        length = stringtree_copy_buffer(((StringTreeObject*) object)->left, buffer, size);
+        length = stringtree_copy_buffer(((LoxStringTree*) object)->left, buffer, size);
         buffer += length;
         size -= length;
-        return length + stringtree_copy_buffer(((StringTreeObject*) object)->right, buffer, size);
+        return length + stringtree_copy_buffer(((LoxStringTree*) object)->right, buffer, size);
     }
 
     return 0;
@@ -468,7 +468,7 @@ stringtree_asstring(Object* self) {
 }
 
 
-static BoolObject*
+static LoxBool*
 stringtree_asbool(Object* self) {
     assert(self != NULL);
     assert(self->type == &StringTreeType);
@@ -497,7 +497,7 @@ stringtree_chunks__next(ChunkIterator* self) {
             return stringtree_chunks__next(self->inner);
         }
         else {
-            return (StringObject*) self->tree->left;
+            return (LoxString*) self->tree->left;
         }
     }
     else if (self->pos == 1) {
@@ -508,7 +508,7 @@ stringtree_chunks__next(ChunkIterator* self) {
             return stringtree_chunks__next(self->inner);
         }
         else {
-            return (StringObject*) self->tree->right;
+            return (LoxString*) self->tree->right;
         }
     }
 
@@ -517,7 +517,7 @@ stringtree_chunks__next(ChunkIterator* self) {
 }
 
 Iterator*
-LoxStringTree_iterChunks(StringTreeObject* self) {
+LoxStringTree_iterChunks(LoxStringTree* self) {
     ChunkIterator* it = LoxIterator_create(sizeof(ChunkIterator));
 
     it->iterator.next = stringtree_chunks__next;
@@ -532,7 +532,7 @@ stringtree_chunks(VmScope *state, Object *self, Object *args) {
     assert(self);
     assert(self->type == &StringTreeType);
 
-    return (Object*) LoxStringTree_iterChunks((StringTreeObject*) self);
+    return (Object*) LoxStringTree_iterChunks((LoxStringTree*) self);
 }
 
 /*
@@ -541,14 +541,15 @@ stringtree_compare(Object *self, Object *other) {
     assert(self != NULL);
     assert(self->type == &StringTreeType);
 
-    StringTreeObject* S = (StringTreeObject*) self;
+    LoxStringTree* S = (LoxStringTree*) self;
 
     // TODO: Compare the string to the other. Return TRUE if it compares to 0
 }
+*/
 
 static Object*
 stringtree_op_plus(Object *self, Object *other) {
-    StringTreeObject* O = object_new(sizeof(StringTreeObject), &StringTreeType);
+    LoxStringTree* O = object_new(sizeof(LoxStringTree), &StringTreeType);
 
     if (other->type != &StringTreeType && !String_isString(other))
         other = other->type->as_string(other);

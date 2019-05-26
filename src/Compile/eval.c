@@ -106,7 +106,7 @@ vmeval_eval(VmEvalContext *ctx) {
             break;
 
         case OP_CLOSE_FUN: {
-            CodeObject *code = (CodeObject*) POP(stack);
+            LoxVmCode *code = (LoxVmCode*) POP(stack);
             // Move the locals into a malloc'd object so that future local
             // changes will be represented in this closure
             if (locals_in_stack) {
@@ -119,7 +119,7 @@ vmeval_eval(VmEvalContext *ctx) {
                 locals = mlocals;
                 locals_in_stack = false;
             }
-            VmFunction *fun = CodeObject_makeFunction((Object*) code,
+            LoxVmFunction *fun = VmCode_makeFunction((Object*) code,
                 // XXX: Globals?
                 VmScope_create(ctx->scope, code->context, locals, ctx->code->locals.count));
             PUSH(stack, (Object*) fun);
@@ -131,8 +131,8 @@ vmeval_eval(VmEvalContext *ctx) {
 
             if (VmFunction_isVmFunction(fun)) {
                 VmEvalContext call_ctx = (VmEvalContext) {
-                    .code = ((VmFunction*)fun)->code->context,
-                    .scope = ((VmFunction*)fun)->scope,
+                    .code = ((LoxVmFunction*)fun)->code->context,
+                    .scope = ((LoxVmFunction*)fun)->scope,
                     .args = (VmCallArgs) {
                         .values = stack - pc->arg,
                         .count = pc->arg,
@@ -141,7 +141,7 @@ vmeval_eval(VmEvalContext *ctx) {
                 rv = vmeval_eval(&call_ctx);
             }
             else if (Function_isCallable(fun)) {
-                TupleObject *args = Tuple_fromList(pc->arg, stack - pc->arg);
+                LoxTuple *args = Tuple_fromList(pc->arg, stack - pc->arg);
                 rv = fun->type->call(fun, ctx->scope, ctx->this, (Object*) args);
                 INCREF(rv);
                 LoxObject_Cleanup((Object*) args);
@@ -161,7 +161,7 @@ vmeval_eval(VmEvalContext *ctx) {
         }
 
         case OP_RECURSE: {
-            // This will only happen for a VmFunction. In this case, we will
+            // This will only happen for a LoxVmFunction. In this case, we will
             // execute the same code again, but with different arguments.
             VmEvalContext call_ctx = *ctx;
             call_ctx.args = (VmCallArgs) {
@@ -190,7 +190,7 @@ vmeval_eval(VmEvalContext *ctx) {
             // Build the class as usual
         case OP_BUILD_CLASS: {
             size_t count = pc->arg;
-            HashObject *attributes = Hash_newWithSize(count);
+            LoxTable *attributes = Hash_newWithSize(count);
             while (count--) {
                 lhs = POP(stack);
                 rhs = POP(stack);
@@ -199,7 +199,7 @@ vmeval_eval(VmEvalContext *ctx) {
                 DECREF(rhs);
             }
             PUSH(stack, (Object*) Class_build(attributes,
-                pc->op == OP_BUILD_SUBCLASS ? (ClassObject*) rhs : NULL));
+                pc->op == OP_BUILD_SUBCLASS ? (LoxClass*) rhs : NULL));
             if (pc->op == OP_BUILD_SUBCLASS)
                 DECREF(rhs);
             break;
@@ -238,7 +238,7 @@ vmeval_eval(VmEvalContext *ctx) {
             }
             else {
                 assert(Class_isClass(lhs));
-                lhs = (Object*) ((ClassObject*) lhs)->parent;
+                lhs = (Object*) ((LoxClass*) lhs)->parent;
                 if (unlikely(!lhs)) {
                     fprintf(stderr, "WARNING: `super` can only be used in a subclass\n");
                     lhs = LoxUndefined;
@@ -293,8 +293,8 @@ vmeval_eval(VmEvalContext *ctx) {
             if (lhs == NULL) {
                 // RAISE RUNTIME ERROR
                 fprintf(stderr, "WARNING: `%.*s` (%hd) accessed before assignment",
-                    ((StringObject*) (ctx->code->locals.names + pc->arg)->value)->length,
-                    ((StringObject*) (ctx->code->locals.names + pc->arg)->value)->characters,
+                    ((LoxString*) (ctx->code->locals.names + pc->arg)->value)->length,
+                    ((LoxString*) (ctx->code->locals.names + pc->arg)->value)->characters,
                     pc->arg);
                 lhs = LoxUndefined;
             }
@@ -450,7 +450,7 @@ vmeval_eval(VmEvalContext *ctx) {
         case OP_FORMAT:
             C = ctx->code->constants + pc->arg;
             assert(String_isString(C->value));
-            item = LoxObject_Format(POP(stack), ((StringObject*) C->value)->characters);
+            item = LoxObject_Format(POP(stack), ((LoxString*) C->value)->characters);
             PUSH(stack, item);
             break;
 
@@ -482,7 +482,7 @@ op_return:
 
 static Object*
 vmeval_inscope(CodeContext *code, VmScope *scope) {
-    static ModuleObject* builtins = NULL;
+    static LoxModule* builtins = NULL;
     if (builtins == NULL) {
         builtins = BuiltinModule_init();
         INCREF((Object*) builtins);

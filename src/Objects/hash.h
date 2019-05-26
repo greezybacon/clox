@@ -23,22 +23,22 @@ typedef struct hash_object {
     size_t  size;
     size_t  size_mask;
     HashEntry *table;
-} HashObject;
+} LoxTable;
 
 typedef struct {
     Iterator    base;
     int         pos;
-    HashObject* hash;
-} HashObjectIterator;
+    LoxTable* hash;
+} LoxTableIterator;
 
-HashObject* Hash_new(void);
-HashObject* Hash_newWithSize(size_t);
-Object* Hash_getItem(HashObject*, Object*);
-Object* Hash_getItemEx(HashObject*, Object*, hashval_t);
-bool Hash_contains(HashObject*, Object*);
-void Hash_setItem(HashObject*, Object*, Object*);
-void Hash_setItemEx(HashObject*, Object*, Object*, hashval_t);
-Iterator* Hash_getIterator(HashObject*);
+LoxTable* Hash_new(void);
+LoxTable* Hash_newWithSize(size_t);
+Object* Hash_getItem(LoxTable*, Object*);
+Object* Hash_getItemEx(LoxTable*, Object*, hashval_t);
+bool Hash_contains(LoxTable*, Object*);
+void Hash_setItem(LoxTable*, Object*, Object*);
+void Hash_setItemEx(LoxTable*, Object*, Object*, hashval_t);
+Iterator* Hash_getIterator(LoxTable*);
 
 #endif
 

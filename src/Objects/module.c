@@ -12,12 +12,12 @@ static struct object_type ModuleType;
 
 Object*
 Module_init(ModuleDescription* desc) {
-    ModuleObject* self = object_new(sizeof(ModuleObject), &ModuleType);
+    LoxModule* self = object_new(sizeof(LoxModule), &ModuleType);
     self->name = (Object*) String_fromCharArrayAndSize(desc->name, strlen(desc->name));
     self->properties = Hash_new();
 
     ObjectMethod* M = desc->methods;
-    StringObject* name;
+    LoxString* name;
     Object* method;
     while (M->name) {
         name = String_fromCharArrayAndSize(M->name, strlen(M->name));
@@ -33,15 +33,15 @@ static Object*
 module_getitem(Object* self, Object* name) {
     assert(self->type == &ModuleType);
 
-    ModuleObject* module = (ModuleObject*) self;
+    LoxModule* module = (LoxModule*) self;
     return Hash_getItem(module->properties, name);
 }
 
-static BoolObject*
+static LoxBool*
 module_contains(Object* self, Object* name) {
     assert(self->type == &ModuleType);
 
-    ModuleObject* module = (ModuleObject*) self;
+    LoxModule* module = (LoxModule*) self;
     return Bool_fromBool(Hash_contains(module->properties, name));
 }
 

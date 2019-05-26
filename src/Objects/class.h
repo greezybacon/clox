@@ -9,26 +9,26 @@ typedef struct class_object {
     Object      base;
 
     Object      *name;
-    HashObject  *attributes;
+    LoxTable    *attributes;
     struct class_object *parent;
-} ClassObject;
+} LoxClass;
 
 typedef struct instance_object {
     Object      base;
 
-    ClassObject *class;
-    HashObject  *attributes;
-} InstanceObject;
+    LoxClass    *class;
+    LoxTable    *attributes;
+} LoxInstance;
 
 typedef struct boundmethod_object {
     Object      base;
 
     Object      *method;
     Object      *object;
-    ClassObject *origin;
-} BoundMethodObject;
+    LoxClass    *origin;
+} LoxBoundMethod;
 
-ClassObject* Class_build(HashObject*, ClassObject*);
+LoxClass* Class_build(LoxTable*, LoxClass*);
 Object* BoundMethod_create(Object *, Object *);
 bool Class_isClass(Object*);
 

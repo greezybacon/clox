@@ -22,15 +22,15 @@ static struct object_type HashType;
 // https://gist.github.com/tonious/1377667
 
 /* Create a new hashtable. */
-HashObject *Hash_newWithSize(size_t size) {
-    HashObject *hashtable = NULL;
+LoxTable *Hash_newWithSize(size_t size) {
+    LoxTable *hashtable = NULL;
 
     // Check size is a power of 2, and at least 8
     size_t newsize = 8;
     while (newsize < size)
         newsize <<= 1;
 
-    hashtable = object_new(sizeof(HashObject), &HashType);
+    hashtable = object_new(sizeof(LoxTable), &HashType);
     if (unlikely(hashtable == NULL))
         return LoxNIL;
 
@@ -45,7 +45,7 @@ HashObject *Hash_newWithSize(size_t size) {
 }
 
 // My implementation as a table which will auto resize
-HashObject *Hash_new(void) {
+LoxTable *Hash_new(void) {
     return Hash_newWithSize(8);
 }
 
@@ -59,7 +59,7 @@ ht_hashval(Object *key) {
 }
 
 static int
-hash_resize(HashObject* self, size_t newsize) {
+hash_resize(LoxTable* self, size_t newsize) {
     if (newsize < 1)
         return 1;
 
@@ -100,7 +100,7 @@ static Object* hash_asstring(Object*);
 
 /* Insert a key-value pair into a hash table. */
 static void
-hash_set_fast(HashObject *self, Object *key, Object *value, hashval_t hash) {
+hash_set_fast(LoxTable *self, Object *key, Object *value, hashval_t hash) {
     int slot;
     HashEntry *entry;
 
@@ -152,11 +152,11 @@ hash_set(Object *self, Object *key, Object *value) {
     hashval_t hash = 0;
     hash = ht_hashval(key);
 
-    return hash_set_fast((HashObject*) self, key, value, hash);
+    return hash_set_fast((LoxTable*) self, key, value, hash);
 }
 
 static HashEntry*
-hash_lookup_fast(HashObject* self, Object* key, hashval_t hash) {
+hash_lookup_fast(LoxTable* self, Object* key, hashval_t hash) {
     int slot = hash & self->size_mask;
     HashEntry *entry = self->table + slot;
 
@@ -178,7 +178,7 @@ hash_lookup_fast(HashObject* self, Object* key, hashval_t hash) {
 }
 
 static HashEntry*
-hash_lookup(HashObject *self, Object *key) {
+hash_lookup(LoxTable *self, Object *key) {
     return hash_lookup_fast(self, key, ht_hashval(key));
 }
 
@@ -186,7 +186,7 @@ hash_lookup(HashObject *self, Object *key) {
 static Object*
 hash_get(Object *self, Object *key) {
     assert(self->type == &HashType);
-    HashEntry *entry = hash_lookup((HashObject*) self, key);
+    HashEntry *entry = hash_lookup((LoxTable*) self, key);
 
     if (entry == NULL)
         // TODO: Raise error
@@ -195,25 +195,25 @@ hash_get(Object *self, Object *key) {
     return entry->value;
 }
 
-static BoolObject*
+static LoxBool*
 hash_contains(Object *self, Object *key) {
     assert(self->type == &HashType);
-    HashEntry *entry = hash_lookup((HashObject*) self, key);
+    HashEntry *entry = hash_lookup((LoxTable*) self, key);
     return (entry == NULL) ? LoxFALSE : LoxTRUE;
 }
 
 Object*
-Hash_getItem(HashObject* self, Object* key) {
+Hash_getItem(LoxTable* self, Object* key) {
     assert(self);
     assert(self->base.type == &HashType);
 
-    HashEntry *entry = hash_lookup((HashObject*) self, key);
+    HashEntry *entry = hash_lookup((LoxTable*) self, key);
 
     return (entry == NULL) ? NULL : entry->value;
 }
 
 Object*
-Hash_getItemEx(HashObject* self, Object* key, hashval_t hash) {
+Hash_getItemEx(LoxTable* self, Object* key, hashval_t hash) {
     assert(self);
     HashEntry *rv = hash_lookup_fast(self, key, hash);
     if (rv != NULL)
@@ -223,34 +223,34 @@ Hash_getItemEx(HashObject* self, Object* key, hashval_t hash) {
 }
 
 void
-Hash_setItem(HashObject* self, Object* key, Object* value) {
+Hash_setItem(LoxTable* self, Object* key, Object* value) {
     assert(self);
     hash_set((Object*) self, key, value);
 }
 
 void
-Hash_setItemEx(HashObject* self, Object* key, Object* value, hashval_t hash) {
+Hash_setItemEx(LoxTable* self, Object* key, Object* value, hashval_t hash) {
     assert(self);
     hash_set_fast(self, key, value, hash);
 }
 
 bool
-Hash_contains(HashObject* self, Object* key) {
+Hash_contains(LoxTable* self, Object* key) {
     assert(self);
-    HashEntry *entry = hash_lookup((HashObject*) self, key);
+    HashEntry *entry = hash_lookup((LoxTable*) self, key);
     return entry != NULL;
 }
 
 static void
 hash_remove(Object* self, Object* key) {
     assert(self->type == &HashType);
-    HashEntry *entry = hash_lookup((HashObject*) self, key);
+    HashEntry *entry = hash_lookup((LoxTable*) self, key);
 
     if (entry == NULL)
         // TODO: Raise error
         return;
 
-    ((HashObject*) self)->count--;
+    ((LoxTable*) self)->count--;
 
     DECREF(entry->key);
     DECREF(entry->value);
@@ -263,20 +263,20 @@ hash_len(Object* self) {
     assert(self != NULL);
     assert(self->type == &HashType);
 
-    return (Object*) Integer_fromLongLong(((HashObject*) self)->count);
+    return (Object*) Integer_fromLongLong(((LoxTable*) self)->count);
 }
 
-static BoolObject*
+static LoxBool*
 hash_asbool(Object* self) {
     assert(self != NULL);
     assert(self->type == &HashType);
 
-    return ((HashObject*) self)->count == 0 ? LoxFALSE : LoxTRUE;
+    return ((LoxTable*) self)->count == 0 ? LoxFALSE : LoxTRUE;
 }
 
 static Object*
 hash_entries__next(Iterator* this) {
-    HashObjectIterator *self = (HashObjectIterator*) this;
+    LoxTableIterator *self = (LoxTableIterator*) this;
     int p;
     HashEntry* table = self->hash->table;
     while (self->pos < self->hash->size) {
@@ -291,10 +291,10 @@ hash_entries__next(Iterator* this) {
 }
 
 Iterator*
-Hash_getIterator(HashObject* self) {
-    HashObjectIterator* it = GC_NEW(HashObjectIterator);
+Hash_getIterator(LoxTable* self) {
+    LoxTableIterator* it = GC_NEW(LoxTableIterator);
 
-    *it = (HashObjectIterator) {
+    *it = (LoxTableIterator) {
         .base.next = hash_entries__next,
         .hash = self,
         .pos = 0,
@@ -305,14 +305,14 @@ Hash_getIterator(HashObject* self) {
 static Iterator*
 hash_iterate(Object *self) {
     assert(self->type == &HashType);
-    return Hash_getIterator((HashObject*) self);
+    return Hash_getIterator((LoxTable*) self);
 }
 
 static Object*
 hash_asstring(Object* self) {
     assert(self->type == &HashType);
 
-    char buffer[1024];  // TODO: Use the + operator of StringObject
+    char buffer[1024];  // TODO: Use the + operator of LoxString
     char* position = buffer;
     int remaining = sizeof(buffer) - 1, bytes;
 
@@ -320,15 +320,15 @@ hash_asstring(Object* self) {
     position += bytes, remaining -= bytes;
 
     Object *next, *key, *value;
-    StringObject *skey, *svalue;
+    LoxString *skey, *svalue;
 
-    Iterator* it = Hash_getIterator((HashObject*) self);
+    Iterator* it = Hash_getIterator((LoxTable*) self);
     while ((next = it->next(it))) {
         assert(Tuple_isTuple(next));
-        key = Tuple_getItem((TupleObject*) next, 0);
-        value = Tuple_getItem((TupleObject*) next, 1);
-        skey = (StringObject*) key->type->as_string(key);
-        svalue = (StringObject*) value->type->as_string(value);
+        key = Tuple_getItem((LoxTuple*) next, 0);
+        value = Tuple_getItem((LoxTuple*) next, 1);
+        skey = (LoxString*) key->type->as_string(key);
+        svalue = (LoxString*) value->type->as_string(value);
         bytes = snprintf(position, remaining, "%.*s: %.*s, ",
             skey->length, skey->characters, svalue->length, svalue->characters);
         position += bytes, remaining -= bytes;
@@ -344,7 +344,7 @@ static void
 hash_cleanup(Object *self) {
     assert(self->type == &HashType);
 
-    HashObject *this = (HashObject*) self;
+    LoxTable *this = (LoxTable*) self;
     HashEntry* table = this->table;
     int p = this->size;
     while (p--) {

@@ -15,9 +15,9 @@ static struct object_type ClassType;
 static struct object_type InstanceType;
 static struct object_type BoundMethodType;
 
-ClassObject*
-Class_build(HashObject *attributes, ClassObject *parent) {
-    ClassObject* O = object_new(sizeof(ClassObject), &ClassType);
+LoxClass*
+Class_build(LoxTable *attributes, LoxClass *parent) {
+    LoxClass* O = object_new(sizeof(LoxClass), &ClassType);
 
     O->attributes = attributes;
     O->parent = parent;
@@ -31,10 +31,10 @@ Class_build(HashObject *attributes, ClassObject *parent) {
     Object *value, *next;
     while ((next = it->next(it))) {
         assert(Tuple_isTuple(next));
-        value = Tuple_GETITEM((TupleObject*) next, 1);
+        value = Tuple_GETITEM((LoxTuple*) next, 1);
 
-        if (CodeObject_isCodeObject(value)) {
-            ((CodeObject*) value)->context->owner = (Object*) O;
+        if (VmCode_isVmCode(value)) {
+            ((LoxVmCode*) value)->context->owner = (Object*) O;
         }
     }
 
@@ -52,7 +52,7 @@ class_getattr(Object *self, Object *name) {
     assert(self);
     assert(self->type == &ClassType);
 
-    ClassObject *class = (ClassObject*) self;
+    LoxClass *class = (LoxClass*) self;
     Object *method;
     if (class->attributes && (method = Hash_getItem(class->attributes, name)))
         return method;
@@ -69,7 +69,7 @@ class_setattr(Object *self, Object *name, Object *value) {
     assert(self);
     assert(self->type == &ClassType);
 
-    ClassObject *this = (ClassObject*) self;
+    LoxClass *this = (LoxClass*) self;
 
     if (!this->attributes)
         this->attributes = Hash_new();
@@ -83,9 +83,9 @@ class_instanciate(Object* self, VmScope *scope, Object* object, Object* args) {
     assert(self->type == &ClassType);
 
     // Create/return a object with (self) as the class
-    InstanceObject *O = object_new(sizeof(InstanceObject), &InstanceType);
+    LoxInstance *O = object_new(sizeof(LoxInstance), &InstanceType);
 
-    O->class = (ClassObject*) self;
+    O->class = (LoxClass*) self;
     INCREF(self);
 
     // Call constructor with args
@@ -120,7 +120,7 @@ static void
 class_cleanup(Object *self) {
     assert(self->type == &ClassType);
 
-    ClassObject *this = (ClassObject*) self;
+    LoxClass *this = (LoxClass*) self;
     if (this->parent)
         DECREF((Object*) this->parent);
 }
@@ -145,7 +145,7 @@ instance_getattr(Object *self, Object *name) {
     assert(self);
     assert(self->type == &InstanceType);
 
-    InstanceObject *this = (InstanceObject*) self;
+    LoxInstance *this = (LoxInstance*) self;
     assert(this->class);
 
     Object *attr;
@@ -165,7 +165,7 @@ instance_setattr(Object *self, Object *name, Object *value) {
     assert(self);
     assert(self->type == &InstanceType);
 
-    InstanceObject *this = (InstanceObject*) self;
+    LoxInstance *this = (LoxInstance*) self;
 
     if (!this->attributes)
         this->attributes = Hash_new();
@@ -198,7 +198,7 @@ static void
 instance_cleanup(Object* self) {
     assert(self->type == &InstanceType);
 
-    InstanceObject *this = (InstanceObject*) self;
+    LoxInstance *this = (LoxInstance*) self;
     DECREF((Object*) this->class);
 }
 
@@ -219,7 +219,7 @@ Object*
 BoundMethod_create(Object *method, Object *object) {
     assert(Function_isCallable(method));
 
-    BoundMethodObject* O = object_new(sizeof(BoundMethodObject), &BoundMethodType);
+    LoxBoundMethod* O = object_new(sizeof(LoxBoundMethod), &BoundMethodType);
     O->method = method;
     O->object = object;
     INCREF(method);
@@ -233,7 +233,7 @@ boundmethod_invoke(Object* self, VmScope *scope, Object* object, Object* args) {
     assert(self);
     assert(self->type == &BoundMethodType);
     
-    BoundMethodObject *this = (BoundMethodObject*) self;
+    LoxBoundMethod *this = (LoxBoundMethod*) self;
     assert(this->method);
     assert(this->method->type->call);
     return this->method->type->call(this->method, scope, this->object, args);
@@ -243,7 +243,7 @@ static void
 boundmethod_cleanup(Object* self) {
     assert(self->type == &BoundMethodType);
     
-    BoundMethodObject *this = (BoundMethodObject*) self;
+    LoxBoundMethod *this = (LoxBoundMethod*) self;
     DECREF(this->method);
     DECREF(this->object);
 }
