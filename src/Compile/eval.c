@@ -553,3 +553,12 @@ vmeval_file(FILE *input) {
 
     return vmeval_inscope(context, NULL);
 }
+
+Object*
+LoxEval_EvalAST(ASTNode *input) {
+    Compiler compiler = { .flags = 0 };
+    CodeContext *context;
+
+    context = compile_ast(&compiler, input);
+    return vmeval_inscope(context, NULL);
+}

@@ -860,3 +860,17 @@ compile_file(Compiler *self, FILE *restrict input) {
     _compile_init_stream(self, stream);
     return self->context;
 }
+
+CodeContext*
+compile_ast(Compiler* self, ASTNode* node) {
+    ASTNode* ast;
+    unsigned length = 0;
+
+    compile_init(self);
+    while (node) {
+        length += compile_node(self, node);
+        node = node->next;
+    }
+
+    return self->context;
+}
