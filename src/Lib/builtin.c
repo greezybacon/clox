@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "Include/Lox.h"
 #include "builtin.h"
@@ -148,7 +149,26 @@ builtin_type(VmScope *state, Object *self, Object *args) {
     Object *object;
     Lox_ParseArgs(args, "O", &object);
 
-    return String_fromCharArrayAndSize(object->type->name, strlen(object->type->name));
+    return (Object*) String_fromCharArrayAndSize(object->type->name,
+        strlen(object->type->name));
+}
+
+static Object*
+builtin_iter(VmScope *state, Object *self, Object *args) {
+    assert(Tuple_isTuple(args));
+
+    Object *object;
+    Lox_ParseArgs(args, "O", &object);
+
+    if (object->type->iterate) {
+        return (Object*) object->type->iterate(object);
+    }
+    else {
+        fprintf(stderr, "Type `%s` is not iterable", object->type->name);
+    }
+
+    // TODO: Raise error
+    return LoxNIL;
 }
 
 static ModuleDescription
@@ -165,6 +185,7 @@ builtins_module_def = {
         { "hash",   builtin_hash },
         { "format", builtin_format },
         { "type",   builtin_type },
+        { "iter",   builtin_iter },
         { 0 },
     }
 };

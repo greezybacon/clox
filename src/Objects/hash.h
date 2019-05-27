@@ -26,7 +26,10 @@ typedef struct hash_object {
 } LoxTable;
 
 typedef struct {
-    Iterator    base;
+    union {
+        Object      object;
+        Iterator    iterator;
+    };
     int         pos;
     LoxTable* hash;
 } LoxTableIterator;

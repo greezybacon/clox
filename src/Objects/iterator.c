@@ -22,11 +22,23 @@ iterator_next(VmScope *state, Object *self, Object *args) {
     return this->next(this);
 }
 
+static void
+iterator_cleanup(Object *self) {
+    assert(self);
+    assert(self->type == &IteratorType);
+
+    Iterator *this = (Iterator*) self;
+
+    if (this->cleanup)
+        this->cleanup(self);
+}
+
 static struct object_type IteratorType = (ObjectType) {
     .code = TYPE_ITERATOR,
     .name = "iterator",
     .hash = MYADDRESS,
     .op_eq = IDENTITY,
+    .cleanup = iterator_cleanup,
     
     .methods = (ObjectMethod[]) {
         { "next", iterator_next },

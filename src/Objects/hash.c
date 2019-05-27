@@ -287,18 +287,25 @@ hash_entries__next(Iterator* this) {
         }
     }
     // Send terminating sentinel
-    return NULL;
+    return LoxStopIteration;
+}
+
+static void
+hash_entries__cleanup(Object *self) {
+    LoxTableIterator *this = (LoxTableIterator*) self;
+    fprintf(stderr, "DECREFING!");
+    DECREF(this->hash);
 }
 
 Iterator*
 Hash_getIterator(LoxTable* self) {
-    LoxTableIterator* it = GC_NEW(LoxTableIterator);
+    LoxTableIterator* it = (LoxTableIterator*) LoxIterator_create(sizeof(LoxTableIterator));
 
-    *it = (LoxTableIterator) {
-        .base.next = hash_entries__next,
-        .hash = self,
-        .pos = 0,
-    };
+    it->iterator.next = hash_entries__next;
+    it->iterator.cleanup = hash_entries__cleanup;
+    it->hash = self;
+
+    INCREF(self);
     return (Iterator*) it;
 }
 
@@ -307,6 +314,11 @@ hash_iterate(Object *self) {
     assert(self->type == &HashType);
     return Hash_getIterator((LoxTable*) self);
 }
+
+#define max(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
 
 static Object*
 hash_asstring(Object* self) {
@@ -323,7 +335,7 @@ hash_asstring(Object* self) {
     LoxString *skey, *svalue;
 
     Iterator* it = Hash_getIterator((LoxTable*) self);
-    while ((next = it->next(it))) {
+    while (LoxStopIteration != (next = it->next(it))) {
         assert(Tuple_isTuple(next));
         key = Tuple_getItem((LoxTuple*) next, 0);
         value = Tuple_getItem((LoxTuple*) next, 1);
@@ -333,7 +345,7 @@ hash_asstring(Object* self) {
             skey->length, skey->characters, svalue->length, svalue->characters);
         position += bytes, remaining -= bytes;
     }
-    position += snprintf(position - 2, remaining, "}");
+    position += snprintf(max((char*) buffer + 1, position - 2), remaining, "}");
 
     return (Object*) String_fromCharArrayAndSize(buffer, position - buffer);
 }

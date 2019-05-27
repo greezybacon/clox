@@ -9,6 +9,9 @@ typedef struct lox_iterator {
     };
     Object* (*next)(struct lox_iterator*);
     Object* previous;
+
+    // For cleanup coordination of specific iterator type
+    void (*cleanup)(Object*);
 } Iterator;
 
 Iterator* LoxIterator_create(size_t);
