@@ -733,6 +733,23 @@ compile_slice(Compiler *self, ASTSlice *node) {
 }
 
 static unsigned
+compile_table_literal(Compiler *self, ASTTableLiteral *node) {
+    ASTNode *key, *value;
+    unsigned length=0, count=0;
+
+    for (key = node->keys, value = node->values;
+        key && node;
+        key = key->next, value = value->next
+    ) {
+        length += compile_node1(self, key);
+        length += compile_node1(self, value);
+        count++;
+    }
+
+    return length + compile_emit(self, OP_BUILD_TABLE, count);
+}
+
+static unsigned
 compile_node1(Compiler* self, ASTNode* ast) {
     switch (ast->type) {
     case AST_ASSIGNMENT:
@@ -770,6 +787,8 @@ compile_node1(Compiler* self, ASTNode* ast) {
         return compile_interpolated_string(self, (ASTInterpolatedString*) ast);
     case AST_INTERPOLATED:
         return compile_interpolated_expr(self, (ASTInterpolatedExpr*) ast);
+    case AST_TABLE_LITERAL:
+        return compile_table_literal(self, (ASTTableLiteral*) ast);
     default:
         compile_error(self, "Unexpected AST node type");
     }

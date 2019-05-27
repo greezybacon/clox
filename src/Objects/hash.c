@@ -333,9 +333,7 @@ hash_asstring(Object* self) {
             skey->length, skey->characters, svalue->length, svalue->characters);
         position += bytes, remaining -= bytes;
     }
-    position += snprintf(position, remaining, "}");
-
-    free(it);
+    position += snprintf(position - 2, remaining, "}");
 
     return (Object*) String_fromCharArrayAndSize(buffer, position - buffer);
 }

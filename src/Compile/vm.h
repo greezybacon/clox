@@ -69,6 +69,7 @@ enum opcode {
     OP_BUILD_TUPLE,
     OP_BUILD_STRING,
     OP_FORMAT,
+    OP_BUILD_TABLE,
 }
 __attribute__((packed));
 

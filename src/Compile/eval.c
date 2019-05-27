@@ -454,6 +454,19 @@ vmeval_eval(VmEvalContext *ctx) {
             PUSH(stack, item);
             break;
 
+        case OP_BUILD_TABLE:
+            i = pc->arg;
+            item = (Object*) Hash_newWithSize(i);
+            while (i--) {
+                rhs = POP(stack);
+                lhs = POP(stack);
+                Hash_setItem((LoxTable*) item, lhs, rhs);
+                DECREF(rhs);
+                DECREF(lhs);
+            }
+            PUSH(stack, item);
+            break;
+
         default:
             printf("Unexpected OPCODE (%d)\n", pc->op);
         case OP_NOOP:

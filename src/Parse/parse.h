@@ -28,6 +28,7 @@ enum ast_type {
     AST_TUPLE_LITERAL,
     AST_INTERPOL_STRING,
     AST_INTERPOLATED,
+    AST_TABLE_LITERAL,
 };
 
 enum associativity {
@@ -181,6 +182,12 @@ typedef struct ast_tuple_literal {
     ASTNode             node;
     struct ast_node     *items;
 } ASTTupleLiteral;
+
+typedef struct ast_table_literal {
+    ASTNode             node;
+    ASTNode             *keys;
+    ASTNode             *values;
+} ASTTableLiteral;
 
 typedef enum {
     LOX_PARSE_NO_AUTO_TUPLE     = 1<<0,

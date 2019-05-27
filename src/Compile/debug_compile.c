@@ -72,6 +72,7 @@ static struct named_opcode OpcodeNames[] = {
     { OP_BUILD_TUPLE,   "BUILD_TUPLE" },
     { OP_BUILD_STRING,  "BUILD_STRING" },
     { OP_FORMAT,        "APPLY_FORMAT" },
+    { OP_BUILD_TABLE,   "BUILD_TABLE" },
 };
 
 static int cmpfunc (const void * a, const void * b) {

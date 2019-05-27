@@ -146,10 +146,10 @@ print_slice(FILE *output, ASTSlice *node) {
         }
     }
 
-    fprintf(output, " ] ");
+    fprintf(output, " ]");
 
     if (node->value) {
-        fprintf(output, ":= ");
+        fprintf(output, " := ");
         print_node(output, node->value);
     }
 }
@@ -195,6 +195,16 @@ print_interpol_expr(FILE *output, ASTInterpolatedExpr *node) {
     if (node->format) {
         fprintf(output, " : %s ", node->format);
     }
+}
+
+static void
+print_table_literal(FILE *output, ASTTableLiteral *node) {
+    ASTNode *key, *value;
+    fprintf(output, "Table(keys=(");
+    print_node(output, node->keys);
+    fprintf(output, "), values=(");
+    print_node(output, node->values);
+    fprintf(output, "))");
 }
 
 void
@@ -264,6 +274,9 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
             break;
         case AST_INTERPOLATED:
             print_interpol_expr(output, (ASTInterpolatedExpr*) current);
+            break;
+        case AST_TABLE_LITERAL:
+            print_table_literal(output, (ASTTableLiteral*) current);
             break;
         default:
             fprintf(output, "Unexpected AST type: %d", current->type);

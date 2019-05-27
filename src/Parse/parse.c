@@ -317,6 +317,41 @@ parse_string_literal(Parser *self, const char *text, int length) {
 }
 
 static ASTNode*
+parse_table_literal(Parser* self) {
+    Tokenizer *T = self->tokens;
+    ASTNode *key, *value, *keys, *values;
+
+    ASTTableLiteral *table = GC_MALLOC(sizeof(ASTTableLiteral));
+    parser_node_init((ASTNode*) table, AST_TABLE_LITERAL, T->current);
+
+    // Commas in this list should not promote this expression to a tuple
+    Parser nested;
+    parser_with_flags(self, &nested, self->flags | LOX_PARSE_NO_AUTO_TUPLE);
+
+    while (T->peek(T)->type != T_CLOSE_BRACE) {
+        key = parse_expression(&nested);
+        parse_expect(self, T_COLON);
+        value = parse_expression(&nested);
+
+        if (!table->keys)
+            keys = table->keys = key;
+        else
+            keys->next = key;
+
+        if (!table->values)
+            values = table->values = value;
+        else
+            values->next = value;
+
+        if (T->peek(T)->type == T_COMMA)
+            T->next(T);
+    }
+    parse_expect(self, T_CLOSE_BRACE);
+
+    return (ASTNode*) table;
+}
+
+static ASTNode*
 parse_TERM(Parser* self) {
     Tokenizer* T = self->tokens;
     Token* next = self->tokens->current;
@@ -331,6 +366,11 @@ parse_TERM(Parser* self) {
             result = (ASTNode*) parse_expression(&nested);
         }
         parse_expect(self, T_CLOSE_PAREN);
+        break;
+    }
+    case T_OPEN_BRACE: {
+        // This is for a table literal (keys as colons)
+        result = parse_table_literal(self);
         break;
     }
     case T_WORD: {

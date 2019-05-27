@@ -53,6 +53,7 @@ TokenDescriptions[] = {
     { T_COMMENT, "T_COMMENT" },
     { T_THIS, "T_THIS" },
     { T_SUPER, "T_SUPER" },
+    { T_COLON, "T_COLON" },
 };
 static const int cTokenDescriptions = sizeof(TokenDescriptions) / sizeof(TokenDescriptions[0]);
 
