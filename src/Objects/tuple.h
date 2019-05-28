@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 
+#include "iterator.h"
 #include "object.h"
 
 typedef struct tuple_object {
@@ -12,6 +13,14 @@ typedef struct tuple_object {
     int         count;
     Object**    items;
 } LoxTuple;
+
+typedef struct {
+    union {
+        Object      object;
+        Iterator    iterator;
+    };
+    int         pos;
+} TupleIterator;
 
 LoxTuple* Tuple_new(size_t);
 LoxTuple* Tuple_fromArgs(size_t, ...);

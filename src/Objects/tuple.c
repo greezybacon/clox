@@ -85,6 +85,26 @@ Tuple_isTuple(Object* self) {
 }
 
 static Object*
+tuple_entries__next(Iterator *self) {
+    TupleIterator *this = (TupleIterator*) self;
+    LoxTuple* target = (LoxTuple*) self->target;
+
+    if (this->pos < target->count)
+        return *(target->items + this->pos++);
+
+    return LoxStopIteration;
+}
+
+Iterator*
+Tuple_getIterator(LoxTuple* self) {
+    TupleIterator* it = (TupleIterator*) LoxIterator_create((Object*) self, sizeof(TupleIterator));
+
+    it->iterator.next = tuple_entries__next;
+
+    return (Iterator*) it;
+}
+
+static Object*
 tuple_getitem(Object* self, Object* index) {
     assert(self->type == &TupleType);
 
@@ -127,6 +147,41 @@ tuple_asstring(Object* self) {
     return (Object*) String_fromCharArrayAndSize(buffer, position - buffer);
 }
 
+static hashval_t
+tuple_hash(Object *self) {
+    assert(self->type == &TupleType);
+    LoxTuple *this = (LoxTuple*) self;
+
+    int i = this->count;
+    hashval_t result = i, tmp;
+    Object *item;
+    while (i--) {
+        item = *(this->items + i);
+        if (item->type->hash)
+            tmp = item->type->hash(item);
+        else
+            tmp = MYADDRESS(item);
+
+        result   = (tmp << 11) + result;
+        result  += result >> 11;
+    }
+
+    result ^= result << 3;
+    result += result >> 5;
+    result ^= result << 4;
+    result += result >> 17;
+    result ^= result << 25;
+    result += result >> 6;
+
+    return result;
+}
+
+static Iterator*
+tuple_iterate(Object *self) {
+    assert(self->type == &TupleType);
+    return Tuple_getIterator((LoxTuple*) self);
+}
+
 static void
 tuple_cleanup(Object *self) {
     assert(self->type == &TupleType);
@@ -142,7 +197,9 @@ tuple_cleanup(Object *self) {
 static struct object_type TupleType = (ObjectType) {
     .name = "tuple",
     .len = tuple_len,
+    .hash = tuple_hash,
     .get_item = tuple_getitem,
+    .iterate = tuple_iterate,
 
     .as_string = tuple_asstring,
     .cleanup = tuple_cleanup,
