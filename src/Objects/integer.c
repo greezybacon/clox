@@ -125,7 +125,8 @@ integer_op_minus(Object* self, Object* other) {
 
     // Promote floating point operations
     if (other->type->code == TYPE_FLOAT) {
-        return other->type->op_minus(other, self);
+        LoxFloat *F = (LoxFloat*) self->type->as_float(self);
+        return F->base.type->op_minus((Object*) F, other);
     }
     // Else coerce to integer
     else other = coerce_integer(other);
