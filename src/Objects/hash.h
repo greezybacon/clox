@@ -31,7 +31,6 @@ typedef struct {
         Iterator    iterator;
     };
     int         pos;
-    LoxTable* hash;
 } LoxTableIterator;
 
 LoxTable* Hash_new(void);

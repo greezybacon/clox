@@ -60,9 +60,8 @@ typedef struct string_chunk_iterator {
         Object      object;
         Iterator    iterator;
     };
-    LoxStringTree   *tree;
     int             pos;
-    struct string_chunk_iterator *inner;
+    Iterator        *inner;
 } ChunkIterator;
 
 Iterator* LoxStringTree_iterChunks(LoxStringTree*);

@@ -9,8 +9,10 @@
 static struct object_type IteratorType;
 
 Iterator*
-LoxIterator_create(size_t sizeof_derived_type) {
-    return object_new(sizeof_derived_type, &IteratorType);
+LoxIterator_create(Object *target, size_t sizeof_derived_type) {
+    Iterator* it = object_new(sizeof_derived_type, &IteratorType);
+    it->target = target;
+    INCREF(target);
 }
 
 Object*
@@ -29,6 +31,7 @@ iterator_cleanup(Object *self) {
 
     Iterator *this = (Iterator*) self;
 
+    DECREF(this->target);
     if (this->cleanup)
         this->cleanup(self);
 }

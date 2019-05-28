@@ -476,8 +476,11 @@ stringtree_asbool(Object* self) {
 }
 
 Object*
-stringtree_chunks__next(ChunkIterator* self) {
+stringtree_chunks__next(Iterator* this) {
+    ChunkIterator *self = (ChunkIterator*) this;
+
     // TODO: Support type assertion
+    LoxStringTree *target = (LoxStringTree*) self->iterator.target;
 
     if (self->inner) {
         Object *result = stringtree_chunks__next(self->inner);
@@ -491,24 +494,24 @@ stringtree_chunks__next(ChunkIterator* self) {
 
     if (self->pos == 0) {
         self->pos++;
-        if (self->tree->left->type == &StringTreeType) {
-            self->inner = (ChunkIterator*) LoxStringTree_iterChunks(self->tree->left);
+        if (target->left->type == &StringTreeType) {
+            self->inner = LoxStringTree_iterChunks(target->left);
             INCREF(self->inner);
             return stringtree_chunks__next(self->inner);
         }
         else {
-            return (LoxString*) self->tree->left;
+            return target->left;
         }
     }
     else if (self->pos == 1) {
         self->pos++;
-        if (self->tree->right->type == &StringTreeType) {
-            self->inner = (ChunkIterator*) LoxStringTree_iterChunks(self->tree->right);
+        if (target->right->type == &StringTreeType) {
+            self->inner = LoxStringTree_iterChunks(target->right);
             INCREF(self->inner);
             return stringtree_chunks__next(self->inner);
         }
         else {
-            return (LoxString*) self->tree->right;
+            return target->right;
         }
     }
 
@@ -518,11 +521,9 @@ stringtree_chunks__next(ChunkIterator* self) {
 
 Iterator*
 LoxStringTree_iterChunks(LoxStringTree* self) {
-    ChunkIterator* it = LoxIterator_create(sizeof(ChunkIterator));
+    ChunkIterator* it = (ChunkIterator*) LoxIterator_create((Object*) self, sizeof(ChunkIterator));
 
     it->iterator.next = stringtree_chunks__next;
-    it->tree = self;
-    INCREF((Object*) self);
 
     return (Iterator*) it;
 }

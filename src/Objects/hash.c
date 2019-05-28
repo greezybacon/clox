@@ -278,34 +278,25 @@ static Object*
 hash_entries__next(Iterator* this) {
     LoxTableIterator *self = (LoxTableIterator*) this;
     int p;
-    HashEntry* table = self->hash->table;
-    while (self->pos < self->hash->size) {
+    LoxTable *target = (LoxTable*) self->iterator.target;
+    HashEntry* table = target->table;
+    while (self->pos < target->size) {
         p = self->pos++;
         if (table[p].key != NULL) {
-            return this->previous
-                = (Object*) Tuple_fromArgs(2, table[p].key, table[p].value);
+            return (Object*) Tuple_fromArgs(2, table[p].key, table[p].value);
         }
     }
     // Send terminating sentinel
     return LoxStopIteration;
 }
 
-static void
-hash_entries__cleanup(Object *self) {
-    LoxTableIterator *this = (LoxTableIterator*) self;
-    fprintf(stderr, "DECREFING!");
-    DECREF(this->hash);
-}
-
 Iterator*
 Hash_getIterator(LoxTable* self) {
-    LoxTableIterator* it = (LoxTableIterator*) LoxIterator_create(sizeof(LoxTableIterator));
+    LoxTableIterator* it = (LoxTableIterator*) LoxIterator_create((Object*) self,
+        sizeof(LoxTableIterator));
 
     it->iterator.next = hash_entries__next;
-    it->iterator.cleanup = hash_entries__cleanup;
-    it->hash = self;
 
-    INCREF(self);
     return (Iterator*) it;
 }
 
