@@ -30,7 +30,7 @@ typedef struct string_object {
                        +(uint32_t)(((const uint8_t *)(d))[0]) )
 #endif
 
-LoxString* String_fromCharArrayAndSize(char*, size_t);
+LoxString* String_fromCharArrayAndSize(const char*, size_t);
 bool String_isString(Object*);
 LoxString* String_fromObject(Object*);
 LoxString* String_fromLiteral(const char*, size_t);

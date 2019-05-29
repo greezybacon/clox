@@ -17,7 +17,7 @@ static struct object_type StringType;
 static struct object_type StringTreeType;
 
 LoxString*
-String_fromCharArrayAndSize(char *characters, size_t size) {
+String_fromCharArrayAndSize(const char *characters, size_t size) {
     LoxString* O = object_new(sizeof(LoxString), &StringType);
     O->length = size;
     O->characters = strndup(characters, size);

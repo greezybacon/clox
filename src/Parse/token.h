@@ -73,7 +73,7 @@ typedef struct tokenize_context {
 
     Token*      (*next)(struct tokenize_context*);
     Token*      (*peek)(struct tokenize_context*);
-    char*       (*fetch_text)(struct tokenize_context*, struct token*);
+    const char* (*fetch_text)(struct tokenize_context*, struct token*);
     Token*      current;
     Token*      previous;
     Token*      _peek;

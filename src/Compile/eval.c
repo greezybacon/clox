@@ -347,7 +347,7 @@ vmeval_eval(VmEvalContext *ctx) {
             // Boolean
         case OP_BANG:
             lhs = POP(stack);
-            PUSH(stack, (Object*) (Bool_fromObject(lhs) == LoxTRUE ? LoxFALSE : LoxTRUE));
+            PUSH(stack, (Object*) (Bool_isTrue(lhs) ? LoxFALSE : LoxTRUE));
             DECREF(lhs);
             break;
 

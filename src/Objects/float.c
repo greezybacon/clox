@@ -154,7 +154,8 @@ static inline Object*
 coerce_float(Object* value) {
     if (value->type != &FloatType) {
        if (value->type->as_float == NULL) {
-           eval_error("Value cannot be coerced to float");
+           fprintf(stderr, "Warning: Cannot coerce type `%s` to float\n", value->type->name);
+           return LoxUndefined;
        }
        value = (Object*) value->type->as_float(value);
    }

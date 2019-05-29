@@ -217,7 +217,7 @@ next_token(Tokenizer *self) {
         while (isalnum(peek_char(self)) || peek_char(self) == '_')
             next_char(self);
 
-        char* token_text = self->fetch_text(self, token);
+        const char* token_text = self->fetch_text(self, token);
         switch (token->length) {
         case 2:
             if (0 == strncmp(token_text, "if", 2))
@@ -297,7 +297,7 @@ peek_token(Tokenizer *self) {
     return self->_peek;
 }
 
-static char*
+static const char*
 read_from_token(Tokenizer *self, Token* token) {
     if (!token->length)
         token->length = self->stream->pos - token->stream_pos;

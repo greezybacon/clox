@@ -83,7 +83,7 @@ typedef struct ast_term {
         long long       integer;
         long double     real;
     } token;
-    char                *text;  // Original token text (could be free()d for int/real)
+    const char          *text;  // Original token text (could be free()d for int/real)
     unsigned            length; // Length of text
     bool                isreal; // T_NUMBER could be float or int
 } ASTTerm;
@@ -137,7 +137,7 @@ typedef struct ast_class {
 
 typedef struct ast_fun {
     ASTNode             node;
-    char *              name;
+    const char *        name;
     unsigned            name_length;
     struct ast_node     *arglist;
     struct ast_node     *block;
@@ -166,7 +166,7 @@ typedef struct ast_for {
 
 typedef struct ast_var {
     ASTNode             node;
-    char *              name;
+    const char *        name;
     size_t              name_length;
     struct ast_node*    expression;
 } ASTVar;

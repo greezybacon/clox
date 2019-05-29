@@ -97,8 +97,8 @@ static inline Object*
 coerce_integer(Object* value) {
     if (value->type != &IntegerType) {
        if (value->type->as_int == NULL) {
-           eval_error(NULL, "Type %s cannot be coerced to int", value->type->name);
-           return value;
+           fprintf(stderr, "Warning: Cannot coerce type `%s` to float\n", value->type->name);
+           return LoxUndefined;
        }
        value = value->type->as_int(value);
    }

@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <sys/stat.h>
 #include <stdio.h>
 
 #include "file.h"
@@ -28,7 +29,12 @@ Lox_FileOpen(const char *filename, const char *flags) {
 
 static Object*
 file_len(Object *self) {
+    assert(self);
+    assert(self->type == &FileType);
 
+    struct stat st;
+    stat(((LoxFile*) self)->filename, &st);
+    return (Object*) Integer_fromLongLong(st.st_size);
 }
 
 // METHODS ----------------------------------

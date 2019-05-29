@@ -437,8 +437,8 @@ compile_interpolated_expr(Compiler *self, ASTInterpolatedExpr *node) {
     length = compile_node(self, node->expr);
 
     if (node->format) {
-        Object *format = String_fromLiteral(node->format, strlen(node->format));
-        unsigned index = compile_emit_constant(self, format);
+        LoxString *format = String_fromLiteral(node->format, strlen(node->format));
+        unsigned index = compile_emit_constant(self, (Object*) format);
         length += compile_emit(self, OP_FORMAT, index);
     }
 

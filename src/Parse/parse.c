@@ -688,7 +688,7 @@ static ASTNode*
 parse_expression(Parser* self) {
     ASTNode *expr = parse_expression_r(self, 0);
 
-    if (parse_expr_is_constant(expr)) {
+    if (expr->type == AST_EXPRESSION && parse_expr_is_constant(expr)) {
         Object *result = LoxEval_EvalAST(expr);
         // XXX: This assumes the size of a literal is less than that of an expr
         expr->type = AST_LITERAL;

@@ -13,6 +13,8 @@ LoxIterator_create(Object *target, size_t sizeof_derived_type) {
     Iterator* it = object_new(sizeof_derived_type, &IteratorType);
     it->target = target;
     INCREF(target);
+
+    return it;
 }
 
 Object*

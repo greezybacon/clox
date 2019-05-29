@@ -15,18 +15,18 @@ Bool_fromBool(bool value) {
     return value ? LoxTRUE : LoxFALSE;
 }
 
-LoxBool*
+Object*
 Bool_fromObject(Object* value) {
     if (value->type == &BooleanType)
-        return (LoxBool*) value;
+        return value;
     else if (value->type->as_bool)
-        return value->type->as_bool(value);
+        return (Object*) value->type->as_bool(value);
     // TODO: If type has a len() method, compare > zero
     else if (value == LoxNIL)
-        return LoxFALSE;
-    else
-        // XXX: FIXME
-        eval_error(NULL, "Cannot represent value as Boolean");
+        return (Object*) LoxFALSE;
+
+    fprintf(stderr, "Cannot coerce type `%s` to bool", value->type->name);
+    return LoxUndefined;
 }
 
 bool

@@ -11,7 +11,7 @@ typedef struct bool_object {
 } LoxBool;
 
 LoxBool* Bool_fromBool(bool);
-LoxBool* Bool_fromObject(Object*);
+Object* Bool_fromObject(Object*);
 bool Bool_isBool(Object*);
 bool Bool_isTrue(Object*);
 #define Bool_ISTRUE(value) (((LoxBool*) (value)) == LoxTRUE)
