@@ -6,6 +6,7 @@
 #include "builtin.h"
 
 #include "Objects/file.h"
+#include "Objects/list.h"
 
 static Object*
 builtin_print(VmScope* state, Object* self, Object* args) {
@@ -171,6 +172,29 @@ builtin_iter(VmScope *state, Object *self, Object *args) {
     return LoxNIL;
 }
 
+static Object*
+builtin_list(VmScope *state, Object *self, Object *args) {
+    assert(Tuple_isTuple(args));
+
+    LoxList* result = LoxList_new();
+
+    if (Tuple_getSize(args) == 0)
+        return (Object*) result;
+
+    Object *object, *item;
+    Lox_ParseArgs(args, "O", &object);
+
+    if (object->type->iterate) {
+        Iterator *items = object->type->iterate(object);
+        while (LoxStopIteration != (item = items->next(items))) {
+            LoxList_append(result, item);
+        }
+        LoxObject_Cleanup((Object*) items);
+    }
+
+    return (Object*) result;
+}
+
 static ModuleDescription
 builtins_module_def = {
     .name = "__builtins__",
@@ -186,6 +210,7 @@ builtins_module_def = {
         { "format", builtin_format },
         { "type",   builtin_type },
         { "iter",   builtin_iter },
+        { "list",   builtin_list },
         { 0 },
     }
 };
