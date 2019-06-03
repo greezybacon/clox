@@ -37,6 +37,7 @@ LoxList* LoxList_fromList(size_t, Object**);
 Object* LoxList_getItem(LoxList*, int);
 void LoxList_setItem(LoxList*, int, Object*);
 void LoxList_append(LoxList*, Object*);
+void LoxList_extend(LoxList*, Object*);
 Object* LoxList_pop(LoxList*);
 Object* LoxList_popAt(LoxList*, int);
 

@@ -5,6 +5,7 @@
 #include "Lib/builtin.h"
 #include "list.h"
 #include "integer.h"
+#include "iterator.h"
 #include "string.h"
 
 const int BUCKET_SIZE = 16;
@@ -52,6 +53,17 @@ LoxList_append(LoxList *self, Object *item) {
     self->count++;
 }
 
+void
+LoxList_extend(LoxList *self, Object *items) {
+    if (object->type->iterate) {
+        Iterator *items = object->type->iterate(object);
+        while (LoxStopIteration != (item = items->next(items))) {
+            LoxList_append(self, item);
+        }
+        LoxObject_Cleanup((Object*) items);
+    }
+}
+
 Object*
 LoxList_pop(LoxList *self) {
     // Fast-forward to list end
@@ -75,7 +87,10 @@ LoxList_pop(LoxList *self) {
 
 Object*
 LoxList_popAt(LoxList *self, int index) {
-    if (index > self->count) {
+    while (index < 0)
+        index += self->count;
+
+    if (index >= self->count) {
         fprintf(stderr, "Warning: List pop index is after list end\n");
         return LoxUndefined;
     }
@@ -118,14 +133,14 @@ LoxList_getItem(LoxList *self, int index) {
     while (index < 0)
         index += self->count;
 
-    if (index > self->count) {
+    if (index >= self->count) {
         fprintf(stderr, "Warning: List item index is after list end\n");
         return LoxUndefined;
     }
 
     // Fast-forward to bucket containing index
     ListBucket *end = self->buckets;
-    while (end && end->offset < index) {
+    while (end && index >= (end->offset + end->count)) {
         end = end->next;
     }
 
@@ -157,7 +172,7 @@ static Object*
 list_entries__next(Iterator *self) {
     LoxListIterator *this = (LoxListIterator*) self;
 
-    if (this->pos_in_bucket > this->bucket->count) {
+    if (this->pos_in_bucket >= this->bucket->count) {
         this->bucket = this->bucket->next;
         this->pos_in_bucket = 0;
     }
@@ -236,6 +251,14 @@ list_append(VmScope *state, Object *self, Object *args) {
     return LoxNIL;
 }
 
+static Iterator*
+list_iterate(Object *self) {
+    assert(self);
+    assert(self->type == &ListType);
+
+    return LoxList_getIterator((LoxList*) self);
+}
+
 static Object*
 list_asstring(Object* self) {
     assert(self->type == &ListType);
@@ -275,6 +298,7 @@ static struct object_type ListType = (ObjectType) {
     .len = list_len,
     .get_item = list_getitem,
     .set_item = list_setitem,
+    .iterate = list_iterate,
 
     .as_string = list_asstring,
     .cleanup = list_cleanup,
