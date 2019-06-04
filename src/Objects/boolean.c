@@ -120,7 +120,7 @@ null_asstring(Object* self) {
 }
 
 static int
-null_compare(Object *self) {
+null_compare(Object *self, Object *other) {
     return -1;
 }
 
