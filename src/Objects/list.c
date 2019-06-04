@@ -54,14 +54,18 @@ LoxList_append(LoxList *self, Object *item) {
 }
 
 void
-LoxList_extend(LoxList *self, Object *items) {
-    if (object->type->iterate) {
-        Iterator *items = object->type->iterate(object);
-        while (LoxStopIteration != (item = items->next(items))) {
-            LoxList_append(self, item);
-        }
-        LoxObject_Cleanup((Object*) items);
+LoxList_extend(LoxList *self, Object *object) {
+    if (!object->type->iterate) {
+        fprintf(stderr, "WARNING: Item to extend list must be iterable.\n");
+        return;
     }
+
+    Iterator *items = object->type->iterate(object);
+    Object *item;
+    while (LoxStopIteration != (item = items->next(items))) {
+        LoxList_append(self, item);
+    }
+    LoxObject_Cleanup((Object*) items);
 }
 
 Object*
@@ -244,10 +248,22 @@ list_append(VmScope *state, Object *self, Object *args) {
     assert(self);
     assert(self->type == &ListType);
 
-    Object *object, *item;
+    Object *object;
     Lox_ParseArgs(args, "O", &object);
 
     LoxList_append((LoxList*) self, object);
+    return LoxNIL;
+}
+
+static Object*
+list_extend(VmScope *state, Object *self, Object *args) {
+    assert(self);
+    assert(self->type == &ListType);
+
+    Object *object;
+    Lox_ParseArgs(args, "O", &object);
+
+    LoxList_extend((LoxList*) self, object);
     return LoxNIL;
 }
 
@@ -305,6 +321,7 @@ static struct object_type ListType = (ObjectType) {
 
     .methods = (ObjectMethod[]) {
         { "append", list_append },
+        { "extend", list_extend },
         { 0, 0 },
     },
 };
