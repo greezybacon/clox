@@ -38,16 +38,10 @@ enum opcode {
     OP_CONSTANT,
 
     // Comparison
-    OP_GT,
-    OP_GTE,
-    OP_LT,
-    OP_LTE,
-    OP_EQUAL,
-    OP_NEQ,
+    OP_COMPARE,
 
     // Boolean
     OP_BANG,
-    OP_IN,
 
     // Expressions
     OP_MATH,
@@ -86,6 +80,21 @@ enum lox_vm_math {
     MATH_BINARY_MODULUS,
     MATH_UNARY_NEGATIVE,
     MATH_UNARY_INVERT,
+}
+__attribute__((packed));
+
+enum lox_vm_compare {
+    COMPARE_IS = 1,
+    COMPARE_EQ,
+    COMPARE_NOT_EQ,
+    COMPARE_EXACT,
+    COMPARE_NOT_EXACT,
+    COMPARE_LT,
+    COMPARE_LTE,
+    COMPARE_GT,
+    COMPARE_GTE,
+    COMPARE_IN,
+    COMPARE_SPACESHIP,
 }
 __attribute__((packed));
 

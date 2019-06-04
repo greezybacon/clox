@@ -194,12 +194,41 @@ tuple_cleanup(Object *self) {
     free(this->items);
 }
 
+static int
+tuple_compare(Object *self, Object *other) {
+    if (other->type != &TupleType)
+        return -1;
+
+    int count = Tuple_getSize(self), rv = count - Tuple_getSize(other);
+    if (rv != 0)
+        return rv;
+
+    Object *item, *oitem;
+    int i = 0;
+    while (i < count) {
+        item = Tuple_GETITEM(self, i);
+        oitem = Tuple_GETITEM(other, i);
+        if (likely(item->type->compare != NULL)) {
+            if ((rv = item->type->compare(item, oitem)) != 0)
+                return rv;
+        }
+        else {
+            // Undefined?
+            return -1;
+        }
+        i++;
+    }
+
+    return 0;
+}
+
 static struct object_type TupleType = (ObjectType) {
     .name = "tuple",
     .len = tuple_len,
     .hash = tuple_hash,
     .get_item = tuple_getitem,
     .iterate = tuple_iterate,
+    .compare = tuple_compare,
 
     .as_string = tuple_asstring,
     .cleanup = tuple_cleanup,

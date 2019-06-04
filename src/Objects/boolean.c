@@ -62,8 +62,8 @@ bool_asstring(Object* self) {
     return (Object*) String_fromConstant(((LoxBool*)self)->value ? "true" : "false");
 }
 
-static LoxBool*
-bool_op_eq(Object* self, Object* other) {
+static int
+bool_compare(Object* self, Object* other) {
     assert(self->type == &BooleanType);
     if (other->type != self->type) {
         if (!other->type->as_bool) {
@@ -71,13 +71,7 @@ bool_op_eq(Object* self, Object* other) {
         }
         other = (Object*) other->type->as_bool(other);
     }
-    return (((LoxBool*)self)->value == ((LoxBool*)other)->value
-        ? LoxTRUE : LoxFALSE);
-}
-
-static LoxBool*
-bool_op_ne(Object* self, Object* other) {
-    return (bool_op_eq(self, other) == LoxTRUE) ? LoxFALSE : LoxTRUE;
+    return ((LoxBool*)self)->value - ((LoxBool*)other)->value;
 }
 
 static struct object_type BooleanType = (ObjectType) {
@@ -88,8 +82,7 @@ static struct object_type BooleanType = (ObjectType) {
     .as_int = bool_asint,
     .as_string = bool_asstring,
 
-    .op_eq = bool_op_eq,
-    .op_ne = bool_op_ne,
+    .compare = bool_compare,
 
     .cleanup = ERROR,
 };
@@ -126,6 +119,11 @@ null_asstring(Object* self) {
     return (Object*) String_fromConstant("null");
 }
 
+static int
+null_compare(Object *self) {
+    return -1;
+}
+
 static struct object_type NilType = (ObjectType) {
     .code = TYPE_NIL,
     .name = "nil",
@@ -134,7 +132,7 @@ static struct object_type NilType = (ObjectType) {
     .as_int = null_asint,
     .as_string = null_asstring,
 
-    .op_eq = IDENTITY,
+    .compare = null_compare,
     .cleanup = ERROR,
 };
 
@@ -164,7 +162,7 @@ static struct object_type UndefinedType = (ObjectType) {
     .as_bool = undef_asbool,
     .as_string = undef_asstring,
 
-    .op_eq = IDENTITY,
+    .compare = null_compare,
     .cleanup = ERROR,
 };
 

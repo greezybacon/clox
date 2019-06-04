@@ -82,9 +82,7 @@ main(int argc, char** argv) {
     }
     else {
         CmdLoop repl;
-        Interpreter ctx;
-        eval_init(&ctx);
-        repl_init(&repl, &ctx);
+        repl_init(&repl);
         repl_loop(&repl);
     }
     

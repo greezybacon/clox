@@ -42,7 +42,7 @@ static struct object_type IteratorType = (ObjectType) {
     .code = TYPE_ITERATOR,
     .name = "iterator",
     .hash = MYADDRESS,
-    .op_eq = IDENTITY,
+    .compare = IDENTITY,
     .cleanup = iterator_cleanup,
     
     .methods = (ObjectMethod[]) {
@@ -62,7 +62,7 @@ static struct object_type StopIterationType = (ObjectType) {
 
     .as_string = iterstop_asstring,
 
-    .op_eq = IDENTITY,
+    .compare = IDENTITY,
     .hash = MYADDRESS,
     .cleanup = ERROR,
 };

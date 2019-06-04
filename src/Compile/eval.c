@@ -319,49 +319,77 @@ vmeval_eval(VmEvalContext *ctx) {
     DECREF(lhs); \
     DECREF(rhs); \
 } while(0)
+    
+#define BINARY_COMPARE() ({ \
+    rhs = POP(stack); \
+    lhs = POP(stack); \
+    int x = (lhs->type->compare) ? lhs->type->compare(lhs, rhs) : (lhs == rhs ? 0 : -1); \
+    DECREF(lhs); \
+    DECREF(rhs); \
+    x; \
+})
 
-            // Comparison
-        case OP_GT:
-            BINARY_METHOD(op_gt);
+        // Comparison
+        case OP_COMPARE:
+            switch ((enum lox_vm_compare) pc->arg) {
+            case COMPARE_IN:
+                lhs = POP(stack);
+                rhs = POP(stack);
+                if (likely(lhs->type->contains != NULL)) {
+                    PUSH(stack, (Object*) lhs->type->contains(lhs, rhs));
+                }
+                else {
+                    fprintf(stderr, "WARNING: Type <%s> does not support IN\n", lhs->type->name);
+                    PUSH(stack, LoxUndefined);
+                }
+                DECREF(lhs);
+                DECREF(rhs);
+                break;
+                
+            case COMPARE_EXACT:
+                rhs = POP(stack);
+                lhs = POP(stack);
+                if (lhs == rhs)
+                    PUSH(stack, (Object*) LoxTRUE);
+                else if (lhs->type != rhs->type)
+                    PUSH(stack, (Object*) LoxFALSE);
+                else if (lhs->type->compare && lhs->type->compare(lhs, rhs) == 0)
+                    PUSH(stack, (Object*) LoxTRUE);
+                else
+                    PUSH(stack, (Object*) LoxFALSE);
+                DECREF(lhs); \
+                DECREF(rhs); \
+                break;
+
+            case COMPARE_EQ:
+                PUSH(stack, (Object*) (BINARY_COMPARE() == 0 ? LoxTRUE : LoxFALSE));
+                break;
+            case COMPARE_NOT_EQ:
+                PUSH(stack, (Object*) (BINARY_COMPARE() != 0 ? LoxTRUE : LoxFALSE));
+                break;
+            case COMPARE_GT:
+                PUSH(stack, (Object*) (BINARY_COMPARE() > 0 ? LoxTRUE : LoxFALSE));
+                break;
+            case COMPARE_GTE:
+                PUSH(stack, (Object*) (BINARY_COMPARE() < 0 ? LoxFALSE : LoxTRUE));
+                break;
+            case COMPARE_LT:
+                PUSH(stack, (Object*) (BINARY_COMPARE() < 0 ? LoxTRUE : LoxFALSE));
+                break;
+            case COMPARE_LTE:
+                PUSH(stack, (Object*) (BINARY_COMPARE() > 0 ? LoxFALSE : LoxTRUE));
+                break;
+            default:
+                fprintf(stderr, "WARNING: %hd: Unimplemneted compare operation\n", pc->arg);
+                PUSH(stack, LoxUndefined);
+            }
             break;
 
-        case OP_GTE:
-            BINARY_METHOD(op_gte);
-            break;
-
-        case OP_LT:
-            BINARY_METHOD(op_lt);
-            break;
-
-        case OP_LTE:
-            BINARY_METHOD(op_lte);
-            break;
-
-        case OP_EQUAL:
-            BINARY_METHOD(op_eq);
-            break;
-
-        case OP_NEQ:
-            break;
-
-            // Boolean
+        // Boolean
         case OP_BANG:
             lhs = POP(stack);
             PUSH(stack, (Object*) (Bool_isTrue(lhs) ? LoxFALSE : LoxTRUE));
             DECREF(lhs);
-            break;
-
-        case OP_IN:
-            lhs = POP(stack);
-            rhs = POP(stack);
-            if (likely(lhs->type->contains != NULL)) {
-                PUSH(stack, (Object*) lhs->type->contains(lhs, rhs));
-            }
-            else {
-                fprintf(stderr, "WARNING: Type <%s> does not support IN\n", lhs->type->name);
-            }
-            DECREF(lhs);
-            DECREF(rhs);
             break;
 
         // Expressions

@@ -6,7 +6,6 @@
 
 #include "debug_token.h"
 #include "debug_parse.h"
-#include "Eval/interpreter.h"
 #include "parse.h"
 #include "Objects/string.h"
 #include "Compile/vm.h"
@@ -352,6 +351,31 @@ parse_table_literal(Parser* self) {
     return (ASTNode*) table;
 }
 
+Object*
+parse_eval_term(Parser *self, ASTTerm* term) {
+    Object* rv;
+
+    switch (term->token_type) {
+    case T_NUMBER:
+        if (term->isreal) {
+            return (Object*) Float_fromLongDouble(term->token.real);
+        }
+        return (Object*) Integer_fromLongLong(term->token.integer);
+    case T_STRING:
+        return (Object*) String_fromLiteral(term->text, term->length);
+    case T_NULL:
+        return LoxNIL;
+    case T_TRUE:
+        return (Object*) LoxTRUE;
+    case T_FALSE:
+        return (Object*) LoxFALSE;
+
+    default:
+        fprintf(stdout, "Say what?: %d\n", term->token_type);
+    }
+    return LoxNIL;
+}
+
 static ASTNode*
 parse_TERM(Parser* self) {
     Tokenizer* T = self->tokens;
@@ -419,7 +443,7 @@ parse_TERM(Parser* self) {
             }
         }
 
-        Object *value = eval_term(NULL, term);
+        Object *value = parse_eval_term(self, term);
         ASTLiteral* literal = GC_MALLOC(sizeof(ASTLiteral));
         parser_node_init((ASTNode*) literal, AST_LITERAL, next);
         literal->literal = value;

@@ -41,16 +41,10 @@ static struct named_opcode OpcodeNames[] = {
     { OP_CONSTANT,      "CONSTANT" },
 
     // Comparison
-    { OP_GT,            "GT (>)" },
-    { OP_GTE,           "GTE (>=)" },
-    { OP_LT,            "LT (<)" },
-    { OP_LTE,           "LTE (<=)" },
-    { OP_EQUAL,         "EQUAL (==)" },
-    { OP_NEQ,           "NEQ (!=)" },
+    { OP_COMPARE,       "COMPARE" },
 
     // Boolean logic
     { OP_BANG,          "BANG (!)" },
-    { OP_IN,            "IN" },
 
     // Expressions / math
     { OP_MATH,          "MATH" },
@@ -96,6 +90,21 @@ static struct token_to_math_op {
     { T_OP_PERCENT,     OP_MATH,    MATH_BINARY_MODULUS,    "%" },
     { T_OP_LSHIFT,      OP_MATH,    MATH_BINARY_LSHIFT,     "<<" },
     { T_OP_RSHIFT,      OP_MATH,    MATH_BINARY_RSHIFT,     ">>" },
+};
+
+static struct token_to_compare_op {
+    enum token_type     token;
+    enum opcode         vm_opcode;
+    enum lox_vm_compare compare_op;
+    const char          *op_desc;
+} TokenToCompareOp[] = {
+    { T_OP_EQUAL,       OP_COMPARE,     COMPARE_EQ,     "==" },
+    { T_OP_NOTEQUAL,    OP_COMPARE,     COMPARE_NOT_EQ, "!=" },
+    { T_OP_GT,          OP_COMPARE,     COMPARE_GT,     ">"  },
+    { T_OP_GTE,         OP_COMPARE,     COMPARE_GTE,    ">=" },
+    { T_OP_LT,          OP_COMPARE,     COMPARE_LT,     "<"  },
+    { T_OP_LTE,         OP_COMPARE,     COMPARE_LTE,    "<=" },
+    { T_OP_IN,          OP_COMPARE,     COMPARE_IN,     "in" },
 };
 
 static int math_cmpfunc (const void * a, const void * b) {
@@ -168,6 +177,15 @@ print_opcode(const CodeContext *context, const Instruction *op) {
             sizeof(struct token_to_math_op), math_cmpfunc);
             printf(" (%s)", T->op_desc);
     }
+    break;
+
+    case OP_COMPARE: {
+        struct token_to_compare_op* T, key = { .compare_op = op->arg };
+        T = bsearch(&key, TokenToCompareOp, sizeof(TokenToCompareOp) / sizeof(struct token_to_compare_op),
+            sizeof(struct token_to_compare_op), math_cmpfunc);
+            printf(" (%s)", T->op_desc);
+    }
+    break;
 
     default:
         break;
@@ -183,6 +201,8 @@ print_instructions(const CodeContext *context, const Instruction *block, int cou
             sizeof(struct named_opcode), cmpfunc);
         qsort(TokenToMathOp, sizeof(TokenToMathOp) / sizeof(struct token_to_math_op),
             sizeof(struct token_to_math_op), math_cmpfunc);
+        qsort(TokenToCompareOp, sizeof(TokenToCompareOp) / sizeof(struct token_to_compare_op),
+            sizeof(struct token_to_compare_op), math_cmpfunc);
     }
 
     while (count--) {

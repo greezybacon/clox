@@ -78,13 +78,7 @@ typedef struct object_type {
     Object* (*op_neg)(Object*);
 
     // TODO: Comparison
-    LoxBool* (*op_lt)(Object*, Object*);
-    LoxBool* (*op_lte)(Object*, Object*);
-    LoxBool* (*op_gt)(Object*, Object*);
-    LoxBool* (*op_gte)(Object*, Object*);
-    LoxBool* (*op_eq)(Object*, Object*);
-    LoxBool* (*op_ne)(Object*, Object*);
-    Object* (*compare)(Object*, Object*);
+    int (*compare)(Object*, Object*);
 
     // TODO: Callable
 	Object* (*call)(Object*, VmScope*, Object*, Object*);
@@ -127,8 +121,8 @@ static hashval_t MYADDRESS(Object *self) {
 #include "boolean.h"
 struct bool_object *LoxTRUE;
 struct bool_object *LoxFALSE;
-static inline LoxBool *IDENTITY(Object *self, Object *other) {
-    return self == other ? LoxTRUE : LoxFALSE;
+static inline int IDENTITY(Object *self, Object *other) {
+    return self == other ? 0 : -1;
 }
 
 static inline void ERROR(Object *self) {

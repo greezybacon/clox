@@ -208,52 +208,14 @@ integer_op_divide(Object* self, Object* other) {
     return (Object*) Integer_fromLongLong(((LoxInteger*) self)->value / ((LoxInteger*) other)->value);
 }
 
-static LoxBool*
-integer_op_eq(Object* self, Object* other) {
-    assert(self->type == &IntegerType);
-
+static int
+integer_compare(Object *self, Object *other) {
     if (!(other = coerce_integer(other)))
-        return LoxFALSE;
+        return -1;
 
-    return ((LoxInteger*) self)->value == ((LoxInteger*) other)->value ? LoxTRUE : LoxFALSE;
+    return ((LoxInteger*) self)->value - ((LoxInteger*) other)->value;
 }
 
-static LoxBool*
-integer_op_ne(Object* self, Object* other) {
-    return integer_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;
-}
-
-static LoxBool*
-integer_op_lt(Object* self, Object* other) {
-    assert(self->type == &IntegerType);
-    Object* rhs = coerce_integer(other);
-    return ((LoxInteger*)self)->value < ((LoxInteger*)rhs)->value
-        ? LoxTRUE : LoxFALSE;
-}
-
-static LoxBool*
-integer_op_lte(Object* self, Object* other) {
-    assert(self->type == &IntegerType);
-    Object* rhs = coerce_integer(other);
-    return ((LoxInteger*)self)->value <= ((LoxInteger*)rhs)->value
-        ? LoxTRUE : LoxFALSE;
-}
-
-static LoxBool*
-integer_op_gt(Object* self, Object* other) {
-    assert(self->type == &IntegerType);
-    Object* rhs = coerce_integer(other);
-    return ((LoxInteger*)self)->value > ((LoxInteger*)rhs)->value
-        ? LoxTRUE : LoxFALSE;
-}
-
-static LoxBool*
-integer_op_gte(Object* self, Object* other) {
-    assert(self->type == &IntegerType);
-    Object* rhs = coerce_integer(other);
-    return ((LoxInteger*)self)->value >= ((LoxInteger*)rhs)->value
-        ? LoxTRUE : LoxFALSE;
-}
 
 static struct object_type IntegerType = (ObjectType) {
     .code = TYPE_INTEGER,
@@ -280,11 +242,5 @@ static struct object_type IntegerType = (ObjectType) {
     .op_neg = integer_op_neg,
 
     // comparison
-    .op_lt = integer_op_lt,
-    .op_lte = integer_op_lte,
-    .op_gt = integer_op_gt,
-    .op_gte = integer_op_gte,
-
-    .op_eq = integer_op_eq,
-    .op_ne = integer_op_ne,
+    .compare = integer_compare,
 };

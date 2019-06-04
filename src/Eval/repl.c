@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "interpreter.h"
 #include "Compile/vm.h"
 #include "repl.h"
 #include "Include/Lox.h"
@@ -108,7 +107,7 @@ repl_loop(CmdLoop* self) {
 }
 
 void
-repl_init(CmdLoop *loop, Interpreter* eval) {
+repl_init(CmdLoop *loop) {
     VmScope *scope = GC_MALLOC(sizeof(VmScope));
     *scope = (VmScope) { .globals = Hash_new() };
     *loop = (CmdLoop) {

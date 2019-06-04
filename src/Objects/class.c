@@ -133,7 +133,7 @@ static struct object_type ClassType = (ObjectType) {
 
     .as_string = class_asstring,
 
-    .op_eq = IDENTITY,
+    .compare = IDENTITY,
     .getattr = class_getattr,
     .setattr = class_setattr,
 
@@ -208,7 +208,7 @@ static struct object_type InstanceType = (ObjectType) {
     .cleanup = instance_cleanup,
 
     .as_string = instance_asstring,
-    .op_eq = IDENTITY,
+    .compare = IDENTITY,
 
     .getattr = instance_getattr,
     .setattr = instance_setattr,
@@ -253,7 +253,7 @@ static struct object_type BoundMethodType = (ObjectType) {
     .name = "method",
     .cleanup = boundmethod_cleanup,
 
-    .op_eq = IDENTITY,
+    .compare = IDENTITY,
 
     .call = boundmethod_invoke,
 };

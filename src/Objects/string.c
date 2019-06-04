@@ -222,27 +222,8 @@ string_compare(Object *self, Object *other) {
         ((LoxString*) other)->characters,
         ((LoxString*) self)->length);
 
-        return cmp != 0 ? cmp
-            : ((LoxString*) self)->length - ((LoxString*) other)->length;
-}
-
-static LoxBool*
-string_op_eq(Object* self, Object* other) {
-    assert(self->type == &StringType);
-    assert(other);
-
-    if (other->type != self->type)
-        return LoxFALSE;
-
-    if (self == other)
-        return LoxTRUE;
-
-    return string_compare(self, other) == 0 ? LoxTRUE : LoxFALSE;
-}
-
-static LoxBool*
-string_op_ne(Object* self, Object* other) {
-    return string_op_eq(self, other) == LoxTRUE ? LoxFALSE : LoxTRUE;
+    return cmp != 0 ? cmp
+        : ((LoxString*) self)->length - ((LoxString*) other)->length;
 }
 
 static Object*
@@ -333,8 +314,7 @@ static struct object_type StringType = (ObjectType) {
     .as_string = string_asstring,
     .as_bool = string_asbool,
 
-    .op_eq = string_op_eq,
-    .op_ne = string_op_ne,
+    .compare = string_compare,
 
     .op_plus = string_op_plus,
 

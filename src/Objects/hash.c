@@ -119,7 +119,7 @@ hash_set_fast(LoxTable *self, Object *key, Object *value, hashval_t hash) {
 
     entry = self->table + slot;
     while (entry->key != NULL) {
-        if (LoxTRUE == entry->key->type->op_eq(entry->key, key)) {
+        if (0 == entry->key->type->compare(entry->key, key)) {
             // There's something associated with this key. Let's replace it
             entry->value = value;
             return;
@@ -163,7 +163,7 @@ hash_lookup_fast(LoxTable* self, Object* key, hashval_t hash) {
     /* Step through the table, looking for our value. */
     while (entry->key != NULL
         && (entry->hash != hash
-        || !Bool_ISTRUE(entry->key->type->op_eq(entry->key, key))
+        || 0 != entry->key->type->compare(entry->key, key)
     )) {
         hash >>= 1;
         slot = hash & self->size_mask;
@@ -239,6 +239,12 @@ Hash_contains(LoxTable* self, Object* key) {
     assert(self);
     HashEntry *entry = hash_lookup((LoxTable*) self, key);
     return entry != NULL;
+}
+
+int
+Hash_getSize(Object *self) {
+    assert(self->type == &HashType);
+    return ((LoxTable*)self)->count;
 }
 
 static void
@@ -358,6 +364,36 @@ hash_cleanup(Object *self) {
     free(this->table);
 }
 
+static int
+hash_compare(Object *self, Object *other) {
+    if (other->type != &HashType)
+        return -1;
+
+    // All keys in this table are equivalent to the keys in the other.
+    // Compare based on item count
+    int diff = Hash_getSize(self) - Hash_getSize(other);
+    if (diff != 0)
+        return diff;
+
+    Iterator *items = Hash_getIterator((LoxTable*) self);
+    Object *key, *value, *ovalue, *next;
+    while (LoxStopIteration != (next = items->next(items))) {
+        key = Tuple_getItem((LoxTuple*) next, 0);
+        value = Tuple_getItem((LoxTuple*) next, 1);
+        ovalue = Hash_getItem((LoxTable*) other, key);
+        if (ovalue == NULL || !value->type->compare) {
+            diff = -1;
+            break;
+        }
+        else if ((diff = value->type->compare(value, ovalue)) != 0) {
+            break;
+        }
+    }
+
+    LoxObject_Cleanup((Object*) items);
+    return diff;
+}
+
 static struct object_type HashType = (ObjectType) {
     .code = TYPE_HASH,
     .name = "hash",
@@ -368,6 +404,7 @@ static struct object_type HashType = (ObjectType) {
     .remove_item = hash_remove,
     .contains = hash_contains,
     .iterate = hash_iterate,
+    .compare = hash_compare,
 
     .as_string = hash_asstring,
     .as_bool = hash_asbool,

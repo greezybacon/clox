@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <float.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -162,38 +163,16 @@ coerce_float(Object* value) {
    return value;
 }
 
-static LoxBool*
-float_op_eq(Object* self, Object* other) {
+static int
+float_compare(Object *self, Object *other) {
     assert(self->type->code == TYPE_FLOAT);
 
     other = coerce_float(other);
-    return ((LoxFloat*) self)->value == ((LoxFloat*) other)->value ? LoxTRUE : LoxFALSE;
+
+    long double difference = ((LoxFloat*) self)->value - ((LoxFloat*) other)->value;
+    return fabsl(difference) < DBL_EPSILON ?
+        0 : (difference > 0 ? 1 : -1);
 }
-
-static LoxBool*
-float_op_ne(Object* self, Object* other) {
-    assert(self->type->code == TYPE_FLOAT);
-
-    other = coerce_float(other);
-    return ((LoxFloat*) self)->value == ((LoxFloat*) other)->value ? LoxFALSE : LoxTRUE;
-}
-
-static LoxBool*
-float_op_lt(Object* self, Object* other) {
-    assert(self->type->code == TYPE_FLOAT);
-
-    other = coerce_float(other);
-    return ((LoxFloat*) self)->value < ((LoxFloat*) other)->value ? LoxTRUE : LoxFALSE;
-}
-
-static LoxBool*
-float_op_gt(Object* self, Object* other) {
-    assert(self->type->code == TYPE_FLOAT);
-
-    other = coerce_float(other);
-    return ((LoxFloat*) self)->value > ((LoxFloat*) other)->value ? LoxTRUE : LoxFALSE;
-}
-
 
 static struct object_type FloatType = (ObjectType) {
     .code = TYPE_FLOAT,
@@ -210,8 +189,5 @@ static struct object_type FloatType = (ObjectType) {
     .op_slash = float_op_slash,
     .op_neg = float_op_neg,
 
-    .op_eq = float_op_eq,
-    .op_ne = float_op_ne,
-    .op_gt = float_op_gt,
-    .op_lt = float_op_lt,
+    .compare = float_compare,
 };

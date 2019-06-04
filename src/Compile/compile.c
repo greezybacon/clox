@@ -106,7 +106,7 @@ compile_emit_constant(Compiler *self, Object *value) {
     Constant *C = context->constants;
     while (index < context->nConstants) {
         if (C->value->type == value->type
-                && LoxTRUE == value->type->op_eq(value, C->value))
+                && 0 == value->type->compare(value, C->value))
             return index;
         index++;
         C++;
@@ -144,7 +144,7 @@ compile_emit(Compiler* self, enum opcode op, short argument) {
 
 static int
 compile_locals_islocal(CodeContext *context, Object *name, hashval_t hash) {
-    assert(name->type->op_eq);
+    assert(name->type->compare);
 
     int index = 0;
     LocalsList *locals = &context->locals;
@@ -152,7 +152,7 @@ compile_locals_islocal(CodeContext *context, Object *name, hashval_t hash) {
     // Direct search through the locals list
     while (index < locals->count) {
         if ((locals->names + index)->hash == hash
-            && LoxTRUE == name->type->op_eq(name, (locals->names + index)->value)
+            && 0 == name->type->compare(name, (locals->names + index)->value)
         ) {
             // Already in the locals list
             return index;
@@ -338,28 +338,31 @@ compile_expression(Compiler* self, ASTExpression *expr) {
             break;
         }
         case T_OP_EQUAL:
-            length += compile_emit(self, OP_EQUAL, 0);
+            length += compile_emit(self, OP_COMPARE, COMPARE_EQ);
             break;
 
-        // case T_OP_UNEQUAL:
+        case T_OP_NOTEQUAL:
+            length += compile_emit(self, OP_COMPARE, COMPARE_NOT_EQ);
+            break;
+
         case T_OP_LT:
-            length += compile_emit(self, OP_LT, 0);
+            length += compile_emit(self, OP_COMPARE, COMPARE_LT);
             break;
 
         case T_OP_LTE:
-            length += compile_emit(self, OP_LTE, 0);
+            length += compile_emit(self, OP_COMPARE, COMPARE_LTE);
             break;
 
         case T_OP_GT:
-            length += compile_emit(self, OP_GT, 0);
+            length += compile_emit(self, OP_COMPARE, COMPARE_GT);
             break;
 
         case T_OP_GTE:
-            length += compile_emit(self, OP_GTE, 0);
+            length += compile_emit(self, OP_COMPARE, COMPARE_GTE);
             break;
 
         case T_OP_IN:
-            length += compile_emit(self, OP_IN, 0);
+            length += compile_emit(self, OP_COMPARE, COMPARE_IN);
             break;
 
         case T_AND:
@@ -603,7 +606,7 @@ compile_invoke(Compiler* self, ASTInvoke *node) {
     ) {
         Object *name = ((ASTLookup*) node->callable)->name;
         if (name->type == self->info->function_name->type
-            && LoxTRUE == name->type->op_eq(name, self->info->function_name)
+            && 0 == name->type->compare(name, self->info->function_name)
             && -1 == compile_locals_islocal(self->context, name, HASHVAL(name))
         ) {
             recursing = true;

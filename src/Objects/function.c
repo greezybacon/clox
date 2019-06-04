@@ -204,7 +204,7 @@ codeobject_call(Object* self, VmScope *scope, Object *object, Object *args) {
 static struct object_type LoxVmCodeType = (ObjectType) {
     .name = "code",
     .hash = MYADDRESS,
-    .op_eq = IDENTITY,
+    .compare = IDENTITY,
     .as_string = code_asstring,
     .call = codeobject_call,
 };
@@ -265,7 +265,7 @@ VmFunction_isVmFunction(Object *callable) {
 static struct object_type VmFunctionObjectType = (ObjectType) {
     .name = "function",
     .hash = MYADDRESS,
-    .op_eq = IDENTITY,
+    .compare = IDENTITY,
     .call = vmfun_call,
     .cleanup = vmfun_cleanup,
     .as_string = vmfun_asstring,

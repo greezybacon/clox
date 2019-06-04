@@ -12,7 +12,7 @@ typedef struct class_cmdloop {
     bool (*postcmd)(struct class_cmdloop*, bool, const char*);
 } CmdLoop;
 
-void repl_init(CmdLoop*, Interpreter*);
+void repl_init(CmdLoop*);
 void repl_loop(CmdLoop*);
 
 #endif

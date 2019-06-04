@@ -185,7 +185,7 @@ static struct object_type FileType = (ObjectType) {
     .name = "file",
     .len = file_len,
 
-    .op_eq = IDENTITY,
+    .compare = IDENTITY,
     .hash = MYADDRESS,
 
     .as_string = file_asstring,
