@@ -29,7 +29,7 @@ Class_build(LoxTable *attributes, LoxClass *parent) {
     // Attach all the callable attributes to this class
     Iterator* it = Hash_getIterator(attributes);
     Object *value, *next;
-    while ((next = it->next(it))) {
+    while (LoxStopIteration != (next = it->next(it))) {
         assert(Tuple_isTuple(next));
         value = Tuple_GETITEM((LoxTuple*) next, 1);
 
@@ -37,6 +37,7 @@ Class_build(LoxTable *attributes, LoxClass *parent) {
             ((LoxVmCode*) value)->context->owner = (Object*) O;
         }
     }
+    LoxObject_Cleanup(it);
 
     return O;
 }
@@ -232,7 +233,7 @@ static Object*
 boundmethod_invoke(Object* self, VmScope *scope, Object* object, Object* args) {
     assert(self);
     assert(self->type == &BoundMethodType);
-    
+
     LoxBoundMethod *this = (LoxBoundMethod*) self;
     assert(this->method);
     assert(this->method->type->call);
@@ -242,7 +243,7 @@ boundmethod_invoke(Object* self, VmScope *scope, Object* object, Object* args) {
 static void
 boundmethod_cleanup(Object* self) {
     assert(self->type == &BoundMethodType);
-    
+
     LoxBoundMethod *this = (LoxBoundMethod*) self;
     DECREF(this->method);
     DECREF(this->object);
