@@ -7,6 +7,7 @@
 
 #include "Objects/file.h"
 #include "Objects/list.h"
+#include "Objects/string.h"
 
 static Object*
 builtin_print(VmScope* state, Object* self, Object* args) {
@@ -20,12 +21,13 @@ builtin_print(VmScope* state, Object* self, Object* args) {
         arg = Tuple_getItem((LoxTuple*) args, i);
         if (StringTree_isStringTree(arg)) {
             Object *chunk;
-            Iterator *chunks = LoxStringTree_iterChunks((LoxStringTree*) self);
+            Iterator *chunks = LoxStringTree_iterChunks((LoxStringTree*) arg);
             while (LoxStopIteration != (chunk = chunks->next(chunks))) {
                 assert(String_isString(chunk));
                 LoxString *schunk = (LoxString*) chunk;
                 fprintf(stdout, "%.*s", schunk->length, schunk->characters);
             }
+            LoxObject_Cleanup(chunks);
         }
         else {
             if (!String_isString(arg)) {
