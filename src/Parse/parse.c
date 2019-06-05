@@ -576,9 +576,12 @@ parse_tuple_items(Parser* self, ASTNode *first) {
         }
         else if (next->type == T_COMMA) {
             next = T->next(T);
+            continue;
         }
 
         item = parse_expression(self);
+        if (!item)
+            break;
 
         // Chain the results together
         first->next = item;
@@ -712,7 +715,7 @@ static ASTNode*
 parse_expression(Parser* self) {
     ASTNode *expr = parse_expression_r(self, 0);
 
-    if (expr->type == AST_EXPRESSION && parse_expr_is_constant(expr)) {
+    if (expr && expr->type == AST_EXPRESSION && parse_expr_is_constant(expr)) {
         Object *result = LoxEval_EvalAST(expr);
         // XXX: This assumes the size of a literal is less than that of an expr
         expr->type = AST_LITERAL;
