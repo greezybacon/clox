@@ -44,7 +44,9 @@ enum opcode {
     OP_BANG,
 
     // Expressions
-    OP_MATH,
+    OP_BINARY_MATH,
+    OP_UNARY_NEGATIVE,
+    OP_UNARY_INVERT,
 
     // Classes
     OP_BUILD_CLASS,
@@ -68,20 +70,22 @@ enum opcode {
 __attribute__((packed));
 
 enum lox_vm_math {
-    MATH_BINARY_AND = 1,
-    MATH_BINARY_OR,
-    MATH_BINARY_XOR,
-    MATH_BINARY_PLUS,
+    MATH_BINARY_PLUS = 0,
     MATH_BINARY_MINUS,
     MATH_BINARY_STAR,
+    MATH_BINARY_POW,
     MATH_BINARY_SLASH,
+    MATH_BINARY_MODULUS,
     MATH_BINARY_LSHIFT,
     MATH_BINARY_RSHIFT,
-    MATH_BINARY_MODULUS,
-    MATH_UNARY_NEGATIVE,
-    MATH_UNARY_INVERT,
+    MATH_BINARY_AND,
+    MATH_BINARY_OR,
+    MATH_BINARY_XOR,
+    __MATH_BINARY_MAX,
 }
 __attribute__((packed));
+
+typedef Object* (*lox_vm_binary_math_func)(Object*, Object*);
 
 enum lox_vm_compare {
     COMPARE_IS = 1,

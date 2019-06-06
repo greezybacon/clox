@@ -264,17 +264,16 @@ static struct token_to_math_op {
     enum lox_vm_math    math_op;
     const char          *op;
 } TokenToMathOp[] = {
-    { T_OP_PLUS,        OP_MATH,    MATH_BINARY_PLUS,       "+" },
-    { T_OP_MINUS,       OP_MATH,    MATH_BINARY_MINUS,      "-" },
-    { T_OP_STAR,        OP_MATH,    MATH_BINARY_STAR,       "*" },
-    { T_OP_SLASH,       OP_MATH,    MATH_BINARY_SLASH,      "/" },
-    { T_OP_AMPERSAND,   OP_MATH,    MATH_BINARY_AND,        "&" },
-    { T_OP_PIPE,        OP_MATH,    MATH_BINARY_OR,         "|" },
-    { T_OP_CARET,       OP_MATH,    MATH_BINARY_XOR,        "^" },
-    { T_OP_TILDE,       OP_MATH,    MATH_UNARY_INVERT,      "~" },
-    { T_OP_PERCENT,     OP_MATH,    MATH_BINARY_MODULUS,    "%" },
-    { T_OP_LSHIFT,      OP_MATH,    MATH_BINARY_LSHIFT,     "<<" },
-    { T_OP_RSHIFT,      OP_MATH,    MATH_BINARY_RSHIFT,     ">>" },
+    { T_OP_PLUS,        OP_BINARY_MATH,    MATH_BINARY_PLUS,       "+" },
+    { T_OP_MINUS,       OP_BINARY_MATH,    MATH_BINARY_MINUS,      "-" },
+    { T_OP_STAR,        OP_BINARY_MATH,    MATH_BINARY_STAR,       "*" },
+    { T_OP_SLASH,       OP_BINARY_MATH,    MATH_BINARY_SLASH,      "/" },
+    { T_OP_AMPERSAND,   OP_BINARY_MATH,    MATH_BINARY_AND,        "&" },
+    { T_OP_PIPE,        OP_BINARY_MATH,    MATH_BINARY_OR,         "|" },
+    { T_OP_CARET,       OP_BINARY_MATH,    MATH_BINARY_XOR,        "^" },
+    { T_OP_PERCENT,     OP_BINARY_MATH,    MATH_BINARY_MODULUS,    "%" },
+    { T_OP_LSHIFT,      OP_BINARY_MATH,    MATH_BINARY_LSHIFT,     "<<" },
+    { T_OP_RSHIFT,      OP_BINARY_MATH,    MATH_BINARY_RSHIFT,     ">>" },
 };
 
 static int _cmpfunc (const void * a, const void * b) {
@@ -334,7 +333,7 @@ compile_expression(Compiler* self, ASTExpression *expr) {
             struct token_to_math_op* T, key = { .token = expr->binary_op };
             T = bsearch(&key, TokenToMathOp, sizeof(TokenToMathOp) / sizeof(struct token_to_math_op),
                 sizeof(struct token_to_math_op), _cmpfunc);
-            length += compile_emit(self, OP_MATH, T->math_op);
+            length += compile_emit(self, OP_BINARY_MATH, T->math_op);
             break;
         }
         case T_OP_EQUAL:
@@ -385,7 +384,7 @@ compile_expression(Compiler* self, ASTExpression *expr) {
         break;
 
         case T_OP_MINUS:
-        length += compile_emit(self, OP_MATH, MATH_UNARY_NEGATIVE);
+        length += compile_emit(self, OP_UNARY_NEGATIVE, 0);
         break;
 
         case T_OP_PLUS:

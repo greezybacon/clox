@@ -47,7 +47,9 @@ static struct named_opcode OpcodeNames[] = {
     { OP_BANG,          "BANG (!)" },
 
     // Expressions / math
-    { OP_MATH,          "MATH" },
+    { OP_BINARY_MATH,   "BINARY MATH" },
+    { OP_UNARY_NEGATIVE,"NEGATIVE" },
+    { OP_UNARY_INVERT,  "INVERT" },
 
     // Classes
     { OP_BUILD_CLASS,   "BUILD_CLASS" },
@@ -79,17 +81,16 @@ static struct token_to_math_op {
     enum lox_vm_math    math_op;
     const char          *op_desc;
 } TokenToMathOp[] = {
-    { T_OP_PLUS,        OP_MATH,    MATH_BINARY_PLUS,       "+" },
-    { T_OP_MINUS,       OP_MATH,    MATH_BINARY_MINUS,      "-" },
-    { T_OP_STAR,        OP_MATH,    MATH_BINARY_STAR,       "*" },
-    { T_OP_SLASH,       OP_MATH,    MATH_BINARY_SLASH,      "/" },
-    { T_OP_AMPERSAND,   OP_MATH,    MATH_BINARY_AND,        "&" },
-    { T_OP_PIPE,        OP_MATH,    MATH_BINARY_OR,         "|" },
-    { T_OP_CARET,       OP_MATH,    MATH_BINARY_XOR,        "^" },
-    { T_OP_TILDE,       OP_MATH,    MATH_UNARY_INVERT,      "~" },
-    { T_OP_PERCENT,     OP_MATH,    MATH_BINARY_MODULUS,    "%" },
-    { T_OP_LSHIFT,      OP_MATH,    MATH_BINARY_LSHIFT,     "<<" },
-    { T_OP_RSHIFT,      OP_MATH,    MATH_BINARY_RSHIFT,     ">>" },
+    { T_OP_PLUS,        OP_BINARY_MATH,    MATH_BINARY_PLUS,       "+" },
+    { T_OP_MINUS,       OP_BINARY_MATH,    MATH_BINARY_MINUS,      "-" },
+    { T_OP_STAR,        OP_BINARY_MATH,    MATH_BINARY_STAR,       "*" },
+    { T_OP_SLASH,       OP_BINARY_MATH,    MATH_BINARY_SLASH,      "/" },
+    { T_OP_AMPERSAND,   OP_BINARY_MATH,    MATH_BINARY_AND,        "&" },
+    { T_OP_PIPE,        OP_BINARY_MATH,    MATH_BINARY_OR,         "|" },
+    { T_OP_CARET,       OP_BINARY_MATH,    MATH_BINARY_XOR,        "^" },
+    { T_OP_PERCENT,     OP_BINARY_MATH,    MATH_BINARY_MODULUS,    "%" },
+    { T_OP_LSHIFT,      OP_BINARY_MATH,    MATH_BINARY_LSHIFT,     "<<" },
+    { T_OP_RSHIFT,      OP_BINARY_MATH,    MATH_BINARY_RSHIFT,     ">>" },
 };
 
 static struct token_to_compare_op {
@@ -171,7 +172,7 @@ print_opcode(const CodeContext *context, const Instruction *op) {
     }
     break;
 
-    case OP_MATH: {
+    case OP_BINARY_MATH: {
         struct token_to_math_op* T, key = { .math_op = op->arg };
         T = bsearch(&key, TokenToMathOp, sizeof(TokenToMathOp) / sizeof(struct token_to_math_op),
             sizeof(struct token_to_math_op), math_cmpfunc);
