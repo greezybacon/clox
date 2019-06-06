@@ -406,7 +406,7 @@ vmeval_eval(VmEvalContext *ctx) {
                 + offsetof(ObjectType, op_plus) 
                 + pc->arg * sizeof(lox_vm_binary_math_func);
 
-            if (operfunc) {
+            if (*operfunc) {
                 assert(pc->arg < __MATH_BINARY_MAX);
                 PUSH(stack, (*operfunc)(lhs, rhs));
             }
