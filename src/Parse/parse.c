@@ -699,27 +699,38 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
     return lhs;
 }
 
+static inline void parse_try_reduce(ASTNode*);
+
 static bool
 parse_expr_is_constant(ASTNode *node) {
     assert(node->type == AST_EXPRESSION);
     ASTExpression *expr = (ASTExpression*) node;
 
-    if (expr->lhs->type == AST_EXPRESSION && parse_expr_is_constant(expr->lhs))
-        return true;
-    if (expr->rhs->type == AST_EXPRESSION && parse_expr_is_constant(expr->rhs))
-        return true;
+    // XXX: This doesn't seem to handle an LHS epxression and RHS non-constant
+    if (expr->lhs->type == AST_EXPRESSION)
+        parse_try_reduce(expr->lhs);
+    if (expr->rhs->type == AST_EXPRESSION)
+        parse_try_reduce(expr->rhs);
     return expr->lhs->type == AST_LITERAL && expr->rhs->type == AST_LITERAL;
+}
+
+static inline void
+parse_try_reduce(ASTNode *node) {
+    if (parse_expr_is_constant(node)) {
+        Object *result = LoxEval_EvalAST(node);
+        // XXX: This assumes the size of a literal is less than that of an expr
+        // XXX: Free the expr->lhs and expr->rhs
+        node->type = AST_LITERAL;
+        ((ASTLiteral*) node)->literal = result;
+    }
 }
 
 static ASTNode*
 parse_expression(Parser* self) {
     ASTNode *expr = parse_expression_r(self, 0);
 
-    if (expr && expr->type == AST_EXPRESSION && parse_expr_is_constant(expr)) {
-        Object *result = LoxEval_EvalAST(expr);
-        // XXX: This assumes the size of a literal is less than that of an expr
-        expr->type = AST_LITERAL;
-        ((ASTLiteral*) expr)->literal = result;
+    if (expr && expr->type == AST_EXPRESSION) {
+        parse_try_reduce(expr);
     }
 
     return expr;
