@@ -113,10 +113,14 @@ LoxList_popAt(LoxList *self, int index) {
         free(end);
     }
     else {
+        // TODO: If the list bucket is greater than BUCKET_SIZE, then just split
+        // the list somewhere after item being popped resides and decrement the
+        // starting offset of the following bucket.
+
         // Rewrite the `items` list. The items after the index element should
         // be moved up in the items list
         while (index < end->count) {
-            *(end->items + index) = *(end->items + index);
+            *(end->items + index) = *(end->items + index + 1);
             index++;
         }
 
@@ -267,6 +271,19 @@ list_extend(VmScope *state, Object *self, Object *args) {
     return LoxNIL;
 }
 
+static Object*
+list_pop(VmScope *state, Object *self, Object *args) {
+    assert(self->type == &ListType);
+
+    if (Tuple_getSize(args) == 0)
+        return LoxList_pop((LoxList*) self);
+
+    int i;
+    Lox_ParseArgs(args, "i", &i);
+
+    return LoxList_popAt((LoxList*) self, i);
+}
+
 static Iterator*
 list_iterate(Object *self) {
     assert(self);
@@ -308,6 +325,49 @@ list_asstring(Object* self) {
     return (Object*) String_fromCharArrayAndSize(buffer, position - buffer);
 }
 
+static int object_type_compare(const void *left, const void *right) {
+    Object *lhs = *(Object**) left, *rhs = *(Object**) right;
+    return lhs->type->compare(lhs, rhs);
+}
+
+static Object*
+list_sort(VmScope *state, Object *self, Object *args) {
+    assert(self->type == &ListType);
+
+    // If the list fits in one bucket, then just sort that bucket.
+    // Otherwise, allocate a new bucket big enough for all the buckets and move
+    // all the items inside. Then sort the one bucket.
+    LoxList *this = (LoxList*) self;
+    if (this->buckets.first->next) {
+        ListBucket *bucket, *pbucket, *newbucket = malloc(sizeof(ListBucket));
+        *newbucket = (ListBucket) {
+            .size = this->count,
+            .offset = 0,
+            .items = malloc(this->count * sizeof(Object*)),
+        };
+
+        // Copy the items and release the buckets
+        Object **olditems, **newitems = newbucket->items;
+        int count;
+        while (bucket) {
+            olditems = bucket->items;
+            count = bucket->count;
+            while (count--) {
+                *(newitems++) = *(olditems++);
+            }
+            free(bucket->items);
+            pbucket = bucket->next;
+            free(bucket);
+            bucket = pbucket;
+        }
+
+        this->buckets.first = newbucket;
+    }
+
+    qsort(this->buckets.first->items, this->count, sizeof(Object*), object_type_compare);
+    return LoxNIL;
+}
+
 
 static struct object_type ListType = (ObjectType) {
     .name = "list",
@@ -322,6 +382,8 @@ static struct object_type ListType = (ObjectType) {
     .methods = (ObjectMethod[]) {
         { "append", list_append },
         { "extend", list_extend },
+        { "sort",   list_sort },
+        { "pop",    list_pop },
         { 0, 0 },
     },
 };
