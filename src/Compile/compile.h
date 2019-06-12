@@ -12,6 +12,12 @@ enum compiler_special {
     CINFO_CALL_RECURSE = -1,                // Code can recurse rather than call()
 };
 
+typedef struct register_status {
+    uint32_t            used[8];       // Up to 256 registers
+    uint8_t             lowest_avail;
+    uint8_t             high_water_mark;
+} RegisterStatus;
+
 typedef struct compiler_info {
     Object              *function_name;
     Object              *class_name;
@@ -22,7 +28,22 @@ typedef struct compiler_object {
     CodeContext         *context;
     CompileInfo         *info;
     unsigned            flags;
+    RegisterStatus      registers;
 } Compiler;
+
+typedef struct compile_result {
+    unsigned            length;         // TODO: Retire this usage
+    unsigned            opcodes;        // Count of opcodes
+    unsigned            bytes;          // Length of bytecode
+    unsigned            index    :8;    // Register holding result
+    enum op_var_location_type location :4;
+    unsigned            islookup :1;
+} CompileResult;
+
+typedef struct block_compile_result {
+    CompileResult       result;
+    CodeBlock           *block;
+} BlockCompileResult;
 
 void print_codeblock(const CodeContext*, const CodeBlock*);
 void print_instructions(const CodeContext*, const Instruction*, int);

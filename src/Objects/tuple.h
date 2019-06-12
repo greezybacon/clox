@@ -31,6 +31,11 @@ bool Tuple_isTuple(Object*);
 size_t Tuple_getSize(Object*);
 
 #define Tuple_GETITEM(self, index) *(((LoxTuple*) self)->items + index)
+#define Tuple_SETITEM(self, index, value) ({ \
+    __typeof__ (value) _value = (value); \
+    INCREF(_value); \
+    *(((LoxTuple*) self)->items + index) = _value; \
+})
 
 const LoxTuple *LoxEmptyTuple;
 #endif

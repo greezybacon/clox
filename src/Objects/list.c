@@ -338,7 +338,7 @@ list_sort(VmScope *state, Object *self, Object *args) {
     // Otherwise, allocate a new bucket big enough for all the buckets and move
     // all the items inside. Then sort the one bucket.
     LoxList *this = (LoxList*) self;
-    if (this->buckets.first->next) {
+    if (this->buckets->next) {
         ListBucket *bucket, *pbucket, *newbucket = malloc(sizeof(ListBucket));
         *newbucket = (ListBucket) {
             .size = this->count,
@@ -361,10 +361,10 @@ list_sort(VmScope *state, Object *self, Object *args) {
             bucket = pbucket;
         }
 
-        this->buckets.first = newbucket;
+        this->buckets = newbucket;
     }
 
-    qsort(this->buckets.first->items, this->count, sizeof(Object*), object_type_compare);
+    qsort(this->buckets->items, this->count, sizeof(Object*), object_type_compare);
     return LoxNIL;
 }
 

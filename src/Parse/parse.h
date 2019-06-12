@@ -60,7 +60,7 @@ typedef struct ast_assignment {
     ASTNode             node;
     Object              *name;
     ASTNode             *expression;
-} ASTAssignment;
+} ASTAssignment, ASTVar;
 
 typedef struct ast_lookup {
     ASTNode             node;
@@ -164,13 +164,6 @@ typedef struct ast_for {
     struct ast_node*    block;
 } ASTFor;
 
-typedef struct ast_var {
-    ASTNode             node;
-    const char *        name;
-    size_t              name_length;
-    struct ast_node*    expression;
-} ASTVar;
-
 typedef struct ast_attribute {
     ASTNode             node;
     ASTNode             *object;
@@ -180,11 +173,13 @@ typedef struct ast_attribute {
 
 typedef struct ast_tuple_literal {
     ASTNode             node;
+    size_t              count;
     struct ast_node     *items;
 } ASTTupleLiteral;
 
 typedef struct ast_table_literal {
     ASTNode             node;
+    size_t              count;
     ASTNode             *keys;
     ASTNode             *values;
 } ASTTableLiteral;

@@ -69,6 +69,14 @@ static struct named_opcode OpcodeNames[] = {
     { OP_BUILD_STRING,  "BUILD_STRING" },
     { OP_FORMAT,        "APPLY_FORMAT" },
     { OP_BUILD_TABLE,   "BUILD_TABLE" },
+
+    // Register-based opcodes
+    { ROP_STORE,        "R-STORE" },
+    { ROP_MATH,         "R-MATH" },
+    { ROP_COMPARE,      "R-COMPARE" },
+    { ROP_CONTROL,      "R-CONTROL" },
+    { ROP_CALL,         "R-INVOKE" },
+    { ROP_BUILD,        "R-BUILD" },
 };
 
 static int cmpfunc (const void * a, const void * b) {
@@ -112,9 +120,43 @@ static int math_cmpfunc (const void * a, const void * b) {
    return ((struct token_to_math_op*) a)->math_op - ((struct token_to_math_op*) b)->math_op;
 }
 
-static inline void
+static void
+print_arg_indirect(const CodeContext *context, unsigned index,
+    enum op_var_location_type location
+) {
+    switch (location) {
+    case OP_VAR_LOCATE_REGISTER:
+        // TODO: See if this register is a local
+        printf("r#%d", index);
+        break;
+    case OP_VAR_LOCATE_CONSTANT: {
+        Constant *C = context->constants + index;
+        Object *T = C->value;
+        LoxString *S = String_fromObject(T);
+        printf("<literal> %.*s", S->length, S->characters);
+        break;
+    }
+    case OP_VAR_LOCATE_CLOSURE: {
+        CodeContext *outer = context->prev;
+        if (outer) {
+            Object *T = (outer->locals.vars + index)->name.value;
+            LoxString *S = String_fromObject(T);
+            printf("<nonlocal> %.*s", S->length, S->characters);
+        }
+        break;
+    }
+    case OP_VAR_LOCATE_GLOBAL: {
+        Constant *C = context->constants + index;
+        Object *T = C->value;
+        LoxString *S = String_fromObject(T);
+        printf("<global> %.*s", S->length, S->characters);
+        break;
+    }}
+}
+
+static inline unsigned
 print_opcode(const CodeContext *context, const Instruction *op) {
-    struct named_opcode* T, key = { .code = op->op }, unknown;
+    struct named_opcode* T, key = { .code = op->opcode }, unknown;
     T = bsearch(&key, OpcodeNames, sizeof(OpcodeNames) / sizeof(struct named_opcode),
         sizeof(struct named_opcode), cmpfunc);
 
@@ -125,10 +167,11 @@ print_opcode(const CodeContext *context, const Instruction *op) {
         T = &unknown;
     }
 
-    printf("%-20s %d", T->name, op->arg);
+    unsigned length = 3;
+    printf("%-20s", T->name);
 
     // For opcodes which use constants, print the constant value too
-    switch (op->op) {
+    switch (op->opcode) {
     case OP_FORMAT:
     case OP_GET_ATTR:
     case OP_SET_ATTR:
@@ -149,7 +192,7 @@ print_opcode(const CodeContext *context, const Instruction *op) {
 
     case OP_STORE_LOCAL:
     case OP_LOOKUP_LOCAL: {
-        Object *T = (context->locals.names + op->arg)->value;
+        Object *T = (context->locals.vars + op->arg)->name.value;
         if (T && T->type && T->type->as_string) {
             LoxString *S = (LoxString*) T->type->as_string(T);
             assert(String_isString((Object*) S));
@@ -162,7 +205,7 @@ print_opcode(const CodeContext *context, const Instruction *op) {
     case OP_LOOKUP_CLOSED: {
         CodeContext *outer = context->prev;
         if (outer) {
-            Object *T = (outer->locals.names + op->arg)->value;
+            Object *T = (outer->locals.vars + op->arg)->name.value;
             if (T && T->type && T->type->as_string) {
                 LoxString *S = (LoxString*) T->type->as_string(T);
                 assert(String_isString((Object*) S));
@@ -176,7 +219,7 @@ print_opcode(const CodeContext *context, const Instruction *op) {
         struct token_to_math_op* T, key = { .math_op = op->arg };
         T = bsearch(&key, TokenToMathOp, sizeof(TokenToMathOp) / sizeof(struct token_to_math_op),
             sizeof(struct token_to_math_op), math_cmpfunc);
-            printf(" (%s)", T->op_desc);
+        printf(" (%s)", T->op_desc);
     }
     break;
 
@@ -184,18 +227,99 @@ print_opcode(const CodeContext *context, const Instruction *op) {
         struct token_to_compare_op* T, key = { .compare_op = op->arg };
         T = bsearch(&key, TokenToCompareOp, sizeof(TokenToCompareOp) / sizeof(struct token_to_compare_op),
             sizeof(struct token_to_compare_op), math_cmpfunc);
-            printf(" (%s)", T->op_desc);
+        printf(" (%s)", T->op_desc);
     }
     break;
+
+    case ROP_STORE: {
+        ShortInstruction *sop = (ShortInstruction*) op;
+        print_arg_indirect(context, sop->p1, sop->flags.lro.lhs);
+        printf(" := ");
+        print_arg_indirect(context, sop->p2, sop->flags.lro.rhs);
+        length = ROP_STORE__LEN;
+        break;
+    }
+
+    case ROP_MATH: {
+        print_arg_indirect(context, op->p3, op->flags.lro.out);
+        printf(" := ");
+        print_arg_indirect(context, op->p1, op->flags.lro.lhs);
+
+        struct token_to_math_op* T, key = { .math_op = op->subtype };
+        T = bsearch(&key, TokenToMathOp, sizeof(TokenToMathOp) / sizeof(struct token_to_math_op),
+            sizeof(struct token_to_math_op), math_cmpfunc);
+        printf(" %s ", T->op_desc);
+        print_arg_indirect(context, op->p2, op->flags.lro.rhs);
+        length = ROP_MATH__LEN;
+        break;
+    }
+
+    case ROP_COMPARE: {
+        print_arg_indirect(context, op->p3, op->flags.lro.out);
+        printf(" := ");
+        print_arg_indirect(context, op->p1, op->flags.lro.lhs);
+
+        struct token_to_compare_op* T, key = { .compare_op = op->subtype };
+        T = bsearch(&key, TokenToCompareOp, sizeof(TokenToCompareOp) / sizeof(struct token_to_compare_op),
+            sizeof(struct token_to_compare_op), math_cmpfunc);
+        printf(" %s ", T->op_desc);
+        print_arg_indirect(context, op->p2, op->flags.lro.rhs);
+        length = ROP_COMPARE__LEN;
+        break;
+    }
+
+    case ROP_CONTROL: {
+        switch (op->subtype) {
+        case OP_CONTROL_JUMP_IF_TRUE:
+        case OP_CONTROL_JUMP_IF_FALSE:
+            printf("if %s(", op->subtype == OP_CONTROL_JUMP_IF_FALSE ? "!" : "");
+            print_arg_indirect(context, op->p1, op->flags.lro.lhs);
+            printf(") ");
+        case OP_CONTROL_JUMP:
+            printf("jump %d", op->p23);
+            break;
+        case OP_CONTROL_RETURN:
+            printf("return ");
+            print_arg_indirect(context, op->p1, op->flags.lro.lhs);
+            break;
+        case OP_CONTROL_LOOP_SETUP:
+        case OP_CONTROL_LOOP_BREAK:
+        case OP_CONTROL_LOOP_CONTINUE:
+            break;
+        }
+        length = ROP_CONTROL__LEN;
+        break;
+    }
+
+    case ROP_CALL: {
+        unsigned count = op->len;
+        const ShortArg *args = op->args;
+
+        if (!op->flags.lro.opt1) {
+            print_arg_indirect(context, op->p1, op->flags.lro.out);
+            printf(" := ");
+        }
+        print_arg_indirect(context, op->subtype, op->flags.lro.rhs);
+        printf("(");
+        while (count--) {
+            // TODO: Handle long arguments
+            print_arg_indirect(context, args->index, args->location);
+            args++;
+        }
+        printf(")");
+        length = ROP_CALL__LEN_BASE + op->len;
+        break;
+    }
 
     default:
         break;
     }
     printf("\n");
+    return length;
 }
 
 void
-print_instructions(const CodeContext *context, const Instruction *block, int count) {
+print_instructions(const CodeContext *context, const void *block, int bytes) {
     static bool sorted = false;
     if (!sorted) {
         qsort(OpcodeNames, sizeof(OpcodeNames) / sizeof(struct named_opcode),
@@ -206,12 +330,17 @@ print_instructions(const CodeContext *context, const Instruction *block, int cou
             sizeof(struct token_to_compare_op), math_cmpfunc);
     }
 
-    while (count--) {
-        print_opcode(context, block++);
+    unsigned length, start=0;
+    while (bytes > 0) {
+        printf("%-5d ", start);
+        length = print_opcode(context, block);
+        block += length;
+        start += length;
+        bytes -= length;
     }
 }
 
 void
 print_codeblock(const CodeContext* context, const CodeBlock *block) {
-    print_instructions(context, block->instructions, block->nInstructions);
+    print_instructions(context, block->instructions, block->bytes);
 }

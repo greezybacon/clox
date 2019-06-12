@@ -63,7 +63,8 @@ print_invoke(FILE* output, ASTInvoke* node) {
 
 static void
 print_var(FILE* output, ASTVar* node) {
-    fprintf(output, "Var(%.*s=", node->name_length, node->name);
+    LoxString *S = String_fromObject(node->name);
+    fprintf(output, "Var(%.*s=", S->length, S->characters);
     print_node(output, node->expression);
     fprintf(output, ")");
 }

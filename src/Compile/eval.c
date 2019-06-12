@@ -17,39 +17,245 @@ eval_raise_error(VmEvalContext *ctx, const char *characters, ...) {
     // TODO: Make the characters a real Exception object
 }
 
-Object*
-vmeval_eval(VmEvalContext *ctx) {
-    Object *lhs, *rhs, **local, *rv, *item;
+static inline void
+store_arg_indirect(VmEvalContext *ctx, unsigned index,
+    enum op_var_location_type location, Object *value
+) {
     Constant *C;
 
-    Object *_locals[ctx->code->locals.count], **locals = &_locals[0];
-    bool locals_in_stack = true;
+    switch (location) {
+    case OP_VAR_LOCATE_REGISTER:
+        ctx->regs[index] = value;
+        break;
+    case OP_VAR_LOCATE_CLOSURE:
+        fprintf(stderr, "Warning: Non-local writes are not yet supported\n");
+        break;
+    case OP_VAR_LOCATE_CONSTANT:
+        fprintf(stderr, "Error: Cannot write to constant\n");
+        break;
+    case OP_VAR_LOCATE_GLOBAL:
+        C = ctx->code->constants + index;
+        VmScope_assign(ctx->scope, C->value, value, C->hash);
+    }
+}
+
+static inline Object*
+fetch_arg_indirect(
+    VmEvalContext *ctx, unsigned index, enum op_var_location_type location
+) {
+    Constant *C;
+
+    switch (location) {
+    case OP_VAR_LOCATE_REGISTER:
+        return ctx->regs[index];
+    case OP_VAR_LOCATE_CLOSURE:
+        return VmScope_lookup_local(ctx->scope, index);
+    case OP_VAR_LOCATE_CONSTANT:
+        return (ctx->code->constants + index)->value;
+    case OP_VAR_LOCATE_GLOBAL:
+        C = ctx->code->constants + index;
+        return VmScope_lookup_global(ctx->scope, C->value, C->hash);
+    }
+}
+
+Object*
+vmeval_eval(VmEvalContext *ctx) {
+    Object *lhs, *rhs, **local, *rv = LoxUndefined, *out;
+    Constant *C;
+
+    Object *_regs[ctx->code->regs_required];
+    ctx->regs = &_regs[0];
 
     // Store parameters in the local variables
     int i = ctx->code->locals.count, j = ctx->args.count;
     assert(i >= j);
     while (i > j) {
-        *(locals + --i) = LoxUndefined;
+        *(ctx->regs + (ctx->code->locals.vars + i++)->regnum) = LoxUndefined;
 		INCREF(LoxUndefined);
 	}
 
+    /*
     while (i--) {
         *(locals + i) = *(ctx->args.values + i);
 		INCREF(*(locals + i));
 	}
-
-    // TODO: Add estimate for MAX_STACK in the compile phase
-    // XXX: Program could overflow 32-slot stack
-    Object *_stack[STACK_SIZE], **stack = &_stack[0];
+    */
 
     Instruction *pc = ctx->code->block->instructions;
-    Instruction *end = pc + ctx->code->block->nInstructions;
+    Instruction *end = ((void*)pc) + ctx->code->block->bytes;
 
     while (pc < end) {
 #if DEBUG
         print_instructions(ctx->code, pc, 1);
 #endif
-        switch (pc->op) {
+        switch (pc->opcode) {
+        case ROP_STORE: {
+            ShortInstruction *si = (ShortInstruction*) pc;
+            store_arg_indirect(ctx, si->p1, si->flags.lro.lhs,
+                fetch_arg_indirect(ctx, si->p2, si->flags.lro.rhs));
+            pc = ((void*) pc) + ROP_STORE__LEN;
+            break;
+        }
+
+        case ROP_MATH: {
+            lhs = fetch_arg_indirect(ctx, pc->p1, pc->flags.lro.lhs);
+            rhs = fetch_arg_indirect(ctx, pc->p2, pc->flags.lro.rhs);
+
+            // The pc->arg is the binary function index in the object type.
+            // The first on is op_plus. We should just advance ahead a number
+            // of functions based on pc->arg to find the appropriate method
+            // to invoke.
+            lox_vm_binary_math_func *operfunc =
+                (void*) lhs->type
+                + offsetof(ObjectType, op_plus)
+                + pc->subtype * sizeof(lox_vm_binary_math_func);
+
+            if (*operfunc) {
+                assert(pc->subtype < __MATH_BINARY_MAX);
+                out = (*operfunc)(lhs, rhs));
+            }
+            else {
+                fprintf(stderr, "WARNING: Type `%s` does not support op `%hhu`\n", lhs->type->name, pc->subtype);
+                out = LoxUndefined;
+            }
+            store_arg_indirect(ctx, pc->p3, pc->flags.lro.out, out);
+            pc = ((void*) pc) + ROP_MATH__LEN;
+            break;
+        }
+
+        case ROP_COMPARE: {
+            lhs = fetch_arg_indirect(ctx, pc->p1, pc->flags.lro.lhs);
+            rhs = fetch_arg_indirect(ctx, pc->p2, pc->flags.lro.rhs);
+
+            int comparison;
+            if (pc->subtype == COMPARE_IN) {
+                ;
+            }
+            else if (lhs->type->compare) {
+                comparison = lhs->type->compare(lhs, rhs);
+            }
+            else if (rhs->type->compare) {
+                comparison = - rhs->type->compare(rhs, lhs);
+            }
+            else {
+                printf("WARNING: Types `%s` and `%s` are not comparable", lhs->type->name,
+                    rhs->type->name);
+                comparison = -1;
+            }
+
+            switch ((enum lox_vm_compare) pc->subtype) {
+                case COMPARE_EQ:
+                    store_arg_indirect(ctx, pc->p3, pc->flags.lro.out,
+                         (Object*) (comparison == 0 ? LoxTRUE : LoxFALSE));
+                    break;
+                case COMPARE_NOT_EQ:
+                    store_arg_indirect(ctx, pc->p3, pc->flags.lro.out,
+                         (Object*) (comparison != 0 ? LoxTRUE : LoxFALSE));
+                    break;
+                case COMPARE_LT:
+                    store_arg_indirect(ctx, pc->p3, pc->flags.lro.out,
+                         (Object*) (comparison < 0 ? LoxTRUE : LoxFALSE));
+                    break;
+                case COMPARE_LTE:
+                    store_arg_indirect(ctx, pc->p3, pc->flags.lro.out,
+                         (Object*) (comparison > 0 ? LoxFALSE : LoxTRUE));
+                    break;
+                case COMPARE_GT:
+                    store_arg_indirect(ctx, pc->p3, pc->flags.lro.out,
+                         (Object*) (comparison > 0 ? LoxTRUE : LoxFALSE));
+                    break;
+                case COMPARE_GTE:
+                    store_arg_indirect(ctx, pc->p3, pc->flags.lro.out,
+                         (Object*) (comparison < 0 ? LoxFALSE : LoxTRUE));
+                    break;
+                case COMPARE_IN:
+                    if (likely(lhs->type->contains != NULL)) {
+                        out = (Object*) lhs->type->contains(lhs, rhs);
+                    }
+                    else {
+                        fprintf(stderr, "WARNING: Type <%s> does not support IN\n", lhs->type->name);
+                        out = LoxUndefined;
+                    }
+                    store_arg_indirect(ctx, pc->p3, pc->flags.lro.out, out);
+                    break;
+                case COMPARE_EXACT:
+                case COMPARE_NOT_EXACT:
+                case COMPARE_IS:
+                case COMPARE_SPACESHIP:
+                    break;
+            }
+            pc = ((void*) pc) + ROP_COMPARE__LEN;
+            break;
+        }
+
+        case ROP_CONTROL: {
+            switch (pc->subtype) {
+            case OP_CONTROL_JUMP_IF_TRUE:
+                if (Bool_isTrue(fetch_arg_indirect(ctx, pc->p1, pc->flags.lro.lhs)))
+                    pc = ((void*) pc) + pc->p23;
+                break;
+
+            case OP_CONTROL_JUMP_IF_FALSE:
+                if (!Bool_isTrue(fetch_arg_indirect(ctx, pc->p1, pc->flags.lro.lhs)))
+                    pc = ((void*) pc) + pc->p23;
+                break;
+
+            case OP_CONTROL_JUMP:
+                pc = ((void*) pc) + pc->p23;
+                break;
+
+            case OP_CONTROL_RETURN:
+                rv = fetch_arg_indirect(ctx, pc->p1, pc->flags.lro.lhs);
+                goto op_return;
+
+            case OP_CONTROL_LOOP_SETUP:
+            case OP_CONTROL_LOOP_BREAK:
+            case OP_CONTROL_LOOP_CONTINUE:
+                break;
+            }
+
+            pc = ((void*) pc) + ROP_CONTROL__LEN;
+            break;
+        }
+
+        case ROP_CALL: {
+            lhs = fetch_arg_indirect(ctx, pc->subtype, pc->flags.lro.rhs);
+
+            if (VmFunction_isVmFunction(lhs)) {
+                VmEvalContext call_ctx = (VmEvalContext) {
+                    .code = ((LoxVmFunction*)lhs)->code->context,
+                    .scope = ((LoxVmFunction*)lhs)->scope,
+                    .args = (VmCallArgs) {
+//                        .values = &pc->args,
+                        .count = pc->len,
+                    },
+                };
+                rv = vmeval_eval(&call_ctx);
+            }
+            else if (Function_isCallable(lhs)) {
+                LoxTuple *args = Tuple_new(pc->len);
+                unsigned count = pc->len, i = 0;
+                const ShortArg *A = pc->args;
+
+                while (count--) {
+                    // TODO: Handle long arguments
+                    Tuple_SETITEM(args, i++, fetch_arg_indirect(ctx, A->index, A->location));
+                    A++;
+                }
+                out = lhs->type->call(lhs, ctx->scope, ctx->this, (Object*) args);
+                store_arg_indirect(ctx, pc->p1, pc->flags.lro.out, out);
+                LoxObject_Cleanup((Object*) args);
+            }
+            else {
+                fprintf(stderr, "WARNING: Type `%s` is not callable\n", lhs->type->name);
+                rv = LoxUndefined;
+            }
+            pc = ((void*) pc) + ROP_CALL__LEN_BASE + pc->len;
+            break;
+        }
+
+        // OLD OPCODES --------------------------------------
+/*
         case OP_JUMP:
             pc += pc->arg;
             break;
@@ -199,8 +405,8 @@ vmeval_eval(VmEvalContext *ctx) {
                 DECREF(rhs);
             }
             PUSH(stack, (Object*) Class_build(attributes,
-                pc->op == OP_BUILD_SUBCLASS ? (LoxClass*) rhs : NULL));
-            if (pc->op == OP_BUILD_SUBCLASS)
+                pc->opcode == OP_BUILD_SUBCLASS ? (LoxClass*) rhs : NULL));
+            if (pc->opcode == OP_BUILD_SUBCLASS)
                 DECREF(rhs);
             break;
         }
@@ -292,9 +498,9 @@ vmeval_eval(VmEvalContext *ctx) {
             lhs = *(locals + pc->arg);
             if (lhs == NULL) {
                 // RAISE RUNTIME ERROR
-                fprintf(stderr, "WARNING: `%.*s` (%hd) accessed before assignment",
-                    ((LoxString*) (ctx->code->locals.names + pc->arg)->value)->length,
-                    ((LoxString*) (ctx->code->locals.names + pc->arg)->value)->characters,
+                fprintf(stderr, "WARNING: `%.*s` (%hhu) accessed before assignment",
+                    ((LoxString*) ((ctx->code->locals.vars + pc->arg)->name.value))->length,
+                    ((LoxString*) ((ctx->code->locals.vars + pc->arg)->name.value))->characters,
                     pc->arg);
                 lhs = LoxUndefined;
             }
@@ -380,7 +586,7 @@ vmeval_eval(VmEvalContext *ctx) {
                 PUSH(stack, (Object*) (BINARY_COMPARE() > 0 ? LoxFALSE : LoxTRUE));
                 break;
             default:
-                fprintf(stderr, "WARNING: %hd: Unimplemneted compare operation\n", pc->arg);
+                fprintf(stderr, "WARNING: %hhu: Unimplemneted compare operation\n", pc->arg);
                 PUSH(stack, LoxUndefined);
             }
             break;
@@ -411,7 +617,7 @@ vmeval_eval(VmEvalContext *ctx) {
                 PUSH(stack, (*operfunc)(lhs, rhs));
             }
             else {
-                fprintf(stderr, "WARNING: Type `%s` does not support op `%hd`\n", lhs->type->name, pc->arg);
+                fprintf(stderr, "WARNING: Type `%s` does not support op `%hhu`\n", lhs->type->name, pc->arg);
                 PUSH(stack, LoxUndefined);
             }
             DECREF(lhs);
@@ -488,7 +694,7 @@ vmeval_eval(VmEvalContext *ctx) {
             break;
 
         default:
-            printf("Unexpected OPCODE (%d)\n", pc->op);
+            printf("Unexpected OPCODE (%d)\n", pc->opcode);
         case OP_NOOP:
             break;
         }
@@ -510,6 +716,15 @@ op_return:
     assert(stack == _stack);
     //assert(stack - _stack < STACK_SIZE);
 
+    return rv;
+*/
+        }
+    }
+
+    if (ctx->code->result_reg != -1)
+        rv = ctx->regs[ctx->code->result_reg];
+
+op_return:
     return rv;
 }
 

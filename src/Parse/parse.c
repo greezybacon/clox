@@ -345,6 +345,8 @@ parse_table_literal(Parser* self) {
 
         if (T->peek(T)->type == T_COMMA)
             T->next(T);
+        
+        table->count++;
     }
     parse_expect(self, T_CLOSE_BRACE);
 
@@ -568,6 +570,7 @@ parse_tuple_items(Parser* self, ASTNode *first) {
     parser_node_init((ASTNode*) result, AST_TUPLE_LITERAL, T->peek(T));
 
     result->items = first;
+    result->count = 1;
 
     for (;;) {
         next = T->peek(T);
@@ -586,6 +589,7 @@ parse_tuple_items(Parser* self, ASTNode *first) {
         // Chain the results together
         first->next = item;
         first = item;
+        result->count++;
     }
     return (ASTNode*) result;
 }
@@ -747,8 +751,10 @@ parse_statement(Parser* self) {
         ASTVar* astvar = GC_MALLOC(sizeof(ASTVar));
         parser_node_init((ASTNode*) astvar, AST_VAR, token);
         token = parse_expect(self, T_WORD);
-        astvar->name = self->tokens->fetch_text(self->tokens, token);
-        astvar->name_length = token->length;
+        astvar->name = (Object*) String_fromCharArrayAndSize(
+            self->tokens->fetch_text(self->tokens, token),
+            token->length
+        );
 
         // Initial value is not required
         peek = self->tokens->peek(self->tokens);
