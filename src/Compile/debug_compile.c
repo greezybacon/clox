@@ -304,10 +304,26 @@ print_opcode(const CodeContext *context, const Instruction *op) {
         while (count--) {
             // TODO: Handle long arguments
             print_arg_indirect(context, args->index, args->location);
+            if (count)
+                printf(", ");
             args++;
         }
         printf(")");
         length = ROP_CALL__LEN_BASE + op->len;
+        break;
+    }
+
+    // ROP_BUILD + flags, op, out, len, params[]
+    case ROP_BUILD: {
+        switch ((enum lox_vm_build_op) op->subtype) {
+        case OP_BUILD_FUNCTION:
+            print_arg_indirect(context, op->p1, op->flags.lro.out);
+            printf(" := ");
+            print_arg_indirect(context, op->p2, op->flags.lro.rhs);
+            length = ROP_BUILD__LEN_BASE;
+            break;
+        }
+
         break;
     }
 

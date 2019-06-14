@@ -381,7 +381,6 @@ compile_assignment(Compiler *self, ASTAssignment *assign) {
         // TODO: Consider type of previous instruction. MATH is assumed
         if (previous->opcode == ROP_CALL) {
             previous->p1 = result.index;
-            previous->flags.lro.opt1 = false;
         }
         else {
             previous->p3 = result.index;
@@ -873,7 +872,7 @@ compile_invoke(Compiler* self, ASTInvoke *node) {
         .subtype = recursing ? 0 : callable.index,
         .flags.lro.rhs = callable.location,
         .flags.lro.out = OP_VAR_LOCATE_REGISTER,
-        .flags.lro.opt1 = true,
+        .flags.lro.opt1 = node->return_value_ignored,
         .flags.lro.opt2 = recursing,
         .p1 = out,
         .len = node->nargs,

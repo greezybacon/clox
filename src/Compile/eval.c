@@ -74,12 +74,10 @@ vmeval_eval(VmEvalContext *ctx) {
 		INCREF(LoxUndefined);
 	}
 
-    /*
     while (i--) {
-        *(locals + i) = *(ctx->args.values + i);
-		INCREF(*(locals + i));
+        _regs[i] = *(ctx->args.values + i);
+		INCREF(_regs[i]);
 	}
-    */
 
     Instruction *pc = ctx->code->block->instructions;
     Instruction *end = ((void*)pc) + ctx->code->block->bytes;
@@ -101,7 +99,7 @@ vmeval_eval(VmEvalContext *ctx) {
             lhs = fetch_arg_indirect(ctx, pc->p1, pc->flags.lro.lhs);
             rhs = fetch_arg_indirect(ctx, pc->p2, pc->flags.lro.rhs);
 
-            // The pc->arg is the binary function index in the object type.
+            // The pc->subtype is the binary function index in the object type.
             // The first on is op_plus. We should just advance ahead a number
             // of functions based on pc->arg to find the appropriate method
             // to invoke.
@@ -112,7 +110,7 @@ vmeval_eval(VmEvalContext *ctx) {
 
             if (*operfunc) {
                 assert(pc->subtype < __MATH_BINARY_MAX);
-                out = (*operfunc)(lhs, rhs));
+                out = (*operfunc)(lhs, rhs);
             }
             else {
                 fprintf(stderr, "WARNING: Type `%s` does not support op `%hhu`\n", lhs->type->name, pc->subtype);
@@ -222,11 +220,20 @@ vmeval_eval(VmEvalContext *ctx) {
             lhs = fetch_arg_indirect(ctx, pc->subtype, pc->flags.lro.rhs);
 
             if (VmFunction_isVmFunction(lhs)) {
+                Object *args[pc->len];
+                unsigned count = pc->len, i = 0;
+                const ShortArg *A = pc->args;
+
+                while (count--) {
+                    // TODO: Handle long arguments
+                    args[i++] = fetch_arg_indirect(ctx, A->index, A->location);
+                    A++;
+                }
                 VmEvalContext call_ctx = (VmEvalContext) {
                     .code = ((LoxVmFunction*)lhs)->code->context,
                     .scope = ((LoxVmFunction*)lhs)->scope,
                     .args = (VmCallArgs) {
-//                        .values = &pc->args,
+                        .values = args,
                         .count = pc->len,
                     },
                 };
@@ -253,6 +260,34 @@ vmeval_eval(VmEvalContext *ctx) {
             pc = ((void*) pc) + ROP_CALL__LEN_BASE + pc->len;
             break;
         }
+
+        case ROP_BUILD: {
+            switch (pc->subtype) {
+            case OP_BUILD_FUNCTION: {
+                LoxVmCode *code = (LoxVmCode*) fetch_arg_indirect(ctx, pc->p2, pc->flags.lro.rhs);
+
+                // Move the locals into a malloc'd object so that future local
+                // changes will be represented in this closure
+                /*
+                if (locals_in_stack) {
+                    unsigned locals_count = ctx->code->locals.count;
+                    Object **mlocals = GC_MALLOC(sizeof(Object*) * locals_count);
+                    while (locals_count--) {
+                        *(mlocals + locals_count) = *(locals + locals_count);
+                        INCREF(*(mlocals + locals_count));
+                    }
+                    locals = mlocals;
+                    locals_in_stack = false;
+                }
+                */
+                LoxVmFunction *fun = VmCode_makeFunction((Object*) code,
+                    // XXX: Globals?
+                    VmScope_create(ctx->scope, code->context, NULL, ctx->code->locals.count));
+                store_arg_indirect(ctx, pc->p1, pc->flags.lro.out, (Object*) fun);
+            }
+            pc = ((void*) pc) + ROP_BUILD__LEN_BASE;
+            break;
+        }}
 
         // OLD OPCODES --------------------------------------
 /*

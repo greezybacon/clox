@@ -594,6 +594,8 @@ parse_tuple_items(Parser* self, ASTNode *first) {
     return (ASTNode*) result;
 }
 
+static inline void parse_try_reduce(ASTNode*);
+
 static ASTNode*
 parse_expression_r(Parser* self, const OperatorInfo *previous) {
     /* General expression grammar
@@ -700,10 +702,10 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
         next = T->peek(T);
     }
 
+    if (lhs->type == AST_EXPRESSION)
+        parse_try_reduce(lhs);
     return lhs;
 }
-
-static inline void parse_try_reduce(ASTNode*);
 
 static bool
 parse_expr_is_constant(ASTNode *node) {
@@ -731,13 +733,7 @@ parse_try_reduce(ASTNode *node) {
 
 static ASTNode*
 parse_expression(Parser* self) {
-    ASTNode *expr = parse_expression_r(self, 0);
-
-    if (expr && expr->type == AST_EXPRESSION) {
-        parse_try_reduce(expr);
-    }
-
-    return expr;
+    return parse_expression_r(self, 0);
 }
 
 static ASTNode*
@@ -912,6 +908,10 @@ parser_parse_next(Parser* self) {
 
     default:
         rv = parse_expression(self);
+        if (rv->type == AST_INVOKE) {
+            // Function invoke used as a statement
+            ((ASTInvoke*) rv)->return_value_ignored = true;
+        }
     }
 
     if (self->tokens->peek(self->tokens)->type == T_SEMICOLON) {
