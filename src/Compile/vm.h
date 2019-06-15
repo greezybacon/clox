@@ -286,13 +286,12 @@ typedef struct code_context {
 // Run-time data to evaluate a CodeContext block
 typedef struct vmeval_scope {
     struct vmeval_scope *outer;
-    Object              **locals;
-    size_t              locals_count;
+    LoxTuple            *locals;
     CodeContext         *code;
     LoxTable            *globals;
 } VmScope;
 
-VmScope* VmScope_create(VmScope*, CodeContext*, Object**, unsigned);
+VmScope* VmScope_create(VmScope*, CodeContext*, LoxTuple*);
 void VmScope_assign(VmScope*, Object*, Object*, hashval_t);
 Object* VmScope_lookup_global(VmScope*, Object*, hashval_t);
 Object* VmScope_lookup_local(VmScope*, unsigned);

@@ -9,23 +9,23 @@
 static void
 VmScope_cleanup(GC_PTR object, GC_PTR client_data) {
     VmScope* self = (VmScope*) object;
-
-    int i = self->locals_count;
-    while (i--) {
-        DECREF(*(self->locals + i));
-    }
+    DECREF(self->locals);
+    if (self->globals)
+        DECREF(self->globals);
 }
 
 VmScope*
-VmScope_create(VmScope *outer, CodeContext *code, Object **locals, unsigned locals_count) {
+VmScope_create(VmScope *outer, CodeContext *code, LoxTuple *locals) {
     VmScope *self = GC_MALLOC(sizeof(VmScope));
     *self = (VmScope) {
         .outer = outer,
         .globals = outer->globals,
         .code = code,
-        .locals_count = locals_count,
         .locals = locals,
     };
+    INCREF(locals);
+    if (outer->globals)
+        INCREF(outer->globals);
     GC_REGISTER_FINALIZER(self, VmScope_cleanup, NULL, NULL, NULL);
     return self;
 }
@@ -58,10 +58,10 @@ Object*
 VmScope_lookup_local(VmScope *self, unsigned index) {
     assert(self);
 
-    if (index >= self->locals_count)
-        return LoxNIL;
+    if (index >= Tuple_SIZE(self->locals))
+        return LoxUndefined;
 
-    return *(self->locals + index);
+    return Tuple_GETITEM(self->locals, index);
 }
 
 void

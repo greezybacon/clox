@@ -60,24 +60,26 @@ fetch_arg_indirect(
 
 Object*
 vmeval_eval(VmEvalContext *ctx) {
-    Object *lhs, *rhs, **local, *rv = LoxUndefined, *out;
+    Object *lhs, *rhs, *rv = LoxUndefined, *out;
     Constant *C;
 
     Object *_regs[ctx->code->regs_required];
+    LoxTuple *locals_closure = NULL;
+
     ctx->regs = &_regs[0];
 
-    // Store parameters in the local variables
+    // Set the local variables as Undefined and store the parameters in the
+    // local variables
     int i = ctx->code->locals.count, j = ctx->args.count;
-    assert(i >= j);
-    while (i > j) {
-        *(ctx->regs + (ctx->code->locals.vars + i++)->regnum) = LoxUndefined;
-		INCREF(LoxUndefined);
-	}
+    while (j--) {
+        ctx->regs[(ctx->code->locals.vars + j)->regnum] = LoxUndefined;
+        INCREF(LoxUndefined);
+    }
 
     while (i--) {
         _regs[i] = *(ctx->args.values + i);
-		INCREF(_regs[i]);
-	}
+        INCREF(_regs[i]);
+    }
 
     Instruction *pc = ctx->code->block->instructions;
     Instruction *end = ((void*)pc) + ctx->code->block->bytes;
@@ -121,6 +123,7 @@ vmeval_eval(VmEvalContext *ctx) {
             break;
         }
 
+        // ROP_COMPARE, flags, op, lhs, rhs, out, flags=..llrroo
         case ROP_COMPARE: {
             lhs = fetch_arg_indirect(ctx, pc->p1, pc->flags.lro.lhs);
             rhs = fetch_arg_indirect(ctx, pc->p2, pc->flags.lro.rhs);
@@ -237,7 +240,9 @@ vmeval_eval(VmEvalContext *ctx) {
                         .count = pc->len,
                     },
                 };
-                rv = vmeval_eval(&call_ctx);
+                out = vmeval_eval(&call_ctx);
+                if (pc->flags.lro.opt1 == 0)
+                    store_arg_indirect(ctx, pc->p1, pc->flags.lro.out, out);
             }
             else if (Function_isCallable(lhs)) {
                 LoxTuple *args = Tuple_new(pc->len);
@@ -250,7 +255,8 @@ vmeval_eval(VmEvalContext *ctx) {
                     A++;
                 }
                 out = lhs->type->call(lhs, ctx->scope, ctx->this, (Object*) args);
-                store_arg_indirect(ctx, pc->p1, pc->flags.lro.out, out);
+                if (pc->flags.lro.opt1 == 0)
+                    store_arg_indirect(ctx, pc->p1, pc->flags.lro.out, out);
                 LoxObject_Cleanup((Object*) args);
             }
             else {
@@ -268,21 +274,18 @@ vmeval_eval(VmEvalContext *ctx) {
 
                 // Move the locals into a malloc'd object so that future local
                 // changes will be represented in this closure
-                /*
-                if (locals_in_stack) {
+                if (locals_closure == NULL) {
                     unsigned locals_count = ctx->code->locals.count;
-                    Object **mlocals = GC_MALLOC(sizeof(Object*) * locals_count);
+                    locals_closure = Tuple_new(locals_count);
                     while (locals_count--) {
-                        *(mlocals + locals_count) = *(locals + locals_count);
-                        INCREF(*(mlocals + locals_count));
+                        Tuple_SETITEM(locals_closure, locals_count,
+                             ctx->regs[(ctx->code->locals.vars + locals_count)->regnum]);
                     }
-                    locals = mlocals;
-                    locals_in_stack = false;
                 }
-                */
+
                 LoxVmFunction *fun = VmCode_makeFunction((Object*) code,
                     // XXX: Globals?
-                    VmScope_create(ctx->scope, code->context, NULL, ctx->code->locals.count));
+                    VmScope_create(ctx->scope, code->context, locals_closure));
                 store_arg_indirect(ctx, pc->p1, pc->flags.lro.out, (Object*) fun);
             }
             pc = ((void*) pc) + ROP_BUILD__LEN_BASE;
@@ -760,6 +763,11 @@ op_return:
         rv = ctx->regs[ctx->code->result_reg];
 
 op_return:
+    // Drop references for all the register-based objects
+    i = ctx->code->regs_required;
+    while (i--)
+        DECREF(_regs[i]);
+
     return rv;
 }
 

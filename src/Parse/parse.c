@@ -912,6 +912,12 @@ parser_parse_next(Parser* self) {
             // Function invoke used as a statement
             ((ASTInvoke*) rv)->return_value_ignored = true;
         }
+        else if (rv->type == AST_LOOKUP) {
+            ((ASTLookup*) rv)->isstatement = true;
+        }
+        else if (rv->type == AST_LITERAL) {
+            ((ASTLiteral*) rv)->isstatement = true;
+        }
     }
 
     if (self->tokens->peek(self->tokens)->type == T_SEMICOLON) {

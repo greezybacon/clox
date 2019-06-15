@@ -48,7 +48,6 @@ typedef struct ast_expression {
     enum token_type     binary_op;
     struct ast_node     *lhs;
     struct ast_node     *rhs;
-    bool                isreturn;
 } ASTExpression;
 
 typedef struct ast_return {
@@ -66,6 +65,7 @@ typedef struct ast_lookup {
     ASTNode             node;
     Object              *name;
     hashval_t           hash;
+    bool                isstatement;
 } ASTLookup;
 
 typedef struct ast_magic {
@@ -91,6 +91,7 @@ typedef struct ast_term {
 typedef struct ast_literal {
     ASTNode             node;
     Object*             literal;
+    bool                isstatement;
 } ASTLiteral;
 
 typedef struct ast_interpolated_string {

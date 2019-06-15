@@ -11,7 +11,7 @@
 
 static CompileResult compile_node_count(Compiler *self, ASTNode* ast, unsigned *count);
 static CompileResult compile_node(Compiler *self, ASTNode* ast);
-static CompileResult compile_node1(Compiler *self, ASTNode* ast, CompileResult*);
+static CompileResult compile_node1(Compiler *self, ASTNode* ast);
 
 #define max(a,b) \
   ({ __typeof__ (a) _a = (a); \
@@ -127,7 +127,7 @@ compile_block(Compiler *self, ASTNode* node) {
     // Nest the compiler to auto-release registers and mark the output of the
     // block as in-use if it's a register
     Compiler nested = *self;
-    CompileResult result = compile_node(&nested, node);
+    const CompileResult result = compile_node(&nested, node);
     if (result.location == OP_VAR_LOCATE_REGISTER)
         compile_register_setused(self, result.index);
 
@@ -226,7 +226,7 @@ compile_emit_args(Compiler *self, ASTNode *node, unsigned count) {
     ShortArg arg;
 
     while (count-- && node) {
-        result = compile_node1(self, node, NULL);
+        result = compile_node1(self, node);
         arg = (ShortArg) {
             .location = result.location,
             .index = result.index
@@ -377,12 +377,18 @@ compile_assignment(Compiler *self, ASTAssignment *assign) {
         Instruction *previous = ((void*) block->instructions) + block->bytes - expr.length;
 
         // Rewrite previous instruction to place output in the local variable.
-        // TODO: Release reserved register
+        // Release reserved register
         // TODO: Consider type of previous instruction. MATH is assumed
         if (previous->opcode == ROP_CALL) {
-            previous->p1 = result.index;
+            if (result.index != previous->p1) {
+                if (previous->flags.lro.lhs != OP_VAR_LOCATE_REGISTER)
+                    compile_release_register(self, previous->p1);
+                previous->p1 = result.index;
+            }
         }
-        else {
+        else if (result.index != previous->p3) {
+            if (previous->flags.lro.out != OP_VAR_LOCATE_REGISTER)
+                compile_release_register(self, previous->p3);
             previous->p3 = result.index;
         }
         previous->flags.lro.out = result.location;
@@ -425,7 +431,7 @@ static int _cmpfunc (const void * a, const void * b) {
 }
 
 static CompileResult
-compile_expression(Compiler* self, ASTExpression *expr, CompileResult *intermediate) {
+compile_expression(Compiler* self, ASTExpression *expr) {
     static bool lookup_sorted = false;
     if (!lookup_sorted) {
         qsort(TokenToMathOp, sizeof(TokenToMathOp) / sizeof(struct token_to_math_op),
@@ -619,11 +625,26 @@ compile_return(Compiler *self, ASTReturn *node) {
 static CompileResult
 compile_literal(Compiler *self, ASTLiteral *node) {
     // Fetch the index of the constant
-    unsigned index = compile_emit_constant(self, node->literal);
+    unsigned index = compile_emit_constant(self, node->literal),
+        location = OP_VAR_LOCATE_CONSTANT;
+
+    if (node->isstatement) {
+        unsigned out = compile_reserve_register(self);
+        location = OP_VAR_LOCATE_REGISTER;
+        compile_emit3(self, (ShortInstruction) {
+            .opcode = ROP_STORE,
+            .flags.lro.lhs = location,
+            .flags.lro.rhs = OP_VAR_LOCATE_CONSTANT,
+            .p1 = out,
+            .p2 = index,
+        }, ROP_STORE__LEN);
+        index = out;
+    }
+
     return (CompileResult) {
-        .islookup = 1,
+        .islookup = !node->isstatement,
         .index = index,
-        .location = OP_VAR_LOCATE_CONSTANT,
+        .location = location,
     };
 }
 
@@ -653,26 +674,37 @@ compile_interpolated_expr(Compiler *self, ASTInterpolatedExpr *node) {
 static CompileResult
 compile_lookup(Compiler *self, ASTLookup *node) {
     // See if the name is in the locals list
-    int index;
+    int index, location;
+
     if (-1 != (index = compile_locals_islocal(self->context, node->name, HASHVAL(node->name)))) {
-        return (CompileResult) {
-            .islookup = 1,
-            .location = OP_VAR_LOCATE_REGISTER,
-            .index = index,
-        };
+        location = OP_VAR_LOCATE_REGISTER;
     }
     else if (-1 != (index = compile_locals_isclosed(self, node->name))) {
-        return (CompileResult) {
-            .islookup = 1,
-            .location = OP_VAR_LOCATE_CLOSURE,
-            .index = index,
-        };
+        location = OP_VAR_LOCATE_CLOSURE;
     }
-    // Fetch the index of the name constant
+    else {
+        // Fetch the index of the name constant
+        location = OP_VAR_LOCATE_GLOBAL,
+        index = compile_emit_constant(self, node->name);
+    }
+
+    if (node->isstatement) {
+        unsigned out = compile_reserve_register(self);
+        compile_emit3(self, (ShortInstruction) {
+            .opcode = ROP_STORE,
+            .flags.lro.lhs = OP_VAR_LOCATE_REGISTER,
+            .flags.lro.rhs = location,
+            .p1 = out,
+            .p2 = index,
+        }, ROP_STORE__LEN);
+        location = OP_VAR_LOCATE_REGISTER;
+        index = out;
+    }
+
     return (CompileResult) {
-        .islookup = 1,
-        .location = OP_VAR_LOCATE_GLOBAL,
-        .index = compile_emit_constant(self, node->name),
+        .islookup = !node->isstatement,
+        .index = index,
+        .location = location,
     };
 }
 
@@ -680,7 +712,7 @@ static CompileResult
 compile_magic(Compiler *self, ASTMagic *node) {
     return (CompileResult) {
         .location = OP_VAR_LOCATE_CONSTANT,
-        .index = (node->this) ? OP_SPECIAL_CONSTANT_THIS :OP_SPECIAL_CONSTANT_SUPER,
+        .index = (node->this) ? OP_SPECIAL_CONSTANT_THIS : OP_SPECIAL_CONSTANT_SUPER,
         .islookup = 1,
     };
 }
@@ -759,6 +791,8 @@ static CompileResult
 compile_function_inner(Compiler *self, ASTFunction *node) {
     // Create a new compiler context for the function's code (with new constants)
     compile_push_context(self);
+    RegisterStatus current_regs = self->registers;
+    self->registers = (RegisterStatus) { .used = { 0 } };
 
     ASTNode *p;
     ASTFuncParam *param;
@@ -784,6 +818,9 @@ compile_function_inner(Compiler *self, ASTFunction *node) {
     // Create a constant for the function
     index = compile_emit_constant(self,
         VmCode_fromContext(node, compile_pop_context(self)));
+
+    // Restore register status
+    self->registers = current_regs;
 
     // (Meanwhile, back in the original context)
     return (CompileResult) {
@@ -1035,12 +1072,12 @@ compile_table_literal(Compiler *self, ASTTableLiteral *node) {
 */
 
 static CompileResult
-compile_node1(Compiler* self, ASTNode* ast, CompileResult* intermediate) {
+compile_node1(Compiler* self, ASTNode* ast) {
     switch (ast->type) {
     case AST_ASSIGNMENT:
         return compile_assignment(self, (ASTAssignment*) ast);
     case AST_EXPRESSION:
-        return compile_expression(self, (ASTExpression*) ast, intermediate);
+        return compile_expression(self, (ASTExpression*) ast);
     case AST_RETURN:
         return compile_return(self, (ASTReturn*) ast);
     case AST_WHILE:
@@ -1089,7 +1126,7 @@ compile_node_count(Compiler *self, ASTNode *ast, unsigned *count) {
     *count = 0;
 
     while (ast) {
-        result = compile_node1(self, ast, &result);
+        result = compile_node1(self, ast);
         ast = ast->next;
         (*count)++;
     }
