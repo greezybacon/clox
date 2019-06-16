@@ -9,9 +9,9 @@
 #include "Objects/function.h"
 #include "Vendor/bdwgc/include/gc.h"
 
-static CompileResult compile_node_count(Compiler *self, ASTNode* ast, unsigned *count);
-static CompileResult compile_node(Compiler *self, ASTNode* ast);
-static CompileResult compile_node1(Compiler *self, ASTNode* ast);
+static CompileResult compile_node_count(Compiler*, ASTNode* , unsigned*, enum op_var_location_type, int);
+static CompileResult compile_node(Compiler *self, ASTNode* ast, enum op_var_location_type, int);
+static CompileResult compile_node1(Compiler *self, ASTNode* ast, enum op_var_location_type, int);
 
 #define max(a,b) \
   ({ __typeof__ (a) _a = (a); \
@@ -22,6 +22,8 @@ static CompileResult compile_node1(Compiler *self, ASTNode* ast);
   ({ __typeof__ (a) _a = (a); \
       __typeof__ (b) _b = (b); \
     _a < _b ? _a : _b; })
+
+const int OUT_AUTO_REGISTER = -1;
 
 static void
 compile_error(Compiler* self, char* format, ...) {
@@ -127,7 +129,7 @@ compile_block(Compiler *self, ASTNode* node) {
     // Nest the compiler to auto-release registers and mark the output of the
     // block as in-use if it's a register
     Compiler nested = *self;
-    const CompileResult result = compile_node(&nested, node);
+    const CompileResult result = compile_node(&nested, node, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
     if (result.location == OP_VAR_LOCATE_REGISTER)
         compile_register_setused(self, result.index);
 
@@ -226,7 +228,7 @@ compile_emit_args(Compiler *self, ASTNode *node, unsigned count) {
     ShortArg arg;
 
     while (count-- && node) {
-        result = compile_node1(self, node);
+        result = compile_node1(self, node, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
         arg = (ShortArg) {
             .location = result.location,
             .index = result.index
@@ -337,7 +339,7 @@ compile_pop_info(Compiler *self) {
 static CompileResult
 compile_assignment(Compiler *self, ASTAssignment *assign) {
     // Push the expression
-    CompileResult expr = compile_node(self, assign->expression), result;
+    CompileResult result;
     unsigned index;
 
     if (self->flags & CFLAG_LOCAL_VARS) {
@@ -360,6 +362,8 @@ compile_assignment(Compiler *self, ASTAssignment *assign) {
         };
     }
 
+    CompileResult expr = compile_node(self, assign->expression, result.location, result.index);
+
     if (expr.islookup) {
         compile_emit3(self, (ShortInstruction) {
             .opcode = ROP_STORE,
@@ -368,30 +372,6 @@ compile_assignment(Compiler *self, ASTAssignment *assign) {
             .p1 = result.index,
             .p2 = expr.index,
         }, ROP_STORE__LEN);
-    }
-    else {
-        // TODO: The output of the expression compilation is in `expr`. The last instruction
-        // should be in the current codeblock and should be rewindable based on the `bytes`
-        // or `length` in the result.
-        CodeBlock *block = self->context->block;
-        Instruction *previous = ((void*) block->instructions) + block->bytes - expr.length;
-
-        // Rewrite previous instruction to place output in the local variable.
-        // Release reserved register
-        // TODO: Consider type of previous instruction. MATH is assumed
-        if (previous->opcode == ROP_CALL) {
-            if (result.index != previous->p1) {
-                if (previous->flags.lro.lhs != OP_VAR_LOCATE_REGISTER)
-                    compile_release_register(self, previous->p1);
-                previous->p1 = result.index;
-            }
-        }
-        else if (result.index != previous->p3) {
-            if (previous->flags.lro.out != OP_VAR_LOCATE_REGISTER)
-                compile_release_register(self, previous->p3);
-            previous->p3 = result.index;
-        }
-        previous->flags.lro.out = result.location;
     }
 
     return result;
@@ -431,7 +411,7 @@ static int _cmpfunc (const void * a, const void * b) {
 }
 
 static CompileResult
-compile_expression(Compiler* self, ASTExpression *expr) {
+compile_expression(Compiler* self, ASTExpression *expr, enum op_var_location_type out_location, int out_index) {
     static bool lookup_sorted = false;
     if (!lookup_sorted) {
         qsort(TokenToMathOp, sizeof(TokenToMathOp) / sizeof(struct token_to_math_op),
@@ -488,7 +468,7 @@ compile_expression(Compiler* self, ASTExpression *expr) {
         case T_OP_AMPERSAND:
         case T_OP_PIPE:
         case T_OP_TILDE: {
-            int out = compile_reserve_register(self);
+            int out = out_index == OUT_AUTO_REGISTER ? compile_reserve_register(self) : out_index;
             struct token_to_math_op* T, key = { .token = expr->binary_op };
             T = bsearch(&key, TokenToMathOp, sizeof(TokenToMathOp) / sizeof(struct token_to_math_op),
                 sizeof(struct token_to_math_op), _cmpfunc);
@@ -506,7 +486,7 @@ compile_expression(Compiler* self, ASTExpression *expr) {
             }, ROP_MATH__LEN);
             
             result = (CompileResult) {
-                .location = OP_VAR_LOCATE_REGISTER,
+                .location = out_location,
                 .index = out,
             };
             break;
@@ -519,7 +499,7 @@ compile_expression(Compiler* self, ASTExpression *expr) {
         case T_OP_GT:
         case T_OP_GTE:
         case T_OP_IN: {
-            int out = compile_reserve_register(self);
+            int out = out_index == OUT_AUTO_REGISTER ? compile_reserve_register(self) : out_index;
             struct token_to_math_op* T, key = { .token = expr->binary_op };
             T = bsearch(&key, TokenToMathOp, sizeof(TokenToMathOp) / sizeof(struct token_to_math_op),
                 sizeof(struct token_to_math_op), _cmpfunc);
@@ -537,7 +517,7 @@ compile_expression(Compiler* self, ASTExpression *expr) {
             }, ROP_COMPARE__LEN);
         
             result = (CompileResult) {
-                .location = OP_VAR_LOCATE_REGISTER,
+                .location = out_location,
                 .index = out,
             };
             break;
@@ -581,7 +561,7 @@ compile_expression(Compiler* self, ASTExpression *expr) {
 
 /*
 static unsigned
-compile_tuple_literal(Compiler *self, ASTTupleLiteral *node) {
+compile_tuple_literal(Compiler *self, ASTTupleLiteral *node, enum op_var_location_type location, int out_index) {
     unsigned length = 0, count = 0;
     ASTNode* item = node->items;
 
@@ -597,9 +577,9 @@ compile_tuple_literal(Compiler *self, ASTTupleLiteral *node) {
 */
 
 static CompileResult
-compile_return(Compiler *self, ASTReturn *node) {
+compile_return(Compiler *self, ASTReturn *node, enum op_var_location_type location, int out_index) {
     if (node->expression) {
-        CompileResult result = compile_node(self, node->expression);
+        CompileResult result = compile_node(self, node->expression, location, out_index);
         compile_emit2(self, (Instruction) {
             .opcode = ROP_CONTROL,
             .subtype = OP_CONTROL_RETURN,
@@ -618,19 +598,20 @@ compile_return(Compiler *self, ASTReturn *node) {
         }, ROP_CONTROL__LEN);
         return (CompileResult) {
             .index = index,
+            .location = OP_VAR_LOCATE_CONSTANT,
         };
     }
 }
 
 static CompileResult
-compile_literal(Compiler *self, ASTLiteral *node) {
+compile_literal(Compiler *self, ASTLiteral *node, enum op_var_location_type out_location, int out_index) {
     // Fetch the index of the constant
     unsigned index = compile_emit_constant(self, node->literal),
         location = OP_VAR_LOCATE_CONSTANT;
 
     if (node->isstatement) {
-        unsigned out = compile_reserve_register(self);
-        location = OP_VAR_LOCATE_REGISTER;
+        unsigned out = out_index == OUT_AUTO_REGISTER ? compile_reserve_register(self) : out_index;
+        location = out_location;
         compile_emit3(self, (ShortInstruction) {
             .opcode = ROP_STORE,
             .flags.lro.lhs = location,
@@ -650,14 +631,14 @@ compile_literal(Compiler *self, ASTLiteral *node) {
 
 /*
 static unsigned
-compile_interpolated_string(Compiler *self, ASTInterpolatedString *node) {
+compile_interpolated_string(Compiler *self, ASTInterpolatedString *node, enum op_var_location_type location, int out_index) {
     unsigned length = 0, count;
     length += compile_node_count(self, node->items, &count);
     return length + compile_emit(self, OP_BUILD_STRING, count);
 }
 
 static unsigned
-compile_interpolated_expr(Compiler *self, ASTInterpolatedExpr *node) {
+compile_interpolated_expr(Compiler *self, ASTInterpolatedExpr *node, enum op_var_location_type location, int out_index) {
     unsigned length;
     length = compile_node(self, node->expr);
 
@@ -672,7 +653,7 @@ compile_interpolated_expr(Compiler *self, ASTInterpolatedExpr *node) {
 */
 
 static CompileResult
-compile_lookup(Compiler *self, ASTLookup *node) {
+compile_lookup(Compiler *self, ASTLookup *node, enum op_var_location_type out_location, int out_index) {
     // See if the name is in the locals list
     int index, location;
 
@@ -689,7 +670,7 @@ compile_lookup(Compiler *self, ASTLookup *node) {
     }
 
     if (node->isstatement) {
-        unsigned out = compile_reserve_register(self);
+        unsigned out = out_index == OUT_AUTO_REGISTER ? compile_reserve_register(self) : out_index;
         compile_emit3(self, (ShortInstruction) {
             .opcode = ROP_STORE,
             .flags.lro.lhs = OP_VAR_LOCATE_REGISTER,
@@ -697,7 +678,7 @@ compile_lookup(Compiler *self, ASTLookup *node) {
             .p1 = out,
             .p2 = index,
         }, ROP_STORE__LEN);
-        location = OP_VAR_LOCATE_REGISTER;
+        location = out_location;
         index = out;
     }
 
@@ -709,7 +690,7 @@ compile_lookup(Compiler *self, ASTLookup *node) {
 }
 
 static CompileResult
-compile_magic(Compiler *self, ASTMagic *node) {
+compile_magic(Compiler *self, ASTMagic *node, enum op_var_location_type location, int out_index) {
     return (CompileResult) {
         .location = OP_VAR_LOCATE_CONSTANT,
         .index = (node->this) ? OP_SPECIAL_CONSTANT_THIS : OP_SPECIAL_CONSTANT_SUPER,
@@ -724,7 +705,7 @@ compile_while(Compiler* self, ASTWhile *node) {
     // Emit the condition
     // Emit the block in a different context, capture the length
     BlockCompileResult block = compile_block(self, node->block);
-    CompileResult condition = compile_node(self, node->condition);
+    CompileResult condition = compile_node(self, node->condition, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
 
     // Jump over the block
     compile_emit2(self, (Instruction) {
@@ -732,7 +713,7 @@ compile_while(Compiler* self, ASTWhile *node) {
         .subtype = OP_CONTROL_JUMP_IF_FALSE,
         .flags.lro.out = condition.location,
         .p1 = condition.index,
-        .p23 = block.block->bytes,
+        .p23 = block.block->bytes + ROP_CONTROL__LEN,
     }, ROP_CONTROL__LEN);
 
     // Do the block
@@ -752,7 +733,7 @@ compile_while(Compiler* self, ASTWhile *node) {
 static CompileResult
 compile_if(Compiler *self, ASTIf *node) {
     // Emit the condition
-    CompileResult condition = compile_node(self, node->condition);
+    CompileResult condition = compile_node(self, node->condition, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
 
     // Compile (but not emit) the code block
     BlockCompileResult block = compile_block(self, node->block);
@@ -813,7 +794,7 @@ compile_function_inner(Compiler *self, ASTFunction *node) {
     // Local vars are welcome inside the function
     Compiler nested = *self;
     nested.flags |= CFLAG_LOCAL_VARS;
-    compile_node(&nested, node->block);
+    compile_node(&nested, node->block, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
 
     // Create a constant for the function
     index = compile_emit_constant(self,
@@ -830,7 +811,7 @@ compile_function_inner(Compiler *self, ASTFunction *node) {
 }
 
 static CompileResult
-compile_function(Compiler *self, ASTFunction *node) {
+compile_function(Compiler *self, ASTFunction *node, enum op_var_location_type out_location, int out_index) {
     Object *name = NULL;
 
     if (node->name_length) {
@@ -856,8 +837,8 @@ compile_function(Compiler *self, ASTFunction *node) {
         compile_pop_info(self);
     }
     else {
-        index = compile_reserve_register(self);
-        location = OP_VAR_LOCATE_REGISTER;
+        index = out_index == OUT_AUTO_REGISTER ? compile_reserve_register(self) : out_index;
+        location = out_location;
     }
 
     // Create closure and stash in context
@@ -877,7 +858,7 @@ compile_function(Compiler *self, ASTFunction *node) {
 }
 
 static CompileResult
-compile_invoke(Compiler* self, ASTInvoke *node) {
+compile_invoke(Compiler* self, ASTInvoke *node, enum op_var_location_type out_location, int out_index) {
     // Push the function / callable / lookup
     bool recursing = false;
 
@@ -901,14 +882,15 @@ compile_invoke(Compiler* self, ASTInvoke *node) {
     // Make the function
     CompileResult callable;
     if (!recursing)
-        callable = compile_node(self, node->callable);
+        callable = compile_node(self, node->callable, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
 
-    unsigned out = compile_reserve_register(self);
+    unsigned out = node->return_value_ignored ? 0
+        : (out_index == OUT_AUTO_REGISTER ? compile_reserve_register(self) : out_index);
     compile_emit2(self, (Instruction) {
         .opcode = ROP_CALL,
         .subtype = recursing ? 0 : callable.index,
         .flags.lro.rhs = callable.location,
-        .flags.lro.out = OP_VAR_LOCATE_REGISTER,
+        .flags.lro.out = out_location,
         .flags.lro.opt1 = node->return_value_ignored,
         .flags.lro.opt2 = recursing,
         .p1 = out,
@@ -943,7 +925,7 @@ compile_var(Compiler *self, ASTVar *node) {
 
 /*
 static CompileResult
-compile_class(Compiler *self, ASTClass *node) {
+compile_class(Compiler *self, ASTClass *node, enum op_var_location_type location, int out_index) {
     // PLAN: Build the class, build hashtable of methods, stash by name
     size_t length = 0, count = 0;
     unsigned index;
@@ -1004,12 +986,12 @@ compile_class(Compiler *self, ASTClass *node) {
 */
 
 static CompileResult
-compile_attribute(Compiler *self, ASTAttribute *attr) {
-    CompileResult value, object = compile_node(self, attr->object);
+compile_attribute(Compiler *self, ASTAttribute *attr, enum op_var_location_type location, int out_index) {
+    CompileResult value, object = compile_node(self, attr->object, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
 
     unsigned index = compile_emit_constant(self, attr->attribute);
     if (attr->value) {
-        value = compile_node(self, attr->value);
+        value = compile_node(self, attr->value, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
     }
 
     Instruction *ins = compile_emit2(self, (Instruction) {
@@ -1017,10 +999,11 @@ compile_attribute(Compiler *self, ASTAttribute *attr) {
         .subtype = attr->value ? OP_ATTRIBUTE_SET : OP_ATTRIBUTE_GET,
         .flags.lro.lhs = object.location,
         .flags.lro.rhs = OP_VAR_LOCATE_CONSTANT,
-        .flags.lro.out = attr->value ? value.location : OP_VAR_LOCATE_REGISTER,
+        .flags.lro.out = attr->value ? value.location : location,
         .p1 = object.index,
         .p2 = compile_emit_constant(self, attr->attribute),
-        .p3 = (attr->value) ? value.index : compile_reserve_register(self),
+        .p3 = (attr->value) ? value.index
+            : (out_index == OUT_AUTO_REGISTER ? compile_reserve_register(self) : out_index),
     }, ROP_ATTR__LEN);
 
     return (CompileResult) {
@@ -1031,7 +1014,7 @@ compile_attribute(Compiler *self, ASTAttribute *attr) {
 
 /*
 static CompileResult
-compile_slice(Compiler *self, ASTSlice *node) {
+compile_slice(Compiler *self, ASTSlice *node, enum op_var_location_type location, int out_index) {
     unsigned length = compile_node(self, node->object),
              index;
 
@@ -1052,7 +1035,7 @@ compile_slice(Compiler *self, ASTSlice *node) {
 }
 
 static CompileResult
-compile_table_literal(Compiler *self, ASTTableLiteral *node) {
+compile_table_literal(Compiler *self, ASTTableLiteral *node, enum op_var_location_type location, int out_index) {
     ASTNode *key, *value;
     unsigned length=0, count=0;
 
@@ -1072,14 +1055,14 @@ compile_table_literal(Compiler *self, ASTTableLiteral *node) {
 */
 
 static CompileResult
-compile_node1(Compiler* self, ASTNode* ast) {
+compile_node1(Compiler* self, ASTNode* ast, enum op_var_location_type location, int out_index) {
     switch (ast->type) {
     case AST_ASSIGNMENT:
         return compile_assignment(self, (ASTAssignment*) ast);
     case AST_EXPRESSION:
-        return compile_expression(self, (ASTExpression*) ast);
+        return compile_expression(self, (ASTExpression*) ast, location, out_index);
     case AST_RETURN:
-        return compile_return(self, (ASTReturn*) ast);
+        return compile_return(self, (ASTReturn*) ast, location, out_index);
     case AST_WHILE:
         return compile_while(self, (ASTWhile*) ast);
     case AST_FOR:
@@ -1088,30 +1071,30 @@ compile_node1(Compiler* self, ASTNode* ast) {
     case AST_VAR:
         return compile_var(self, (ASTVar*) ast);
     case AST_FUNCTION:
-        return compile_function(self, (ASTFunction*) ast);
+        return compile_function(self, (ASTFunction*) ast, location, out_index);
     case AST_LITERAL:
-        return compile_literal(self, (ASTLiteral*) ast);
+        return compile_literal(self, (ASTLiteral*) ast, location, out_index);
     case AST_INVOKE:
-        return compile_invoke(self, (ASTInvoke*) ast);
+        return compile_invoke(self, (ASTInvoke*) ast, location, out_index);
     case AST_MAGIC:
-        return compile_magic(self, (ASTMagic*) ast);
+        return compile_magic(self, (ASTMagic*) ast, location, out_index);
     case AST_LOOKUP:
-        return compile_lookup(self, (ASTLookup*) ast);
+        return compile_lookup(self, (ASTLookup*) ast, location, out_index);
         /*
     case AST_CLASS:
-        return compile_class(self, (ASTClass*) ast);
+        return compile_class(self, (ASTClass*) ast, location, out_index);
     case AST_ATTRIBUTE:
-        return compile_attribute(self, (ASTAttribute*) ast);
+        return compile_attribute(self, (ASTAttribute*) ast, location, out_index);
     case AST_SLICE:
-        return compile_slice(self, (ASTSlice*) ast);
+        return compile_slice(self, (ASTSlice*) ast, location, out_index);
     case AST_TUPLE_LITERAL:
-        return compile_tuple_literal(self, (ASTTupleLiteral*) ast);
+        return compile_tuple_literal(self, (ASTTupleLiteral*) ast, location, out_index);
     case AST_INTERPOL_STRING:
-        return compile_interpolated_string(self, (ASTInterpolatedString*) ast);
+        return compile_interpolated_string(self, (ASTInterpolatedString*) ast, location, out_index);
     case AST_INTERPOLATED:
-        return compile_interpolated_expr(self, (ASTInterpolatedExpr*) ast);
+        return compile_interpolated_expr(self, (ASTInterpolatedExpr*) ast, location, out_index);
     case AST_TABLE_LITERAL:
-        return compile_table_literal(self, (ASTTableLiteral*) ast);
+        return compile_table_literal(self, (ASTTableLiteral*) ast, location, out_index);
         */
     default:
         compile_error(self, "Unexpected AST node type");
@@ -1120,13 +1103,13 @@ compile_node1(Compiler* self, ASTNode* ast) {
 }
 
 static CompileResult
-compile_node_count(Compiler *self, ASTNode *ast, unsigned *count) {
+compile_node_count(Compiler *self, ASTNode *ast, unsigned *count, enum op_var_location_type location, int out_index) {
     CompileResult result;
     unsigned start = self->context->block->bytes;
     *count = 0;
 
     while (ast) {
-        result = compile_node1(self, ast);
+        result = compile_node1(self, ast, location, out_index);
         ast = ast->next;
         (*count)++;
     }
@@ -1136,9 +1119,9 @@ compile_node_count(Compiler *self, ASTNode *ast, unsigned *count) {
 }
 
 static CompileResult
-compile_node(Compiler *self, ASTNode* ast) {
+compile_node(Compiler *self, ASTNode* ast, enum op_var_location_type location, int out_index) {
     unsigned count;
-    return compile_node_count(self, ast, &count);
+    return compile_node_count(self, ast, &count, location, out_index);
 }
 
 void
@@ -1157,7 +1140,7 @@ compile_compile(Compiler* self, Parser* parser) {
 
     CompileResult result;
     while ((ast = parser->next(parser))) {
-        result = compile_node(self, ast);
+        result = compile_node(self, ast, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
     }
 
     self->context->regs_required = self->registers.high_water_mark + 1;
@@ -1199,7 +1182,7 @@ compile_ast(Compiler* self, ASTNode* node) {
 
     compile_init(self);
     while (node) {
-        compile_node(self, node);
+        compile_node(self, node, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
         node = node->next;
     }
 
