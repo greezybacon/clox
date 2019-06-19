@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <strings.h>
+#include <string.h>
 
 #include "vm.h"
 #include "compile.h"
@@ -422,7 +422,7 @@ compile_expression(Compiler* self, ASTExpression *expr, enum op_var_location_typ
         switch (expr->binary_op) {
         case T_AND:
         case T_OR:
-            // If the LHS is false, then jump past the end of the expression 
+            // If the LHS is false, then jump past the end of the expression
             // as we've already decided on the answer
             compile_emit2(self, (Instruction) {
                 .opcode = ROP_CONTROL,
@@ -469,7 +469,7 @@ compile_expression(Compiler* self, ASTExpression *expr, enum op_var_location_typ
                 .p2         = rhs.result.index,
                 .p3         = out,
             }, ROP_MATH__LEN);
-            
+
             result = (CompileResult) {
                 .location = out_location,
                 .index = out,
@@ -500,7 +500,7 @@ compile_expression(Compiler* self, ASTExpression *expr, enum op_var_location_typ
                 .p2         = rhs.result.index,
                 .p3         = out,
             }, ROP_COMPARE__LEN);
-        
+
             result = (CompileResult) {
                 .location = out_location,
                 .index = out,
@@ -915,8 +915,8 @@ compile_invoke(Compiler* self, ASTInvoke *node, enum op_var_location_type out_lo
         block->bytes += isize;
 
     return (CompileResult) {
-        .index = out,
-        .location = OP_VAR_LOCATE_REGISTER,
+        .index = node->return_value_ignored ? -1 : out,
+        .location = out_location,
     };
 }
 

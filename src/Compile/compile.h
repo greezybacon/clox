@@ -35,9 +35,9 @@ typedef struct compile_result {
     unsigned            length;         // TODO: Retire this usage
     unsigned            opcodes;        // Count of opcodes
     unsigned            bytes;          // Length of bytecode
-    unsigned            index    :8;    // Register holding result
-    enum op_var_location_type location :4;
-    unsigned            islookup :1;
+    int                 index    :8;    // Register holding result
+    int                 location :4;
+    unsigned int        islookup :1;
 } CompileResult;
 
 typedef struct block_compile_result {

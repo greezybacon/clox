@@ -83,7 +83,10 @@ vmeval_eval(VmEvalContext *ctx) {
 
     ctx->regs = &_regs[0];
 
+    int quads = ((ctx->code->regs_required + 1) >> 5) + 1;
     uint32_t reg_usage[((ctx->code->regs_required + 1) >> 5) + 1];
+    while (quads--)
+        reg_usage[quads] = 0;
     ctx->regs_used = &reg_usage[0];
 
     // Set the local variables as Undefined and store the parameters in the
@@ -627,7 +630,7 @@ vmeval_eval(VmEvalContext *ctx) {
     DECREF(lhs); \
     DECREF(rhs); \
 } while(0)
-    
+
 #define BINARY_COMPARE() ({ \
     rhs = POP(stack); \
     lhs = POP(stack); \
@@ -653,7 +656,7 @@ vmeval_eval(VmEvalContext *ctx) {
                 DECREF(lhs);
                 DECREF(rhs);
                 break;
-                
+
             case COMPARE_EXACT:
                 rhs = POP(stack);
                 lhs = POP(stack);
@@ -709,9 +712,9 @@ vmeval_eval(VmEvalContext *ctx) {
             // The first on is op_plus. We should just advance ahead a number
             // of functions based on pc->arg to find the appropriate method
             // to invoke.
-            lox_vm_binary_math_func *operfunc = 
+            lox_vm_binary_math_func *operfunc =
                 (void*) lhs->type
-                + offsetof(ObjectType, op_plus) 
+                + offsetof(ObjectType, op_plus)
                 + pc->arg * sizeof(lox_vm_binary_math_func);
 
             if (*operfunc) {
