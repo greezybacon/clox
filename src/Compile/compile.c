@@ -687,29 +687,26 @@ static CompileResult
 compile_while(Compiler* self, ASTWhile *node) {
     unsigned start = self->context->block->bytes;
 
-    // Emit the condition
     // Emit the block in a different context, capture the length
     BlockCompileResult block = compile_block(self, node->block);
-    CompileResult condition = compile_node(self, node->condition, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
 
     // Jump over the block
     compile_emit2(self, (Instruction) {
         .opcode = ROP_CONTROL,
-        .subtype = OP_CONTROL_JUMP_IF_FALSE,
-        .flags.lro.out = condition.location,
-        .p1 = condition.index,
-        .p23 = block.block->bytes + ROP_CONTROL__LEN,
+        .subtype = OP_CONTROL_JUMP,
+        .p23 = block.block->bytes,
     }, ROP_CONTROL__LEN);
 
-    // Do the block
     compile_merge_block(self, block.block);
 
-    // Jump back and re-eval loop condition
-    // TODO: Could be OP_CONTROL_LOOP_CONTINUE
+    // Jump back to the block
+    CompileResult condition = compile_node(self, node->condition, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
     compile_emit2(self, (Instruction) {
         .opcode = ROP_CONTROL,
-        .subtype = OP_CONTROL_JUMP,
-        .p23 = -condition.length - block.block->bytes - ROP_CONTROL__LEN * 2,
+        .subtype = OP_CONTROL_JUMP_IF_TRUE,
+        .flags.lro.out = condition.location,
+        .p1 = condition.index,
+        .p23 = - block.block->bytes - ROP_CONTROL__LEN * 2,
     }, ROP_CONTROL__LEN);
 
     if (condition.location == OP_VAR_LOCATE_REGISTER)
