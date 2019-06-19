@@ -245,6 +245,32 @@ vmeval_eval(VmEvalContext *ctx) {
             break;
         }
 
+        case ROP_CALL_RECURSE: {
+            // This will only happen for a LoxVmFunction. In this case, we will
+            // execute the same code again, but with different arguments.
+            VmEvalContext call_ctx = *ctx;
+            Object *args[pc->len];
+            unsigned count = pc->len, i = 0;
+            const ShortArg *A = pc->args;
+
+            while (count--) {
+                // TODO: Handle long arguments
+                args[i++] = fetch_arg_indirect(ctx, A->index, A->location);
+                A++;
+            }
+            call_ctx.args = (VmCallArgs) {
+                .values = args,
+                .count = pc->len,
+            };
+
+            rv = out = vmeval_eval(&call_ctx);
+            if (pc->flags.lro.opt1 == 0)
+                store_arg_indirect(ctx, pc->p1, pc->flags.lro.out, out);
+
+            pc = ((void*) pc) + ROP_CALL__LEN_BASE + pc->len;
+            break;
+        }
+
         case ROP_CALL: {
             lhs = fetch_arg_indirect(ctx, pc->subtype, pc->flags.lro.rhs);
 

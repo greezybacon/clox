@@ -882,7 +882,7 @@ compile_invoke(Compiler* self, ASTInvoke *node, enum op_var_location_type out_lo
     unsigned isize = ROP_CALL__LEN_BASE + node->nargs;
     char call_instruction[isize];
     *(Instruction*) call_instruction = (Instruction) {
-        .opcode = ROP_CALL,
+        .opcode = recursing ? ROP_CALL_RECURSE : ROP_CALL,
         .subtype = recursing ? 0 : callable.index,
         .flags.lro.rhs = callable.location,
         .flags.lro.out = out_location,

@@ -77,6 +77,7 @@ enum opcode {
     ROP_CALL,           // flags, fun, out, len, params[], flags=vlrtffoo where f and o are op_var_location_type,
                         //      r is recurse, t is tail-call, l is long args instead of short, v is void (return
                         //      value ignored)
+    ROP_CALL_RECURSE,   // flags, op, out, len, params[], same as CALL, but op is implied to be current function
     ROP_ITEM,           // flags, op, object, item, [in / out]
     ROP_ATTR,           // flags, op, object, attr, [in / out], flags=..ooaavv where o, a and v are op_var_location_type
     ROP_CONTROL,        // flags, op (return, continue, break, jump?, loop), value, target.16

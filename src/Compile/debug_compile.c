@@ -292,6 +292,7 @@ print_opcode(const CodeContext *context, const Instruction *op) {
         break;
     }
 
+    case ROP_CALL_RECURSE:
     case ROP_CALL: {
         unsigned count = op->len;
         const ShortArg *args = op->args;
@@ -300,7 +301,10 @@ print_opcode(const CodeContext *context, const Instruction *op) {
             print_arg_indirect(context, op->p1, op->flags.lro.out);
             printf(" := ");
         }
-        print_arg_indirect(context, op->subtype, op->flags.lro.rhs);
+        if (op->opcode == ROP_CALL)
+            print_arg_indirect(context, op->subtype, op->flags.lro.rhs);
+        else
+            printf("recurse");
         printf("(");
         while (count--) {
             // TODO: Handle long arguments
