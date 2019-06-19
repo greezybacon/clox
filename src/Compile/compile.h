@@ -15,7 +15,7 @@ enum compiler_special {
 typedef struct register_status {
     uint32_t            used[8];       // Up to 256 registers
     uint8_t             lowest_avail;
-    uint8_t             high_water_mark;
+    short               high_water_mark;
 } RegisterStatus;
 
 typedef struct compiler_info {

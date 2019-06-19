@@ -25,6 +25,10 @@ store_arg_indirect(VmEvalContext *ctx, unsigned index,
 
     switch (location) {
     case OP_VAR_LOCATE_REGISTER:
+        INCREF(value);
+        if (TestBit(ctx->regs_used, index))
+            DECREF(ctx->regs[index]);
+        SetBit(ctx->regs_used, index);
         ctx->regs[index] = value;
         break;
     case OP_VAR_LOCATE_CLOSURE:
@@ -39,46 +43,68 @@ store_arg_indirect(VmEvalContext *ctx, unsigned index,
     }
 }
 
-static inline Object*
-fetch_arg_indirect(
-    VmEvalContext *ctx, unsigned index, enum op_var_location_type location
-) {
-    Constant *C;
-
-    switch (location) {
-    case OP_VAR_LOCATE_REGISTER:
-        return ctx->regs[index];
-    case OP_VAR_LOCATE_CLOSURE:
-        return VmScope_lookup_local(ctx->scope, index);
-    case OP_VAR_LOCATE_CONSTANT:
-        return (ctx->code->constants + index)->value;
-    case OP_VAR_LOCATE_GLOBAL:
-        C = ctx->code->constants + index;
-        return VmScope_lookup_global(ctx->scope, C->value, C->hash);
-    }
+static inline Object* 
+__locate_register(VmEvalContext *ctx, unsigned index) {
+    return ctx->regs[index];
 }
+
+static inline Object* 
+__locate_closure(VmEvalContext *ctx, unsigned index) {
+    return VmScope_lookup_local(ctx->scope, index);
+}
+
+static inline Object*
+__locate_constant(VmEvalContext *ctx, unsigned index) {
+    return (ctx->code->constants + index)->value;
+}
+
+static inline Object*
+__locate_global(VmEvalContext *ctx, unsigned index) {
+    Constant *C = ctx->code->constants + index;
+    return VmScope_lookup_global(ctx->scope, C->value, C->hash);
+}
+
+static Object* (*fetch_funcs[])(VmEvalContext*, unsigned) = {
+    __locate_register,
+    __locate_closure,
+    __locate_constant,
+    __locate_global,
+};
+
+#define fetch_arg_indirect(ctx, index, location) fetch_funcs[location](ctx, index)
 
 Object*
 vmeval_eval(VmEvalContext *ctx) {
     Object *lhs, *rhs, *rv = LoxUndefined, *out;
     Constant *C;
 
-    Object *_regs[ctx->code->regs_required];
+    Object *_regs[ctx->code->regs_required + 1];
     LoxTuple *locals_closure = NULL;
 
     ctx->regs = &_regs[0];
 
-    // Set the local variables as Undefined and store the parameters in the
-    // local variables
-    int i = ctx->code->locals.count, j = ctx->args.count;
-    while (j--) {
-        ctx->regs[(ctx->code->locals.vars + j)->regnum] = LoxUndefined;
-        INCREF(LoxUndefined);
-    }
+    uint32_t reg_usage[((ctx->code->regs_required + 1) >> 5) + 1];
+    ctx->regs_used = &reg_usage[0];
 
-    while (i--) {
-        _regs[i] = *(ctx->args.values + i);
-        INCREF(_regs[i]);
+    // Set the local variables as Undefined and store the parameters in the
+    // registers.
+    {
+        int i = ctx->code->locals.count, j = ctx->args.count, k;
+        // The first j registers are for parameters, the other registers are
+        // for local variables used in the context. Those will not have an
+        // initial value and should be Undefined.
+        while (i-- > j) {
+            k = (ctx->code->locals.vars + i)->regnum;
+            ctx->regs[k] = LoxUndefined;
+            SetBit(ctx->regs_used, k);
+            INCREF(LoxUndefined);
+        }
+
+        while (j--) {
+            _regs[j] = *(ctx->args.values + j);
+            INCREF(_regs[j]);
+            SetBit(ctx->regs_used, j);
+        }
     }
 
     Instruction *pc = ctx->code->block->instructions;
@@ -287,10 +313,22 @@ vmeval_eval(VmEvalContext *ctx) {
                     // XXX: Globals?
                     VmScope_create(ctx->scope, code->context, locals_closure));
                 store_arg_indirect(ctx, pc->p1, pc->flags.lro.out, (Object*) fun);
-            }
+                break;
+            }}
             pc = ((void*) pc) + ROP_BUILD__LEN_BASE;
             break;
-        }}
+        }
+
+        case ROP_ITEM:
+            pc = ((void*) pc) + ROP_ITEM__LEN;
+            break;
+
+        case ROP_ATTR:
+            pc = ((void*) pc) + ROP_ATTR__LEN;
+            break;
+
+        default:
+            printf("Unexpected OPCODE (%d)\n", pc->opcode);
 
         // OLD OPCODES --------------------------------------
 /*
@@ -764,9 +802,11 @@ op_return:
 
 op_return:
     // Drop references for all the register-based objects
-    i = ctx->code->regs_required;
-    while (i--)
-        DECREF(_regs[i]);
+    {
+        int i = ctx->code->regs_required;
+        while (i--)
+            DECREF(_regs[i]);
+    }
 
     return rv;
 }

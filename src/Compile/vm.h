@@ -275,8 +275,8 @@ typedef struct code_context {
     unsigned            sizeConstants;
     Constant            *constants;
     LocalsList          locals;
-    unsigned            regs_required;
-    int                 result_reg;
+    short               regs_required;
+    short               result_reg;
     struct code_context *prev;
     Object              *owner;             // If defined in a class
 } CodeContext;
@@ -318,10 +318,15 @@ typedef struct vmeval_call_args {
     printf("(%s) %.*s #%d\n", ((Object*) value)->type->name, S->length, S->characters); \
 } while(0)
 
+#define SetBit(A,k)     ( A[(k/32)] |= (1 << (k%32)) )
+#define ClearBit(A,k)   ( A[(k/32)] &= ~(1 << (k%32)) )
+#define TestBit(A,k)    ( A[(k/32)] & (1 << (k%32)) )
+
 typedef struct vmeval_context {
     CodeContext     *code;
     VmScope         *scope;
     VmCallArgs      args;
+    uint32_t        *regs_used;
     Object          **regs;
     Object          *this;
 } VmEvalContext;

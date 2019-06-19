@@ -139,6 +139,7 @@ print_arg_indirect(const CodeContext *context, unsigned index,
     case OP_VAR_LOCATE_CLOSURE: {
         CodeContext *outer = context->prev;
         if (outer) {
+            assert(outer->locals.count > index);
             Object *T = (outer->locals.vars + index)->name.value;
             LoxString *S = String_fromObject(T);
             printf("<nonlocal> %.*s", S->length, S->characters);

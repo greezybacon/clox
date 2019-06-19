@@ -133,6 +133,10 @@ compile_block(Compiler *self, ASTNode* node) {
     if (result.location == OP_VAR_LOCATE_REGISTER)
         compile_register_setused(self, result.index);
 
+    // Copy the high-water mark
+    self->registers.high_water_mark = max(self->registers.high_water_mark,
+        nested.registers.high_water_mark);
+
     // Pop the started block
     CodeBlock *block = self->context->block;
     self->context->block = block->prev;
@@ -146,10 +150,9 @@ static inline void
 compile_block_ensure_size(CodeBlock *block, unsigned size) {
     if (size > block->size) {
         while (block->size < size) {
-            block->size += 16;
+            block->size += 16 * sizeof(Instruction);
         }
-        block->instructions = GC_REALLOC(block->instructions,
-            block->size * sizeof(Instruction));
+        block->instructions = GC_REALLOC(block->instructions, block->size);
     }
 }
 
@@ -219,24 +222,6 @@ compile_emit2(Compiler *self, const Instruction opcode, unsigned length) {
     block->bytes += length;
 
     return result;
-}
-
-static void
-compile_emit_args(Compiler *self, ASTNode *node, unsigned count) {
-    CodeBlock *block = self->context->block;
-    CompileResult result;
-    ShortArg arg;
-
-    while (count-- && node) {
-        result = compile_node1(self, node, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
-        arg = (ShortArg) {
-            .location = result.location,
-            .index = result.index
-        };
-        memcpy(block->instructions + block->bytes, &arg, sizeof(ShortArg));
-        block->bytes += sizeof(ShortArg);
-        node = node->next;
-    }
 }
 
 static int
@@ -727,6 +712,9 @@ compile_while(Compiler* self, ASTWhile *node) {
         .p23 = -condition.length - block.block->bytes - ROP_CONTROL__LEN * 2,
     }, ROP_CONTROL__LEN);
 
+    if (condition.location == OP_VAR_LOCATE_REGISTER)
+        compile_release_register(self, condition.index);
+
     return (CompileResult) { 0 };
 }
 
@@ -751,6 +739,9 @@ compile_if(Compiler *self, ASTIf *node) {
 
     // Add in the block following the condition
     compile_merge_block(self, block.block);
+
+    if (condition.location == OP_VAR_LOCATE_REGISTER)
+        compile_release_register(self, condition.index);
 
     // If there's an otherwise, then emit it
     if (node->otherwise) {
@@ -886,7 +877,11 @@ compile_invoke(Compiler* self, ASTInvoke *node, enum op_var_location_type out_lo
 
     unsigned out = node->return_value_ignored ? 0
         : (out_index == OUT_AUTO_REGISTER ? compile_reserve_register(self) : out_index);
-    compile_emit2(self, (Instruction) {
+
+    // Build the base call instruction
+    unsigned isize = ROP_CALL__LEN_BASE + node->nargs;
+    char call_instruction[isize];
+    *(Instruction*) call_instruction = (Instruction) {
         .opcode = ROP_CALL,
         .subtype = recursing ? 0 : callable.index,
         .flags.lro.rhs = callable.location,
@@ -894,11 +889,30 @@ compile_invoke(Compiler* self, ASTInvoke *node, enum op_var_location_type out_lo
         .flags.lro.opt1 = node->return_value_ignored,
         .flags.lro.opt2 = recursing,
         .p1 = out,
-        .len = node->nargs,
-    }, ROP_CALL__LEN_BASE);
+        .len = node->nargs
+    };
+    char *pcall_instruction = call_instruction + ROP_CALL__LEN_BASE;
 
-    // Add all the arguments
-    compile_emit_args(self, node->args, node->nargs);
+    // Compile the arguments into the context
+    int count = node->nargs;
+    CompileResult result;
+    ShortArg sarg;
+    ASTNode *arg = node->args;
+    while (count-- && arg) {
+        result = compile_node1(self, arg, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
+        sarg = (ShortArg) {
+            .location = result.location,
+            .index = result.index
+        };
+        memcpy(pcall_instruction, &sarg, sizeof(ShortArg));
+        pcall_instruction += sizeof(ShortArg);
+        arg = arg->next;
+    }
+
+    // Add all the arguments to the call instruction
+    CodeBlock *block = self->context->block;
+    memcpy(block->instructions + block->bytes, &call_instruction, isize);
+        block->bytes += isize;
 
     return (CompileResult) {
         .index = out,
@@ -1126,7 +1140,7 @@ compile_node(Compiler *self, ASTNode* ast, enum op_var_location_type location, i
 
 void
 compile_init(Compiler *compiler) {
-    compiler->registers = (RegisterStatus) { .used = { 0 } };
+    compiler->registers = (RegisterStatus) { .used = { 0 }, .high_water_mark = -1 };
     compile_push_context(compiler);
 }
 
