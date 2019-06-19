@@ -111,6 +111,7 @@ vmeval_eval(VmEvalContext *ctx) {
     }
 
     Instruction *pc = ctx->code->block->instructions;
+    void *start = pc;
     Instruction *end = ((void*)pc) + ctx->code->block->bytes;
 
     while (pc < end) {
@@ -230,8 +231,23 @@ vmeval_eval(VmEvalContext *ctx) {
                     pc = ((void*) pc) + pc->p23;
                 break;
 
+            case OP_CONTROL_JUMP_ABS_IF_TRUE:
+                if (Bool_isTrue(fetch_arg_indirect(ctx, pc->p1, pc->flags.lro.lhs)))
+                    pc = start + pc->p23 - ROP_CONTROL__LEN;
+                break;
+
+            case OP_CONTROL_JUMP_ABS_IF_FALSE:
+                if (!Bool_isTrue(fetch_arg_indirect(ctx, pc->p1, pc->flags.lro.lhs)))
+                    pc = start + pc->p23 - ROP_CONTROL__LEN;
+                break;
+
             case OP_CONTROL_JUMP:
                 pc = ((void*) pc) + pc->p23;
+                break;
+
+            case OP_CONTROL_JUMP_ABSOLUTE:
+                assert(pc->p23 <= end);
+                pc = start + pc->p23 - ROP_CONTROL__LEN;
                 break;
 
             case OP_CONTROL_RETURN:

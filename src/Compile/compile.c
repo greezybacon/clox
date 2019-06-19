@@ -703,10 +703,10 @@ compile_while(Compiler* self, ASTWhile *node) {
     CompileResult condition = compile_node(self, node->condition, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
     compile_emit2(self, (Instruction) {
         .opcode = ROP_CONTROL,
-        .subtype = OP_CONTROL_JUMP_IF_TRUE,
+        .subtype = OP_CONTROL_JUMP_ABS_IF_TRUE,
         .flags.lro.out = condition.location,
         .p1 = condition.index,
-        .p23 = - block.block->bytes - ROP_CONTROL__LEN * 2,
+        .p23 = start + ROP_CONTROL__LEN,
     }, ROP_CONTROL__LEN);
 
     if (condition.location == OP_VAR_LOCATE_REGISTER)

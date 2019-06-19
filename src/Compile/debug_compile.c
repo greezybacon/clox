@@ -279,6 +279,14 @@ print_opcode(const CodeContext *context, const Instruction *op) {
         case OP_CONTROL_JUMP:
             printf("jump %d", op->p23);
             break;
+        case OP_CONTROL_JUMP_ABS_IF_TRUE:
+        case OP_CONTROL_JUMP_ABS_IF_FALSE:
+            printf("if %s(", op->subtype == OP_CONTROL_JUMP_IF_FALSE ? "!" : "");
+            print_arg_indirect(context, op->p1, op->flags.lro.lhs);
+            printf(") ");
+        case OP_CONTROL_JUMP_ABSOLUTE:
+            printf("jump to (absolute) %d", op->p23);
+            break;
         case OP_CONTROL_RETURN:
             printf("return ");
             print_arg_indirect(context, op->p1, op->flags.lro.lhs);
