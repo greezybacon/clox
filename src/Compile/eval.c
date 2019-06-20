@@ -289,7 +289,7 @@ vmeval_eval(VmEvalContext *ctx) {
 
                 for (; count--; A++) {
                     // TODO: Handle long arguments
-                    *pargs = fetch_arg_indirect(ctx, A->index, A->location);
+                    *(pargs++) = fetch_arg_indirect(ctx, A->index, A->location);
                 }
                 VmEvalContext call_ctx = (VmEvalContext) {
                     .code = ((LoxVmFunction*)lhs)->code->context,
