@@ -201,7 +201,7 @@ typedef struct lox_vm_instruction {
         int16_t     p23;
         struct {
             uint8_t len;
-            ShortArg      args[0];
+            ShortArg      args[1];
         };
     };
 } Instruction;

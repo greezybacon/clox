@@ -44,47 +44,36 @@ store_arg_indirect(VmEvalContext *ctx, unsigned index,
 }
 
 static inline Object* 
-__locate_register(VmEvalContext *ctx, unsigned index) {
-    return ctx->regs[index];
+fetch_arg_indirect(VmEvalContext *ctx, unsigned index,
+    enum op_var_location_type location
+) {
+    Constant *C;
+
+    switch (location) {
+    case OP_VAR_LOCATE_REGISTER:
+        return ctx->regs[index];
+    case OP_VAR_LOCATE_CLOSURE:
+        return VmScope_lookup_local(ctx->scope, index);
+    case OP_VAR_LOCATE_CONSTANT:
+        return (ctx->code->constants + index)->value;
+    case OP_VAR_LOCATE_GLOBAL:
+        C = ctx->code->constants + index;
+        return VmScope_lookup_global(ctx->scope, C->value, C->hash);
+    }
 }
-
-static inline Object* 
-__locate_closure(VmEvalContext *ctx, unsigned index) {
-    return VmScope_lookup_local(ctx->scope, index);
-}
-
-static inline Object*
-__locate_constant(VmEvalContext *ctx, unsigned index) {
-    return (ctx->code->constants + index)->value;
-}
-
-static inline Object*
-__locate_global(VmEvalContext *ctx, unsigned index) {
-    Constant *C = ctx->code->constants + index;
-    return VmScope_lookup_global(ctx->scope, C->value, C->hash);
-}
-
-static Object* (*fetch_funcs[])(VmEvalContext*, unsigned) = {
-    __locate_register,
-    __locate_closure,
-    __locate_constant,
-    __locate_global,
-};
-
-#define fetch_arg_indirect(ctx, index, location) fetch_funcs[location](ctx, index)
 
 Object*
 vmeval_eval(VmEvalContext *ctx) {
     Object *lhs, *rhs, *rv = LoxUndefined, *out;
     Constant *C;
 
-    Object *_regs[ctx->code->regs_required + 1];
+    Object *_regs[ctx->code->regs_required];
     LoxTuple *locals_closure = NULL;
 
     ctx->regs = &_regs[0];
 
-    int quads = ((ctx->code->regs_required + 1) >> 5) + 1;
-    uint32_t reg_usage[((ctx->code->regs_required + 1) >> 5) + 1];
+    int quads = (ctx->code->regs_required >> 5) + 1;
+    uint32_t reg_usage[(ctx->code->regs_required >> 5) + 1];
     while (quads--)
         reg_usage[quads] = 0;
     ctx->regs_used = &reg_usage[0];
@@ -282,7 +271,7 @@ vmeval_eval(VmEvalContext *ctx) {
                 .count = pc->len,
             };
 
-            rv = out = vmeval_eval(&call_ctx);
+            out = vmeval_eval(&call_ctx);
             if (pc->flags.lro.opt1 == 0)
                 store_arg_indirect(ctx, pc->p1, pc->flags.lro.out, out);
 
@@ -294,14 +283,13 @@ vmeval_eval(VmEvalContext *ctx) {
             lhs = fetch_arg_indirect(ctx, pc->subtype, pc->flags.lro.rhs);
 
             if (VmFunction_isVmFunction(lhs)) {
-                Object *args[pc->len];
-                unsigned count = pc->len, i = 0;
-                const ShortArg *A = pc->args;
+                Object *args[pc->len], **pargs = &args[0];
+                unsigned count = pc->len;
+                const ShortArg *A = &pc->args[0];
 
-                while (count--) {
+                for (; count--; A++) {
                     // TODO: Handle long arguments
-                    args[i++] = fetch_arg_indirect(ctx, A->index, A->location);
-                    A++;
+                    *pargs = fetch_arg_indirect(ctx, A->index, A->location);
                 }
                 VmEvalContext call_ctx = (VmEvalContext) {
                     .code = ((LoxVmFunction*)lhs)->code->context,
@@ -850,7 +838,8 @@ op_return:
     {
         int i = ctx->code->regs_required;
         while (i--)
-            DECREF(_regs[i]);
+            if (TestBit(ctx->regs_used, i))
+                DECREF(_regs[i]);
     }
 
     return rv;

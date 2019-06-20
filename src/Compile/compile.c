@@ -568,7 +568,7 @@ compile_return(Compiler *self, ASTReturn *node, enum op_var_location_type locati
         compile_emit2(self, (Instruction) {
             .opcode = ROP_CONTROL,
             .subtype = OP_CONTROL_RETURN,
-            .flags.lro.out = result.location,
+            .flags.lro.lhs = result.location,
             .p1 = result.index,
         }, ROP_CONTROL__LEN);
         return result;
@@ -578,7 +578,7 @@ compile_return(Compiler *self, ASTReturn *node, enum op_var_location_type locati
         compile_emit2(self, (Instruction) {
             .opcode = ROP_CONTROL,
             .subtype = OP_CONTROL_RETURN,
-            .flags.lro.out = OP_VAR_LOCATE_CONSTANT,
+            .flags.lro.lhs = OP_VAR_LOCATE_CONSTANT,
             .p1 = index,
         }, ROP_CONTROL__LEN);
         return (CompileResult) {
@@ -760,8 +760,6 @@ static CompileResult
 compile_function_inner(Compiler *self, ASTFunction *node) {
     // Create a new compiler context for the function's code (with new constants)
     compile_push_context(self);
-    RegisterStatus current_regs = self->registers;
-    self->registers = (RegisterStatus) { .used = { 0 } };
 
     ASTNode *p;
     ASTFuncParam *param;
@@ -782,14 +780,17 @@ compile_function_inner(Compiler *self, ASTFunction *node) {
     // Local vars are welcome inside the function
     Compiler nested = *self;
     nested.flags |= CFLAG_LOCAL_VARS;
-    compile_node(&nested, node->block, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
+    CompileResult result = compile_node(&nested, node->block, OP_VAR_LOCATE_REGISTER,
+        OUT_AUTO_REGISTER);
+
+    CodeContext* func_context = compile_pop_context(self);
+    func_context->regs_required = nested.registers.high_water_mark + 1;
+    func_context->result_reg = result.location == OP_VAR_LOCATE_REGISTER
+        ? result.index : -1;
 
     // Create a constant for the function
     index = compile_emit_constant(self,
-        VmCode_fromContext(node, compile_pop_context(self)));
-
-    // Restore register status
-    self->registers = current_regs;
+        VmCode_fromContext(node, func_context));
 
     // (Meanwhile, back in the original context)
     return (CompileResult) {
