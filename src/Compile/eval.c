@@ -235,7 +235,6 @@ vmeval_eval(VmEvalContext *ctx) {
                 break;
 
             case OP_CONTROL_JUMP_ABSOLUTE:
-                assert(pc->p23 <= end);
                 pc = start + pc->p23 - ROP_CONTROL__LEN;
                 break;
 
@@ -272,8 +271,10 @@ vmeval_eval(VmEvalContext *ctx) {
             };
 
             out = vmeval_eval(&call_ctx);
-            if (pc->flags.lro.opt1 == 0)
+            if (pc->flags.lro.opt1 == 0) {
                 store_arg_indirect(ctx, pc->p1, pc->flags.lro.out, out);
+                out->protect_delete = 0;
+            }
 
             pc = ((void*) pc) + ROP_CALL__LEN_BASE + pc->len;
             break;
@@ -300,8 +301,10 @@ vmeval_eval(VmEvalContext *ctx) {
                     },
                 };
                 out = vmeval_eval(&call_ctx);
-                if (pc->flags.lro.opt1 == 0)
+                if (pc->flags.lro.opt1 == 0) {
                     store_arg_indirect(ctx, pc->p1, pc->flags.lro.out, out);
+                    out->protect_delete = 0;
+                }
             }
             else if (Function_isCallable(lhs)) {
                 LoxTuple *args = Tuple_new(pc->len);
@@ -834,6 +837,8 @@ op_return:
         rv = ctx->regs[ctx->code->result_reg];
 
 op_return:
+    rv->protect_delete = 1;
+
     // Drop references for all the register-based objects
     {
         int i = ctx->code->regs_required;
