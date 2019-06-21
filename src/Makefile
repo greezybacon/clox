@@ -21,5 +21,9 @@ clean:
 bdwgc:
 	$(MAKE) -C Vendor
 
+lox.o: $(SOURCES)
+standalone: lox.o bdwgc
+	$(CC) $(CFLAGS) lox.o -o $(TARGET) $(LDFLAGS)
+
 $(TARGET): $(OBJECTS) bdwgc
 	$(CC) $(CFLAGS) $(OBJECTS) -o $@ $(LDFLAGS) $(BDWGC)/extra/gc.o

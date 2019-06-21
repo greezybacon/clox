@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "vm.h"
+#include "compile.h"
 
 struct named_opcode {
     enum opcode     code;
@@ -82,39 +83,6 @@ static struct named_opcode OpcodeNames[] = {
 static int cmpfunc (const void * a, const void * b) {
    return ((struct named_opcode*) a)->code - ((struct named_opcode*) b)->code;
 }
-
-static struct token_to_math_op {
-    enum token_type     token;
-    enum opcode         vm_opcode;
-    enum lox_vm_math    math_op;
-    const char          *op_desc;
-} TokenToMathOp[] = {
-    { T_OP_PLUS,        OP_BINARY_MATH,    MATH_BINARY_PLUS,       "+" },
-    { T_OP_MINUS,       OP_BINARY_MATH,    MATH_BINARY_MINUS,      "-" },
-    { T_OP_STAR,        OP_BINARY_MATH,    MATH_BINARY_STAR,       "*" },
-    { T_OP_SLASH,       OP_BINARY_MATH,    MATH_BINARY_SLASH,      "/" },
-    { T_OP_AMPERSAND,   OP_BINARY_MATH,    MATH_BINARY_AND,        "&" },
-    { T_OP_PIPE,        OP_BINARY_MATH,    MATH_BINARY_OR,         "|" },
-    { T_OP_CARET,       OP_BINARY_MATH,    MATH_BINARY_XOR,        "^" },
-    { T_OP_PERCENT,     OP_BINARY_MATH,    MATH_BINARY_MODULUS,    "%" },
-    { T_OP_LSHIFT,      OP_BINARY_MATH,    MATH_BINARY_LSHIFT,     "<<" },
-    { T_OP_RSHIFT,      OP_BINARY_MATH,    MATH_BINARY_RSHIFT,     ">>" },
-};
-
-static struct token_to_compare_op {
-    enum token_type     token;
-    enum opcode         vm_opcode;
-    enum lox_vm_compare compare_op;
-    const char          *op_desc;
-} TokenToCompareOp[] = {
-    { T_OP_EQUAL,       OP_COMPARE,     COMPARE_EQ,     "==" },
-    { T_OP_NOTEQUAL,    OP_COMPARE,     COMPARE_NOT_EQ, "!=" },
-    { T_OP_GT,          OP_COMPARE,     COMPARE_GT,     ">"  },
-    { T_OP_GTE,         OP_COMPARE,     COMPARE_GTE,    ">=" },
-    { T_OP_LT,          OP_COMPARE,     COMPARE_LT,     "<"  },
-    { T_OP_LTE,         OP_COMPARE,     COMPARE_LTE,    "<=" },
-    { T_OP_IN,          OP_COMPARE,     COMPARE_IN,     "in" },
-};
 
 static int math_cmpfunc (const void * a, const void * b) {
    return ((struct token_to_math_op*) a)->math_op - ((struct token_to_math_op*) b)->math_op;

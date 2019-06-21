@@ -362,35 +362,6 @@ compile_assignment(Compiler *self, ASTAssignment *assign) {
     return result;
 }
 
-static struct token_to_math_op {
-    enum token_type     token;
-    enum opcode         vm_opcode;
-    union {
-        enum lox_vm_math    math_op;
-        enum lox_vm_compare compare_op;
-    };
-    const char          *op;
-} TokenToMathOp[] = {
-    { T_OP_PLUS,        ROP_MATH,       MATH_BINARY_PLUS,       "+" },
-    { T_OP_MINUS,       ROP_MATH,       MATH_BINARY_MINUS,      "-" },
-    { T_OP_STAR,        ROP_MATH,       MATH_BINARY_STAR,       "*" },
-    { T_OP_SLASH,       ROP_MATH,       MATH_BINARY_SLASH,      "/" },
-    { T_OP_AMPERSAND,   ROP_MATH,       MATH_BINARY_AND,        "&" },
-    { T_OP_PIPE,        ROP_MATH,       MATH_BINARY_OR,         "|" },
-    { T_OP_CARET,       ROP_MATH,       MATH_BINARY_XOR,        "^" },
-    { T_OP_PERCENT,     ROP_MATH,       MATH_BINARY_MODULUS,    "%" },
-    { T_OP_LSHIFT,      ROP_MATH,       MATH_BINARY_LSHIFT,     "<<" },
-    { T_OP_RSHIFT,      ROP_MATH,       MATH_BINARY_RSHIFT,     ">>" },
-
-    { T_OP_EQUAL,       ROP_COMPARE,    COMPARE_EQ,             "==" },
-    { T_OP_NOTEQUAL,    ROP_COMPARE,    COMPARE_NOT_EQ,         "!=" },
-    { T_OP_LT,          ROP_COMPARE,    COMPARE_LT,             "<" },
-    { T_OP_LTE,         ROP_COMPARE,    COMPARE_LTE,            "<=" },
-    { T_OP_GT,          ROP_COMPARE,    COMPARE_GT,             ">" },
-    { T_OP_GTE,         ROP_COMPARE,    COMPARE_GTE,            ">=" },
-    { T_OP_IN,          ROP_COMPARE,    COMPARE_IN,             "in" },
-};
-
 static int _cmpfunc (const void * a, const void * b) {
    return ((struct token_to_math_op*) a)->token - ((struct token_to_math_op*) b)->token;
 }
