@@ -330,7 +330,6 @@ typedef struct vmeval_context {
     CodeContext     *code;
     VmScope         *scope;
     VmCallArgs      args;
-    uint32_t        *regs_used;
     Object          **regs;
     Object          *this;
 } VmEvalContext;

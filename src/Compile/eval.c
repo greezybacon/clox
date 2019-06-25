@@ -10,8 +10,6 @@
 #include "Objects/hash.h"
 #include "Objects/class.h"
 
-#define STACK_SIZE 32
-
 static void
 eval_raise_error(VmEvalContext *ctx, const char *characters, ...) {
     // TODO: Make the characters a real Exception object
@@ -26,9 +24,8 @@ store_arg_indirect(VmEvalContext *ctx, unsigned index,
     switch (location) {
     case OP_VAR_LOCATE_REGISTER:
         INCREF(value);
-        if (TestBit(ctx->regs_used, index))
+        if (ctx->regs[index] != 0)
             DECREF(ctx->regs[index]);
-        SetBit(ctx->regs_used, index);
         ctx->regs[index] = value;
         break;
     case OP_VAR_LOCATE_CLOSURE:
@@ -71,12 +68,7 @@ vmeval_eval(VmEvalContext *ctx) {
     LoxTuple *locals_closure = NULL;
 
     ctx->regs = &_regs[0];
-
-    int quads = (ctx->code->regs_required >> 5) + 1;
-    uint32_t reg_usage[(ctx->code->regs_required >> 5) + 1];
-    while (quads--)
-        reg_usage[quads] = 0;
-    ctx->regs_used = &reg_usage[0];
+    memset(_regs, 0, ctx->code->regs_required * sizeof(Object*));
 
     // Set the local variables as Undefined and store the parameters in the
     // registers.
@@ -88,14 +80,12 @@ vmeval_eval(VmEvalContext *ctx) {
         while (i-- > j) {
             k = (ctx->code->locals.vars + i)->regnum;
             ctx->regs[k] = LoxUndefined;
-            SetBit(ctx->regs_used, k);
             INCREF(LoxUndefined);
         }
 
         while (j--) {
             _regs[j] = *(ctx->args.values + j);
             INCREF(_regs[j]);
-            SetBit(ctx->regs_used, j);
         }
     }
 
@@ -209,7 +199,7 @@ vmeval_eval(VmEvalContext *ctx) {
         }
 
         case ROP_CONTROL: {
-            switch (pc->subtype) {
+            switch ((enum lox_vm_control_op) pc->subtype) {
             case OP_CONTROL_JUMP_IF_TRUE:
                 if (Bool_isTrue(fetch_arg_indirect(ctx, pc->p1, pc->flags.lro.lhs)))
                     pc = ((void*) pc) + pc->p23;
@@ -842,9 +832,10 @@ op_return:
     // Drop references for all the register-based objects
     {
         int i = ctx->code->regs_required;
-        while (i--)
-            if (TestBit(ctx->regs_used, i))
-                DECREF(_regs[i]);
+        while (i--) {
+            if (ctx->regs[i] != 0)
+                DECREF(ctx->regs[i]);
+        }
     }
 
     return rv;
