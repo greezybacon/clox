@@ -1126,6 +1126,8 @@ compile_compile(Compiler* self, Parser* parser) {
         result = compile_node(self, ast, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
     }
 
+    compile_emit3(self, (ShortInstruction) { .opcode = ROP_HALT }, 1);
+
     self->context->regs_required = self->registers.high_water_mark + 1;
     self->context->result_reg = result.location == OP_VAR_LOCATE_REGISTER
         ? result.index : -1;

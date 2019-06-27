@@ -77,6 +77,7 @@ static struct named_opcode OpcodeNames[] = {
     { ROP_COMPARE,      "R-COMPARE" },
     { ROP_CONTROL,      "R-CONTROL" },
     { ROP_CALL,         "R-INVOKE" },
+    { ROP_CALL_RECURSE, "R-RECURSE" },
     { ROP_BUILD,        "R-BUILD" },
 };
 

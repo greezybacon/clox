@@ -19,25 +19,25 @@ static inline void
 store_arg_indirect(VmEvalContext *ctx, unsigned index,
     enum op_var_location_type location, Object *value
 ) {
-    Constant *C;
-
     switch (location) {
-    case OP_VAR_LOCATE_REGISTER:
+    case OP_VAR_LOCATE_REGISTER: {
+        Object **reg = ctx->regs + index;
         INCREF(value);
-        if (ctx->regs[index] != 0)
-            DECREF(ctx->regs[index]);
-        ctx->regs[index] = value;
+        if (*reg != 0)
+            DECREF(*reg);
+        *reg = value;
         break;
+    }
     case OP_VAR_LOCATE_CLOSURE:
         fprintf(stderr, "Warning: Non-local writes are not yet supported\n");
         break;
     case OP_VAR_LOCATE_CONSTANT:
         fprintf(stderr, "Error: Cannot write to constant\n");
         break;
-    case OP_VAR_LOCATE_GLOBAL:
-        C = ctx->code->constants + index;
+    case OP_VAR_LOCATE_GLOBAL: {
+        Constant *C = ctx->code->constants + index;
         VmScope_assign(ctx->scope, C->value, value, C->hash);
-    }
+    }}
 }
 
 static inline Object* 
@@ -93,7 +93,7 @@ vmeval_eval(VmEvalContext *ctx) {
     void *start = pc;
     Instruction *end = ((void*)pc) + ctx->code->block->bytes;
 
-    while (pc < end) {
+    for (;;) {
 #if DEBUG
         print_instructions(ctx->code, pc, 1);
 #endif
@@ -352,6 +352,9 @@ vmeval_eval(VmEvalContext *ctx) {
         case ROP_ATTR:
             pc = ((void*) pc) + ROP_ATTR__LEN;
             break;
+
+        case ROP_HALT:
+            goto all_done;
 
         default:
             printf("Unexpected OPCODE (%d)\n", pc->opcode);
@@ -822,7 +825,7 @@ op_return:
 */
         }
     }
-
+all_done:
     if (ctx->code->result_reg != -1)
         rv = ctx->regs[ctx->code->result_reg];
 

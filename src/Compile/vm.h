@@ -70,6 +70,7 @@ enum opcode {
     OP_BUILD_TABLE,
 
     // Register-based opcodes
+    ROP_HALT=0,
     ROP_STORE,          // flags, dst, src
     ROP_MATH,           // flags, op, lhs, rhs, out, flags=nfllrroo where l, r, and o are op_var_location_type,
                         //      n mean negate (-) and f means logical not (!)
