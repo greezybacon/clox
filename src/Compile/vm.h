@@ -145,6 +145,7 @@ __attribute__((packed));
 
 enum lox_vm_build_op {
     OP_BUILD_FUNCTION = 1,
+    OP_BUILD_TABLE,
 }
 __attribute__((packed));
 

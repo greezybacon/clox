@@ -304,6 +304,24 @@ print_opcode(const CodeContext *context, const Instruction *op) {
             print_arg_indirect(context, op->p2, op->flags.lro.rhs);
             length = ROP_BUILD__LEN_BASE;
             break;
+
+        case OP_BUILD_TABLE:
+            printf("{");
+            {
+                int count = op->len;
+                ShortArg *A = op->args;
+                while (count > 0) {
+                    print_arg_indirect(context, A->index, A->location);
+                    printf(" : ");
+                    A++;
+                    print_arg_indirect(context, A->index, A->location);
+                    A++;
+                    count -= 2;
+                }
+            }
+            printf("}");
+            length = ROP_BUILD__LEN_BASE + op->len * 2;
+            break;
         }
 
         break;

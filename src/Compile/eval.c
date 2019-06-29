@@ -320,6 +320,8 @@ vmeval_eval(VmEvalContext *ctx) {
         }
 
         case ROP_BUILD: {
+            int length = ROP_BUILD__LEN_BASE;
+
             switch (pc->subtype) {
             case OP_BUILD_FUNCTION: {
                 LoxVmCode *code = (LoxVmCode*) fetch_arg_indirect(ctx, pc->p2, pc->flags.lro.rhs);
@@ -340,8 +342,25 @@ vmeval_eval(VmEvalContext *ctx) {
                     VmScope_create(ctx->scope, code->context, locals_closure));
                 store_arg_indirect(ctx, pc->p1, pc->flags.lro.out, (Object*) fun);
                 break;
+            }
+
+            case OP_BUILD_TABLE: {
+                int count = pc->len;
+                out = (Object*) Hash_newWithSize(count / 2);
+                ShortArg *A = pc->args;
+
+                length += count * 2 * sizeof(ShortArg);
+                while (count > 0) {
+                    lhs = fetch_arg_indirect(ctx, A->index, A->location);
+                    A++;
+                    rhs = fetch_arg_indirect(ctx, A->index, A->location);
+                    A++;
+                    Hash_setItem((LoxTable*) out, lhs, rhs);
+                    count -= 2;
+                }
+                store_arg_indirect(ctx, pc->p1, pc->flags.lro.out, out);
             }}
-            pc = ((void*) pc) + ROP_BUILD__LEN_BASE;
+            pc = ((void*) pc) + length;
             break;
         }
 

@@ -1017,25 +1017,44 @@ compile_slice(Compiler *self, ASTSlice *node, enum op_var_location_type location
     }
 }
 
+*/
 static CompileResult
 compile_table_literal(Compiler *self, ASTTableLiteral *node, enum op_var_location_type location, int out_index) {
     ASTNode *key, *value;
-    unsigned length=0, count=0;
+    ShortArg items[node->count * 2], *pitems = &items[0];
+    CompileResult result;
 
     for (key = node->keys, value = node->values;
         key && node;
         key = key->next, value = value->next
     ) {
-        length += compile_node1(self, key).length;
-        length += compile_node1(self, value).length;
-        count++;
+        result = compile_node1(self, key, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
+        *(pitems++) = (ShortArg) { .location = result.location, .index = result.index };
+        result = compile_node1(self, value, OP_VAR_LOCATE_REGISTER, OUT_AUTO_REGISTER);
+        *(pitems++) = (ShortArg) { .location = result.location, .index = result.index };
     }
 
+    char buffer[ROP_BUILD__LEN_BASE];
+    Instruction *build_ins = (Instruction*) &buffer[0];
+    *build_ins = (Instruction) {
+        .opcode = ROP_BUILD,
+        .subtype = OP_BUILD_TABLE,
+        .flags.lro.out = location,
+        .p1 = out_index == OUT_AUTO_REGISTER ? compile_reserve_register(self) : out_index,
+        .len = node->count * 2,
+    };
+
+    CodeBlock *block = self->context->block;
+    memcpy(block->instructions + block->bytes, build_ins, ROP_BUILD__LEN_BASE);
+    block->bytes += ROP_BUILD__LEN_BASE;
+    memcpy(block->instructions + block->bytes, &items, sizeof(ShortArg) * node->count * 2);
+    block->bytes += sizeof(ShortArg) * node->count * 2;
+
     return (CompileResult) {
-        .length = length + compile_emit(self, OP_BUILD_TABLE, count)
+        .index = build_ins->p1,
+        .location = build_ins->flags.lro.out,
     };
 }
-*/
 
 static CompileResult
 compile_node1(Compiler* self, ASTNode* ast, enum op_var_location_type location, int out_index) {
@@ -1076,9 +1095,9 @@ compile_node1(Compiler* self, ASTNode* ast, enum op_var_location_type location, 
         return compile_interpolated_string(self, (ASTInterpolatedString*) ast, location, out_index);
     case AST_INTERPOLATED:
         return compile_interpolated_expr(self, (ASTInterpolatedExpr*) ast, location, out_index);
+        */
     case AST_TABLE_LITERAL:
         return compile_table_literal(self, (ASTTableLiteral*) ast, location, out_index);
-        */
     default:
         compile_error(self, "Unexpected AST node type");
     }
