@@ -45,67 +45,113 @@ vmeval_eval(VmEvalContext *ctx) {
     Instruction *pc = ctx->code->block->instructions;
     Instruction *end = pc + ctx->code->block->nInstructions;
 
-    while (pc < end) {
-#if DEBUG
-        print_instructions(ctx->code, pc, 1);
-#endif
-        switch (pc->op) {
-        case OP_JUMP:
+    static void *_labels[] = {
+        [OP_NOOP] = &&OP_NOOP,
+        [OP_HALT] = &&OP_HALT,
+        [OP_JUMP] = &&OP_JUMP,
+        [OP_JUMP_IF_TRUE] = &&OP_JUMP_IF_TRUE,
+        [OP_POP_JUMP_IF_TRUE] = &&OP_POP_JUMP_IF_TRUE,
+        [OP_JUMP_IF_FALSE] = &&OP_JUMP_IF_FALSE,
+        [OP_POP_JUMP_IF_FALSE] = &&OP_POP_JUMP_IF_FALSE,
+        [OP_JUMP_IF_FALSE_OR_POP] = &&OP_JUMP_IF_FALSE_OR_POP,
+        [OP_JUMP_IF_TRUE_OR_POP] = &&OP_JUMP_IF_TRUE_OR_POP,
+        [OP_DUP_TOP] = &&OP_DUP_TOP,
+        [OP_POP_TOP] = &&OP_POP_TOP,
+        [OP_CLOSE_FUN] = &&OP_CLOSE_FUN,
+        [OP_CALL_FUN] = &&OP_CALL_FUN,
+        [OP_RETURN] = &&OP_RETURN,
+        [OP_RECURSE] = &&OP_RECURSE,
+        [OP_LOOKUP] = &&OP_LOOKUP,
+        [OP_LOOKUP_LOCAL] = &&OP_LOOKUP_LOCAL,
+        [OP_LOOKUP_GLOBAL] = &&OP_LOOKUP_GLOBAL,
+        [OP_LOOKUP_CLOSED] = &&OP_LOOKUP_CLOSED,
+        [OP_STORE] = &&OP_STORE,
+        [OP_STORE_LOCAL] = &&OP_STORE_LOCAL,
+        [OP_STORE_GLOBAL] = &&OP_STORE_GLOBAL,
+//        [OP_STORE_CLOSED] = &&OP_STORE_CLOSED,
+        [OP_STORE_ARG_LOCAL] = &&OP_STORE_ARG_LOCAL,
+        [OP_CONSTANT] = &&OP_CONSTANT,
+        [OP_COMPARE] = &&OP_COMPARE,
+        [OP_BANG] = &&OP_BANG,
+        [OP_BINARY_MATH] = &&OP_BINARY_MATH,
+        [OP_UNARY_NEGATIVE] = &&OP_UNARY_NEGATIVE,
+        [OP_UNARY_INVERT] = &&OP_UNARY_INVERT,
+        [OP_BUILD_CLASS] = &&OP_BUILD_CLASS,
+        [OP_BUILD_SUBCLASS] = &&OP_BUILD_SUBCLASS,
+        [OP_GET_ATTR] = &&OP_GET_ATTR,
+        [OP_SET_ATTR] = &&OP_SET_ATTR,
+        [OP_THIS] = &&OP_THIS,
+        [OP_SUPER] = &&OP_SUPER,
+        [OP_GET_ITEM] = &&OP_GET_ITEM,
+        [OP_SET_ITEM] = &&OP_SET_ITEM,
+//        [OP_DEL_ITEM] = &&OP_DEL_ITEM,
+        [OP_BUILD_TUPLE] = &&OP_BUILD_TUPLE,
+        [OP_BUILD_STRING] = &&OP_BUILD_STRING,
+        [OP_FORMAT] = &&OP_FORMAT,
+        [OP_BUILD_TABLE] = &&OP_BUILD_TABLE,
+    };
+
+#define DISPATCH() goto *_labels[(++pc)->op]
+
+    pc--;
+    DISPATCH();
+    for (;;) {
+OP_JUMP:
             pc += pc->arg;
-            break;
+            DISPATCH();
 
-        case OP_POP_JUMP_IF_TRUE:
+OP_POP_JUMP_IF_TRUE:
             lhs = POP(stack);
             if (Bool_isTrue(lhs))
                 pc += pc->arg;
             DECREF(lhs);
-            break;
+            DISPATCH();
 
-        case OP_JUMP_IF_TRUE:
+OP_JUMP_IF_TRUE:
             lhs = PEEK(stack);
             if (Bool_isTrue(lhs))
                 pc += pc->arg;
-            break;
+            DISPATCH();
 
-        case OP_JUMP_IF_TRUE_OR_POP:
+OP_JUMP_IF_TRUE_OR_POP:
             lhs = PEEK(stack);
             if (Bool_isTrue(lhs))
                 pc += pc->arg;
             else
                 XPOP(stack);
-            break;
+            DISPATCH();
 
-        case OP_POP_JUMP_IF_FALSE:
+OP_POP_JUMP_IF_FALSE:
             lhs = POP(stack);
             if (!Bool_isTrue(lhs))
                 pc += pc->arg;
             DECREF(lhs);
-            break;
+            DISPATCH();
 
-        case OP_JUMP_IF_FALSE:
+OP_JUMP_IF_FALSE:
             lhs = PEEK(stack);
             if (!Bool_isTrue(lhs))
                 pc += pc->arg;
-            break;
+            DISPATCH();
 
-        case OP_JUMP_IF_FALSE_OR_POP:
+OP_JUMP_IF_FALSE_OR_POP:
             lhs = PEEK(stack);
             if (!Bool_isTrue(lhs))
                 pc += pc->arg;
             else
                 XPOP(stack);
-            break;
+            DISPATCH();
 
-        case OP_DUP_TOP:
+OP_DUP_TOP:
             lhs = PEEK(stack);
             PUSH(stack, lhs);
-            break;
+            DISPATCH();
 
-        case OP_POP_TOP:
+OP_POP_TOP:
             XPOP(stack);
-            break;
+            DISPATCH();
 
-        case OP_CLOSE_FUN: {
+OP_CLOSE_FUN: {
             LoxVmCode *code = (LoxVmCode*) POP(stack);
             // Move the locals into a malloc'd object so that future local
             // changes will be represented in this closure
@@ -123,10 +169,10 @@ vmeval_eval(VmEvalContext *ctx) {
                 // XXX: Globals?
                 VmScope_create(ctx->scope, code->context, locals, ctx->code->locals.count));
             PUSH(stack, (Object*) fun);
-            break;
+            DISPATCH();
         }
 
-        case OP_CALL_FUN: {
+OP_CALL_FUN: {
             Object *fun = *(stack - pc->arg - 1);
 
             if (VmFunction_isVmFunction(fun)) {
@@ -157,10 +203,10 @@ vmeval_eval(VmEvalContext *ctx) {
                 XPOP(stack);
 
             XPUSH(stack, rv);
-            break;
+            DISPATCH();
         }
 
-        case OP_RECURSE: {
+OP_RECURSE: {
             // This will only happen for a LoxVmFunction. In this case, we will
             // execute the same code again, but with different arguments.
             VmEvalContext call_ctx = *ctx;
@@ -178,17 +224,13 @@ vmeval_eval(VmEvalContext *ctx) {
                 XPOP(stack);
 
             XPUSH(stack, rv);
-            break;
+            DISPATCH();
         }
 
-        case OP_RETURN:
-            goto op_return;
-            break;
-
-        case OP_BUILD_SUBCLASS:
+OP_BUILD_SUBCLASS:
             rhs = POP(stack);               // (parent)
             // Build the class as usual
-        case OP_BUILD_CLASS: {
+OP_BUILD_CLASS: {
             size_t count = pc->arg;
             LoxTable *attributes = Hash_newWithSize(count);
             while (count--) {
@@ -202,17 +244,17 @@ vmeval_eval(VmEvalContext *ctx) {
                 pc->op == OP_BUILD_SUBCLASS ? (LoxClass*) rhs : NULL));
             if (pc->op == OP_BUILD_SUBCLASS)
                 DECREF(rhs);
-            break;
+            DISPATCH();
         }
 
-        case OP_GET_ATTR:
+OP_GET_ATTR:
             C = ctx->code->constants + pc->arg;
             lhs = POP(stack);
             PUSH(stack, object_getattr(lhs, C->value));
             DECREF(lhs);
-            break;
+            DISPATCH();
 
-        case OP_SET_ATTR:
+OP_SET_ATTR:
             C = ctx->code->constants + pc->arg;
             rhs = POP(stack);
             lhs = POP(stack);
@@ -224,13 +266,13 @@ vmeval_eval(VmEvalContext *ctx) {
             }
             DECREF(rhs);
             DECREF(lhs);
-            break;
+            DISPATCH();
 
-        case OP_THIS:
+OP_THIS:
             PUSH(stack, ctx->this);
-            break;
+            DISPATCH();
 
-        case OP_SUPER: {
+OP_SUPER: {
             lhs = (Object*) ctx->code->owner;
             if (unlikely(!lhs)) {
                 fprintf(stderr, "WARNING: `super` used in non-class method\n");
@@ -245,49 +287,49 @@ vmeval_eval(VmEvalContext *ctx) {
                 }
             }
             PUSH(stack, lhs);
-            break;
+            DISPATCH();
         }
 
-        case OP_LOOKUP:
-        case OP_LOOKUP_GLOBAL:
+OP_LOOKUP:
+OP_LOOKUP_GLOBAL:
             C = ctx->code->constants + pc->arg;
             assert(ctx->scope);
             PUSH(stack, VmScope_lookup_global(ctx->scope, C->value, C->hash));
-            break;
+            DISPATCH();
 
-        case OP_LOOKUP_CLOSED:
+OP_LOOKUP_CLOSED:
             if (ctx->scope) {
                 lhs = VmScope_lookup_local(ctx->scope, pc->arg);
             }
             else
                 lhs = LoxUndefined;
             PUSH(stack, lhs);
-            break;
+            DISPATCH();
 
-        case OP_STORE:
-        case OP_STORE_GLOBAL:
+OP_STORE:
+OP_STORE_GLOBAL:
             C = ctx->code->constants + pc->arg;
             assert(ctx->scope);
             lhs = POP(stack);
             VmScope_assign(ctx->scope, C->value, lhs, C->hash);
             DECREF(lhs);
-            break;
+            DISPATCH();
 
-        case OP_STORE_LOCAL:
+OP_STORE_LOCAL:
             assert(pc->arg < ctx->code->locals.count);
             item = *(locals + pc->arg);
             if (item)
                 DECREF(item);
             *(locals + pc->arg) = POP(stack);
-            break;
+            DISPATCH();
 
-        case OP_STORE_ARG_LOCAL:
+OP_STORE_ARG_LOCAL:
             assert(ctx->args.count);
             *(locals + pc->arg) = *(ctx->args.values++);
             ctx->args.count--;
-            break;
+            DISPATCH();
 
-        case OP_LOOKUP_LOCAL:
+OP_LOOKUP_LOCAL:
             assert(pc->arg < ctx->code->locals.count);
             lhs = *(locals + pc->arg);
             if (lhs == NULL) {
@@ -299,38 +341,27 @@ vmeval_eval(VmEvalContext *ctx) {
                 lhs = LoxUndefined;
             }
             PUSH(stack, lhs);
-            break;
+            DISPATCH();
 
-        case OP_CONSTANT:
+OP_CONSTANT:
             C = ctx->code->constants + pc->arg;
             PUSH(stack, C->value);
-            break;
-
-#define BINARY_METHOD(method) do { \
-    rhs = POP(stack); \
-    lhs = POP(stack); \
-    if (lhs->type->method) { \
-        PUSH(stack, (Object*) lhs->type->method(lhs, rhs)); \
-    } \
-    else { \
-        fprintf(stderr, "WARNING: Type `%s` does not support op `" #method "`\n", lhs->type->name); \
-        PUSH(stack, LoxUndefined); \
-    } \
-    DECREF(lhs); \
-    DECREF(rhs); \
-} while(0)
+            DISPATCH();
     
 #define BINARY_COMPARE() ({ \
     rhs = POP(stack); \
     lhs = POP(stack); \
-    int x = (lhs->type->compare) ? lhs->type->compare(lhs, rhs) : (lhs == rhs ? 0 : -1); \
+    int x = lhs == rhs ? 0 : \
+        (lhs->type->compare ? lhs->type->compare(lhs, rhs) : \
+             (rhs->type->compare ? - rhs->type->compare(rhs, lhs) : \
+                 -1)); \
     DECREF(lhs); \
     DECREF(rhs); \
     x; \
 })
 
         // Comparison
-        case OP_COMPARE:
+OP_COMPARE:
             switch ((enum lox_vm_compare) pc->arg) {
             case COMPARE_IN:
                 lhs = POP(stack);
@@ -383,17 +414,17 @@ vmeval_eval(VmEvalContext *ctx) {
                 fprintf(stderr, "WARNING: %hd: Unimplemneted compare operation\n", pc->arg);
                 PUSH(stack, LoxUndefined);
             }
-            break;
+            DISPATCH();
 
         // Boolean
-        case OP_BANG:
+OP_BANG:
             lhs = POP(stack);
             PUSH(stack, (Object*) (Bool_isTrue(lhs) ? LoxFALSE : LoxTRUE));
             DECREF(lhs);
-            break;
+            DISPATCH();
 
         // Expressions
-        case OP_BINARY_MATH:
+OP_BINARY_MATH:
             rhs = POP(stack);
             lhs = POP(stack);
 
@@ -416,18 +447,18 @@ vmeval_eval(VmEvalContext *ctx) {
             }
             DECREF(lhs);
             DECREF(rhs);
-            break;
+            DISPATCH();
 
-        case OP_UNARY_NEGATIVE:
+OP_UNARY_NEGATIVE:
             lhs = POP(stack);
             PUSH(stack, (Object*) lhs->type->op_neg(lhs));
             DECREF(lhs);
-            break;
+            DISPATCH();
 
-        case OP_UNARY_INVERT:
-            break;
+OP_UNARY_INVERT:
+            DISPATCH();
 
-        case OP_GET_ITEM:
+OP_GET_ITEM:
             rhs = POP(stack);
             lhs = POP(stack);
             if (lhs->type->get_item)
@@ -436,9 +467,9 @@ vmeval_eval(VmEvalContext *ctx) {
                 fprintf(stderr, "lhs type `%s` does not support GET_ITEM\n", lhs->type->name);
             DECREF(lhs);
             DECREF(rhs);
-            break;
+            DISPATCH();
 
-        case OP_SET_ITEM:
+OP_SET_ITEM:
             rhs = POP(stack);
             item = POP(stack);
             lhs = POP(stack);
@@ -449,32 +480,32 @@ vmeval_eval(VmEvalContext *ctx) {
             DECREF(lhs);
             DECREF(rhs);
             DECREF(item);
-            break;
+            DISPATCH();
 
-        case OP_BUILD_TUPLE:
+OP_BUILD_TUPLE:
             item = (Object*) Tuple_fromList(pc->arg, stack - pc->arg);
             i = pc->arg;
             while (i--)
                 XPOP(stack);
             PUSH(stack, item);
-            break;
+            DISPATCH();
 
-        case OP_BUILD_STRING:
+OP_BUILD_STRING:
             item = LoxString_BuildFromList(pc->arg, stack - pc->arg);
             i = pc->arg;
             while (i--)
                 XPOP(stack);
             PUSH(stack, item);
-            break;
+            DISPATCH();
 
-        case OP_FORMAT:
+OP_FORMAT:
             C = ctx->code->constants + pc->arg;
             assert(String_isString(C->value));
             item = LoxObject_Format(POP(stack), ((LoxString*) C->value)->characters);
             PUSH(stack, item);
-            break;
+            DISPATCH();
 
-        case OP_BUILD_TABLE:
+OP_BUILD_TABLE:
             i = pc->arg;
             item = (Object*) Hash_newWithSize(i);
             while (i--) {
@@ -485,17 +516,15 @@ vmeval_eval(VmEvalContext *ctx) {
                 DECREF(lhs);
             }
             PUSH(stack, item);
-            break;
+            DISPATCH();
 
-        default:
-            printf("Unexpected OPCODE (%d)\n", pc->op);
-        case OP_NOOP:
+OP_NOOP:
+            DISPATCH();
+OP_HALT:
+OP_RETURN:
             break;
-        }
-        pc++;
     }
 
-op_return:
     // Default return value is NIL
     if (stack == _stack)
         rv = LoxNIL;
@@ -508,7 +537,6 @@ op_return:
 
     // Check stack overflow and underflow
     assert(stack == _stack);
-    //assert(stack - _stack < STACK_SIZE);
 
     return rv;
 }

@@ -10,6 +10,7 @@
 enum opcode {
     // Basic
     OP_NOOP = 0,
+    OP_HALT,
     OP_JUMP,
     OP_JUMP_IF_TRUE,
     OP_POP_JUMP_IF_TRUE,

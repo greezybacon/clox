@@ -547,6 +547,8 @@ compile_function_inner(Compiler *self, ASTFunction *node) {
         .info = self->info,
     };
     length += compile_node(&nested, node->block);
+    if ((self->context->block->instructions + (self->context->block->nInstructions - 1))->op != OP_RETURN)
+        length += compile_emit(&nested, OP_HALT, 0);
 
     // Create a constant for the function
     index = compile_emit_constant(self,
@@ -832,6 +834,8 @@ compile_compile(Compiler* self, Parser* parser) {
     while ((ast = parser->next(parser))) {
         length += compile_node(self, ast);
     }
+
+    length += compile_emit(self, OP_HALT, 0);
 
     return length;
 }

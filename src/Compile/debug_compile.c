@@ -12,6 +12,7 @@ struct named_opcode {
 static struct named_opcode OpcodeNames[] = {
     // Basic
     { OP_NOOP,          "NOOP" },
+    { OP_HALT,          "HALT" },
     { OP_JUMP,          "JUMP" },
     { OP_POP_JUMP_IF_TRUE, "POP_JUMP_IF_TRUE" },
     { OP_POP_JUMP_IF_FALSE, "POP_JUMP_IF_FALSE" },
