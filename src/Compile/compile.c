@@ -881,5 +881,7 @@ compile_ast(Compiler* self, ASTNode* node) {
         node = node->next;
     }
 
+    length += compile_emit(self, OP_RETURN, 0);
+
     return self->context;
 }
