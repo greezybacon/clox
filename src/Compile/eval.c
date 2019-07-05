@@ -228,7 +228,7 @@ OP_RECURSE: {
         }
 
 OP_BUILD_SUBCLASS:
-            rhs = POP(stack);               // (parent)
+            item = POP(stack);               // (parent)
             // Build the class as usual
 OP_BUILD_CLASS: {
             size_t count = pc->arg;
@@ -241,9 +241,9 @@ OP_BUILD_CLASS: {
                 DECREF(rhs);
             }
             PUSH(stack, (Object*) Class_build(attributes,
-                pc->op == OP_BUILD_SUBCLASS ? (LoxClass*) rhs : NULL));
+                pc->op == OP_BUILD_SUBCLASS ? (LoxClass*) item : NULL));
             if (pc->op == OP_BUILD_SUBCLASS)
-                DECREF(rhs);
+                DECREF(item);
             DISPATCH();
         }
 
@@ -411,7 +411,7 @@ OP_COMPARE:
                 PUSH(stack, (Object*) (BINARY_COMPARE() > 0 ? LoxFALSE : LoxTRUE));
                 break;
             default:
-                fprintf(stderr, "WARNING: %hd: Unimplemneted compare operation\n", pc->arg);
+                fprintf(stderr, "WARNING: %hd: Unimplemeneted compare operation\n", pc->arg);
                 PUSH(stack, LoxUndefined);
             }
             DISPATCH();

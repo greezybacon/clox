@@ -20,11 +20,13 @@ Class_build(LoxTable *attributes, LoxClass *parent) {
     LoxClass* O = object_new(sizeof(LoxClass), &ClassType);
 
     O->attributes = attributes;
-    O->parent = parent;
-    O->name = LoxUndefined;
+    INCREF(attributes);
 
+    O->parent = parent;
     if (parent)
         INCREF((Object*) parent);
+
+    O->name = LoxUndefined;
 
     // Attach all the callable attributes to this class
     Iterator* it = Hash_getIterator(attributes);
