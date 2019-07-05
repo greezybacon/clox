@@ -628,6 +628,9 @@ compile_invoke(Compiler* self, ASTInvoke *node) {
     else
         length += compile_emit(self, OP_CALL_FUN, node->nargs);
 
+    if (node->return_value_ignored)
+        length += compile_emit(self, OP_POP_TOP, 0);
+
     return length;
 }
 

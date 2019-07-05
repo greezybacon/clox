@@ -906,6 +906,10 @@ parser_parse_next(Parser* self) {
 
     default:
         rv = parse_expression(self);
+        if (rv->type == AST_INVOKE) {
+            // Function invoke used as a statement
+            ((ASTInvoke*) rv)->return_value_ignored = true;
+        }
     }
 
     if (self->tokens->peek(self->tokens)->type == T_SEMICOLON) {

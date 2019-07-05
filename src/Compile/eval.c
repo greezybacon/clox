@@ -148,7 +148,7 @@ OP_DUP_TOP:
             DISPATCH();
 
 OP_POP_TOP:
-            XPOP(stack);
+            POP(stack);
             DISPATCH();
 
 OP_CLOSE_FUN: {
