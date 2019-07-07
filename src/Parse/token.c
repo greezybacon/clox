@@ -261,6 +261,10 @@ next_token(Tokenizer *self) {
             if (0 == strncmp(token_text, "return", 6))
                 token->type = T_RETURN;
             break;
+        case 7:
+            if (0 == strncmp(token_text, "foreach", 7))
+                token->type = T_FOREACH;
+            break;
         case 8:
             if (0 == strncmp(token_text, "function", 8))
                 token->type = T_FUNCTION;

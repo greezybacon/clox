@@ -29,6 +29,7 @@ enum ast_type {
     AST_INTERPOL_STRING,
     AST_INTERPOLATED,
     AST_TABLE_LITERAL,
+    AST_FOREACH,
 };
 
 enum associativity {
@@ -163,7 +164,16 @@ typedef struct ast_for {
     struct ast_node*    condition;
     struct ast_node*    post_loop;
     struct ast_node*    block;
+    bool                needs_block_overhead;
 } ASTFor;
+
+typedef struct ast_foreach {
+    ASTNode             node;
+    struct ast_node*    loop_var;
+    struct ast_node*    iterable;
+    struct ast_node*    block;
+    bool                needs_block_overhead;
+} ASTForeach;
 
 typedef struct ast_var {
     ASTNode             node;

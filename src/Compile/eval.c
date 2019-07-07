@@ -38,6 +38,9 @@ vmeval_eval(VmEvalContext *ctx) {
 		INCREF(*(locals + i));
 	}
 
+    // TODO: Get number of nested block depth in compiler
+    VmEvalLoopBlock blocks[8], *pblock = &blocks[0];
+
     // TODO: Add estimate for MAX_STACK in the compile phase
     // XXX: Program could overflow 32-slot stack
     Object *_stack[STACK_SIZE], **stack = &_stack[0];
@@ -89,6 +92,12 @@ vmeval_eval(VmEvalContext *ctx) {
         [OP_BUILD_STRING] = &&OP_BUILD_STRING,
         [OP_FORMAT] = &&OP_FORMAT,
         [OP_BUILD_TABLE] = &&OP_BUILD_TABLE,
+        [OP_ENTER_BLOCK] = &&OP_ENTER_BLOCK,
+        [OP_LEAVE_BLOCK] = &&OP_LEAVE_BLOCK,
+        [OP_BREAK] = &&OP_BREAK,
+        [OP_CONTINUE] = &&OP_CONTINUE,
+        [OP_GET_ITERATOR] = &&OP_GET_ITERATOR,
+        [OP_NEXT_OR_BREAK] = &&OP_NEXT_OR_BREAK,
     };
 
 #define DISPATCH() goto *_labels[(++pc)->op]
@@ -516,6 +525,56 @@ OP_BUILD_TABLE:
                 DECREF(lhs);
             }
             PUSH(stack, item);
+            DISPATCH();
+
+OP_ENTER_BLOCK:
+            *(++pblock) = (VmEvalLoopBlock) {
+                .top = pc,
+                .bottom = pc + pc->arg,
+            };
+            DISPATCH();
+
+OP_CONTINUE:
+            pc = pblock->top;
+            DISPATCH();
+
+OP_BREAK:
+            pc = pblock->bottom;
+            DISPATCH();
+
+OP_LEAVE_BLOCK:
+            pblock--;
+            i = pc->arg;
+            while (i--)
+                XPOP(stack);
+            DISPATCH();
+
+OP_NEXT_OR_BREAK:
+            lhs = PEEK(stack);
+            item = ((Iterator*) lhs)->next((Iterator*) lhs);
+            if (item != LoxStopIteration && item != NULL) {
+                Object *old = *(locals + pc->arg);
+                if (old)
+                    DECREF(old);
+                *(locals + pc->arg) = item;
+                INCREF(item);
+            }
+            else {
+                pc = pblock->bottom;
+            }
+            DISPATCH();
+
+OP_GET_ITERATOR:
+            lhs = POP(stack);
+            if (lhs->type->iterate) {
+                item = (Object*) lhs->type->iterate(lhs);
+            }
+            else {
+                fprintf(stderr, "Type `%s` is not iterable\n", lhs->type->name);
+                item = LoxUndefined;
+            }
+            PUSH(stack, item);
+            DECREF(lhs);
             DISPATCH();
 
 OP_NOOP:

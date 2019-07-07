@@ -39,7 +39,7 @@ compile_pop_context(Compiler* self) {
     return rv;
 }
 
-static void
+static CodeBlock*
 compile_start_block(Compiler *self) {
     CodeBlock *block = GC_MALLOC(sizeof(CodeBlock));
     *block = (CodeBlock) {
@@ -48,6 +48,7 @@ compile_start_block(Compiler *self) {
         .instructions = GC_MALLOC(32 * sizeof(Instruction)),
     };
     self->context->block = block;
+    return block;
 }
 
 static void
@@ -66,13 +67,18 @@ compile_push_context(Compiler* self) {
     compile_start_block(self);
 }
 
+static inline CodeBlock*
+compile_pop_block(Compiler *self) {
+    CodeBlock *rv = self->context->block;
+    self->context->block = rv->prev;
+    return rv;
+}
+
 static CodeBlock*
 compile_block(Compiler *self, ASTNode* node) {
     compile_start_block(self);
     compile_node(self, node);
-    CodeBlock* rv = self->context->block;
-    self->context->block = rv->prev;
-    return rv;
+    return compile_pop_block(self);
 }
 
 static inline void
@@ -85,16 +91,18 @@ compile_block_ensure_size(CodeBlock *block, unsigned size) {
 }
 
 static unsigned
-compile_merge_block(Compiler *self, CodeBlock* block) {
-    CodeBlock *current = self->context->block;
-
-    compile_block_ensure_size(current, current->nInstructions + current->nInstructions);
-    Instruction *i = block->instructions;
-    unsigned rv = JUMP_LENGTH(block);
-    for (; block->nInstructions--; i++)
-        *(current->instructions + current->nInstructions++) = *i;
-
+compile_merge_block_into(Compiler *self, CodeBlock *dst, CodeBlock *src) {
+    compile_block_ensure_size(dst, dst->nInstructions + dst->nInstructions);
+    Instruction *i = src->instructions;
+    unsigned rv = JUMP_LENGTH(src);
+    for (; src->nInstructions--; i++)
+        *(dst->instructions + dst->nInstructions++) = *i;
     return rv;
+}
+
+static inline unsigned
+compile_merge_block(Compiler *self, CodeBlock* block) {
+    return compile_merge_block_into(self, self->context->block, block);
 }
 
 static unsigned short
@@ -131,15 +139,18 @@ compile_emit_constant(Compiler *self, Object *value) {
 }
 
 static unsigned
-compile_emit(Compiler* self, enum opcode op, short argument) {
-    CodeBlock *block = self->context->block;
-
+compile_emit_into(CodeBlock *block, enum opcode op, short argument) {
     compile_block_ensure_size(block, block->nInstructions + 1);
     *(block->instructions + block->nInstructions++) = (Instruction) {
         .op = op,
         .arg = argument,
     };
     return 1;
+}
+
+static inline unsigned
+compile_emit(Compiler* self, enum opcode op, short argument) {
+    return compile_emit_into(self->context->block, op, argument);
 }
 
 static int
@@ -520,6 +531,34 @@ compile_if(Compiler *self, ASTIf *node) {
 }
 
 static unsigned
+compile_foreach(Compiler *self, ASTForeach *node) {
+    unsigned length = compile_node(self, node->iterable);
+    length += compile_emit(self, OP_GET_ITERATOR, 0);
+
+    CodeBlock *loop = compile_start_block(self);
+
+    if (node->loop_var->type != AST_VAR)
+        compile_error(self, "Foreach loop variable must be a `var` declaration");
+
+    ASTVar *var = (ASTVar*) node->loop_var;
+    int index = compile_locals_allocate(self,
+        (Object*) String_fromCharArrayAndSize(var->name, var->name_length));
+
+    length += compile_emit(self, OP_NEXT_OR_BREAK, index);
+
+    CodeBlock *block = compile_block(self, node->block);
+    compile_merge_block_into(self, loop, block);
+    compile_emit(self, OP_JUMP, -JUMP_LENGTH(loop) - 1);
+
+    // Now grab the loop block and return to the outer context
+    compile_pop_block(self);
+    length += compile_emit(self, OP_ENTER_BLOCK, JUMP_LENGTH(loop));
+    length += compile_merge_block(self, loop);
+    // And discard the iterator
+    return length + compile_emit(self, OP_LEAVE_BLOCK, 1);
+}
+
+static unsigned
 compile_function_inner(Compiler *self, ASTFunction *node) {
     // Create a new compiler context for the function's code (with new constants)
     compile_push_context(self);
@@ -796,6 +835,8 @@ compile_node1(Compiler* self, ASTNode* ast) {
         return compile_interpolated_expr(self, (ASTInterpolatedExpr*) ast);
     case AST_TABLE_LITERAL:
         return compile_table_literal(self, (ASTTableLiteral*) ast);
+    case AST_FOREACH:
+        return compile_foreach(self, (ASTForeach*) ast);
     default:
         compile_error(self, "Unexpected AST node type");
     }

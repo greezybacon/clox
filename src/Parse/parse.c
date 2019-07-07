@@ -848,6 +848,21 @@ parse_statement(Parser* self) {
         result = (ASTNode*) astclass;
         break;
     }
+    case T_FOREACH: {
+        ASTForeach* astforeach = GC_NEW(ASTForeach);
+        parser_node_init((ASTNode*) astforeach, AST_FOREACH, token);
+
+        parse_expect(self, T_OPEN_PAREN);
+        parse_expect(self, T_VAR);
+        astforeach->loop_var = parse_statement(self);
+        parse_expect(self, T_OP_IN);
+        astforeach->iterable = parse_expression(self);
+        parse_expect(self, T_CLOSE_PAREN);
+
+        astforeach->block = parse_statement_or_block(self);
+        result = (ASTNode*) astforeach;
+        break;
+    }
     default:
         // This shouldn't happen ...
         result = NULL;
@@ -886,6 +901,7 @@ parser_parse_next(Parser* self) {
     case T_WHILE:
     case T_RETURN:
     case T_CLASS:
+    case T_FOREACH:
         self->tokens->next(self->tokens);
         rv = parse_statement(self);
         break;

@@ -21,6 +21,7 @@ enum opcode {
     OP_DUP_TOP,
     OP_POP_TOP,
 
+    // Functions
     OP_CLOSE_FUN,
     OP_CALL_FUN,
     OP_RETURN,
@@ -67,6 +68,14 @@ enum opcode {
     OP_BUILD_STRING,
     OP_FORMAT,
     OP_BUILD_TABLE,
+
+    // Loops
+    OP_ENTER_BLOCK,
+    OP_LEAVE_BLOCK,
+    OP_BREAK,
+    OP_CONTINUE,
+    OP_GET_ITERATOR,
+    OP_NEXT_OR_BREAK,
 }
 __attribute__((packed));
 
@@ -182,6 +191,11 @@ typedef struct vmeval_context {
     VmCallArgs      args;
     Object          *this;
 } VmEvalContext;
+
+typedef struct vmeval_loop_block {
+    Instruction     *top;
+    Instruction     *bottom;
+} VmEvalLoopBlock;
 
 Object *vmeval_eval(VmEvalContext*);
 Object* vmeval_string(const char*, size_t);

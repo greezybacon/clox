@@ -70,6 +70,14 @@ static struct named_opcode OpcodeNames[] = {
     { OP_BUILD_STRING,  "BUILD_STRING" },
     { OP_FORMAT,        "APPLY_FORMAT" },
     { OP_BUILD_TABLE,   "BUILD_TABLE" },
+
+    // Loops
+    { OP_ENTER_BLOCK,   "ENTER_BLOCK" },
+    { OP_LEAVE_BLOCK,   "LEAVE_BLOCK" },
+    { OP_BREAK,         "BREAK" },
+    { OP_CONTINUE,      "CONTINUE" },
+    { OP_GET_ITERATOR,  "GET_ITERATOR" },
+    { OP_NEXT_OR_BREAK, "NEXT_OR_BREAK" },
 };
 
 static int cmpfunc (const void * a, const void * b) {
@@ -149,7 +157,8 @@ print_opcode(const CodeContext *context, const Instruction *op) {
     break;
 
     case OP_STORE_LOCAL:
-    case OP_LOOKUP_LOCAL: {
+    case OP_LOOKUP_LOCAL:
+    case OP_NEXT_OR_BREAK: {
         Object *T = (context->locals.names + op->arg)->value;
         if (T && T->type && T->type->as_string) {
             LoxString *S = (LoxString*) T->type->as_string(T);

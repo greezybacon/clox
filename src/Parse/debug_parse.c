@@ -207,6 +207,17 @@ print_table_literal(FILE *output, ASTTableLiteral *node) {
     fprintf(output, "))");
 }
 
+static void
+print_foreach(FILE *output, ASTForeach *node) {
+    fprintf(output, "Foreach(");
+    print_node(output, node->loop_var);
+    fprintf(output, " in ");
+    print_node(output, node->iterable);
+    fprintf(output, ") { ");
+    print_node(output, node->block);
+    fprintf(output, " }");
+}
+
 void
 print_node_list(FILE* output, ASTNode* node, const char * separator) {
     ASTNode* current = node;
@@ -277,6 +288,9 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
             break;
         case AST_TABLE_LITERAL:
             print_table_literal(output, (ASTTableLiteral*) current);
+            break;
+        case AST_FOREACH:
+            print_foreach(output, (ASTForeach*) current);
             break;
         default:
             fprintf(output, "Unexpected AST type: %d", current->type);
