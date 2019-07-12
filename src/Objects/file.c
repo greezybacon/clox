@@ -70,15 +70,15 @@ file_readline(VmScope *state, Object *self, Object *args) {
     assert(self);
     assert(self->type == &FileType);
 
-    fpos_t before, after;
+    off_t before, after;
     char *buffer = malloc(8192), *result;
     int error, length = 0;
 
-    error = fgetpos(((LoxFile*)self)->file, &before);
+    before = ftello(((LoxFile*)self)->file);
     result = fgets(buffer, 8192, ((LoxFile*) self)->file);
-    if (!error) {
-        error = fgetpos(((LoxFile*)self)->file, &after);
-        if (!error) {
+    if (before >= 0) {
+        after = ftello(((LoxFile*)self)->file);
+        if (after >= 0) {
             length = after - before;
         }
     }
@@ -148,8 +148,8 @@ file_tell(VmScope *state, Object *self, Object *args) {
     if (!((LoxFile*) self)->isopen)
         return LoxUndefined;
 
-    fpos_t pos;
-    if (fgetpos(((LoxFile*)self)->file, &pos)) {
+    off_t pos;
+    if (-1 == (pos = ftello(((LoxFile*)self)->file))) {
         perror("Unable to fetch file position");
     }
 
