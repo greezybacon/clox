@@ -345,14 +345,17 @@ OP_CONSTANT:
             C = ctx->code->constants + pc->arg;
             PUSH(stack, C->value);
             DISPATCH();
-    
+
+#define COMPARE(lhs, rhs) \
+    lhs == rhs ? 0 : \
+        (lhs->type->compare ? lhs->type->compare(lhs, rhs) : \
+             (rhs->type->compare ? - rhs->type->compare(rhs, lhs) : \
+                 -1))
+
 #define BINARY_COMPARE() ({ \
     rhs = POP(stack); \
     lhs = POP(stack); \
-    int x = lhs == rhs ? 0 : \
-        (lhs->type->compare ? lhs->type->compare(lhs, rhs) : \
-             (rhs->type->compare ? - rhs->type->compare(rhs, lhs) : \
-                 -1)); \
+    int x = COMPARE(lhs, rhs); \
     DECREF(lhs); \
     DECREF(rhs); \
     x; \
@@ -378,16 +381,35 @@ OP_COMPARE:
             case COMPARE_EXACT:
                 rhs = POP(stack);
                 lhs = POP(stack);
-                if (lhs == rhs)
-                    PUSH(stack, (Object*) LoxTRUE);
-                else if (lhs->type != rhs->type)
+                if (lhs->type != rhs->type)
                     PUSH(stack, (Object*) LoxFALSE);
-                else if (lhs->type->compare && lhs->type->compare(lhs, rhs) == 0)
+                else if (COMPARE(lhs, rhs) == 0)
                     PUSH(stack, (Object*) LoxTRUE);
                 else
                     PUSH(stack, (Object*) LoxFALSE);
-                DECREF(lhs); \
-                DECREF(rhs); \
+                DECREF(lhs);
+                DECREF(rhs);
+                break;
+
+            case COMPARE_NOT_EXACT:
+                rhs = POP(stack);
+                lhs = POP(stack);
+                if (lhs->type != rhs->type)
+                    PUSH(stack, (Object*) LoxTRUE);
+                else if (COMPARE(lhs, rhs) != 0)
+                    PUSH(stack, (Object*) LoxFALSE);
+                else
+                    PUSH(stack, (Object*) LoxTRUE);
+                DECREF(lhs);
+                DECREF(rhs);
+                break;
+
+            case COMPARE_IS:
+                rhs = POP(stack);
+                lhs = POP(stack);
+                PUSH(stack, (Object*) (lhs == rhs ? LoxTRUE : LoxFALSE));
+                DECREF(lhs);
+                DECREF(rhs);
                 break;
 
             case COMPARE_EQ:
@@ -408,9 +430,9 @@ OP_COMPARE:
             case COMPARE_LTE:
                 PUSH(stack, (Object*) (BINARY_COMPARE() > 0 ? LoxFALSE : LoxTRUE));
                 break;
-            default:
-                fprintf(stderr, "WARNING: %hd: Unimplemeneted compare operation\n", pc->arg);
-                PUSH(stack, LoxUndefined);
+            case COMPARE_SPACESHIP:
+                PUSH(stack, (Object*) Integer_fromLongLong(BINARY_COMPARE()));
+                break;
             }
             DISPATCH();
 
