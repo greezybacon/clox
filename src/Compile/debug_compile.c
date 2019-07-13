@@ -30,15 +30,12 @@ static struct named_opcode OpcodeNames[] = {
     { OP_RECURSE,       "RECURSE_CALL" },
 
     // Variables
-    { OP_LOOKUP,        "LOOKUP" },
     { OP_LOOKUP_LOCAL,  "LOOKUP_LOCAL" },
     { OP_LOOKUP_GLOBAL, "LOOKUP_GLOBAL" },
     { OP_LOOKUP_CLOSED, "LOOKUP_CLOSED" },
-    { OP_STORE,         "STORE" },
     { OP_STORE_LOCAL,   "STORE_LOCAL" },
     { OP_STORE_GLOBAL,  "STORE_GLOBAL" },
     { OP_STORE_CLOSED,  "STORE_CLOSED" },
-    { OP_STORE_ARG_LOCAL, "STORE_ARG_LOCAL" },
     { OP_CONSTANT,      "CONSTANT" },
 
     // Comparison

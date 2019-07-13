@@ -36,7 +36,6 @@ enum opcode {
     OP_STORE_LOCAL,
     OP_STORE_GLOBAL,
     OP_STORE_CLOSED,
-    OP_STORE_ARG_LOCAL,
     OP_CONSTANT,
 
     // Comparison

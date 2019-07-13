@@ -64,15 +64,12 @@ vmeval_eval(VmEvalContext *ctx) {
         [OP_CALL_FUN] = &&OP_CALL_FUN,
         [OP_RETURN] = &&OP_RETURN,
         [OP_RECURSE] = &&OP_RECURSE,
-        [OP_LOOKUP] = &&OP_LOOKUP,
         [OP_LOOKUP_LOCAL] = &&OP_LOOKUP_LOCAL,
         [OP_LOOKUP_GLOBAL] = &&OP_LOOKUP_GLOBAL,
         [OP_LOOKUP_CLOSED] = &&OP_LOOKUP_CLOSED,
-        [OP_STORE] = &&OP_STORE,
         [OP_STORE_LOCAL] = &&OP_STORE_LOCAL,
         [OP_STORE_GLOBAL] = &&OP_STORE_GLOBAL,
 //        [OP_STORE_CLOSED] = &&OP_STORE_CLOSED,
-        [OP_STORE_ARG_LOCAL] = &&OP_STORE_ARG_LOCAL,
         [OP_CONSTANT] = &&OP_CONSTANT,
         [OP_COMPARE] = &&OP_COMPARE,
         [OP_BANG] = &&OP_BANG,
@@ -299,7 +296,6 @@ OP_SUPER: {
             DISPATCH();
         }
 
-OP_LOOKUP:
 OP_LOOKUP_GLOBAL:
             C = ctx->code->constants + pc->arg;
             assert(ctx->scope);
@@ -315,7 +311,6 @@ OP_LOOKUP_CLOSED:
             PUSH(stack, lhs);
             DISPATCH();
 
-OP_STORE:
 OP_STORE_GLOBAL:
             C = ctx->code->constants + pc->arg;
             assert(ctx->scope);
@@ -330,12 +325,6 @@ OP_STORE_LOCAL:
             if (item)
                 DECREF(item);
             *(locals + pc->arg) = POP(stack);
-            DISPATCH();
-
-OP_STORE_ARG_LOCAL:
-            assert(ctx->args.count);
-            *(locals + pc->arg) = *(ctx->args.values++);
-            ctx->args.count--;
             DISPATCH();
 
 OP_LOOKUP_LOCAL:
