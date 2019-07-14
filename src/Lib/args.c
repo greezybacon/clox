@@ -14,6 +14,7 @@ Lox_ParseArgs(Object *args, const char *format, ...) {
     va_start(output, format);
 
     Object *oArg;
+    bool optional = false;
     int iArg = 0, cArgs = Tuple_getSize(args);
 
     while (*format) {
@@ -80,17 +81,23 @@ Lox_ParseArgs(Object *args, const char *format, ...) {
         case 'O':
             *(va_arg(output, Object**)) = oArg;
             break;
+
+        case '|':
+            optional = true;
+            iArg--;
+            break;
         }
+
         format++;
     }
 
     va_end(output);
 
-    if (*format != 0) {
+    if (!optional && *format != '|' && *format != 0) {
         printf("Too few arguments supplied to function\n");
         return -1;
     }
-    else if (iArg < cArgs) {
+    if (iArg < cArgs) {
         printf("Too many arguments supplied to function\n");
         return -1;
     }

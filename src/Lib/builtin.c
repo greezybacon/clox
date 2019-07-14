@@ -6,7 +6,9 @@
 #include "builtin.h"
 
 #include "Objects/file.h"
+#include "Objects/integer.h"
 #include "Objects/list.h"
+#include "Objects/range.h"
 #include "Objects/string.h"
 
 static Object*
@@ -27,7 +29,7 @@ builtin_print(VmScope* state, Object* self, Object* args) {
                 LoxString *schunk = (LoxString*) chunk;
                 fprintf(stdout, "%.*s", schunk->length, schunk->characters);
             }
-            LoxObject_Cleanup(chunks);
+            LoxObject_Cleanup((Object*) chunks);
         }
         else {
             if (!String_isString(arg)) {
@@ -89,6 +91,7 @@ builtin_eval(VmScope *state, Object *self, Object *args) {
 
     Object *rv = vmeval_string_inscope(text, length, &scope);
 
+    free(text);
     return rv;
 }
 
@@ -115,7 +118,11 @@ builtin_open(VmScope *state, Object *self, Object *args) {
     char *filename, *flags;
     Lox_ParseArgs(args, "ss", &filename, &flags);
 
-    return (Object*) Lox_FileOpen(filename, flags);
+    Object *rv = (Object*) Lox_FileOpen(filename, flags);
+
+    free(filename);
+    free(flags);
+    return rv;
 }
 
 static Object*
@@ -188,13 +195,39 @@ builtin_list(VmScope *state, Object *self, Object *args) {
 
     if (object->type->iterate) {
         Iterator *items = object->type->iterate(object);
+        INCREF(items);
         while (LoxStopIteration != (item = items->next(items))) {
             LoxList_append(result, item);
         }
-        LoxObject_Cleanup((Object*) items);
+        DECREF(items);
     }
 
     return (Object*) result;
+}
+
+static Object*
+builtin_range(VmScope *state, Object *self, Object *args) {
+    assert(Tuple_isTuple(args));
+
+    Object *start=NULL, *end, *step=NULL;
+    Lox_ParseArgs(args, "O|OO", &end, &start, &step);
+
+    if (start != NULL) {
+        Object *T = start;
+        start = end;
+        end = T;
+    }
+    else {
+        LoxInteger *zero = Integer_fromLongLong(0);
+        start = (Object*) end->type->op_star(end, (Object*) zero);
+        LoxObject_Cleanup((Object*) zero);
+    }
+
+    if (step == NULL) {
+        step = (Object*) Integer_fromLongLong(1);
+    }
+
+    return LoxRange_create(start, end, step);
 }
 
 static ModuleDescription
@@ -213,6 +246,7 @@ builtins_module_def = {
         { "type",   builtin_type },
         { "iter",   builtin_iter },
         { "list",   builtin_list },
+        { "range",  builtin_range },
         { 0 },
     }
 };

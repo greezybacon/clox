@@ -180,8 +180,15 @@ typedef struct vmeval_call_args {
 #define XPUSH(stack, what) *(stack++) = (what)
 
 #define PRINT(value) do { \
-    LoxString *S = (LoxString*) ((Object*) value)->type->as_string((Object*) value); \
-    printf("(%s) %.*s #%d\n", ((Object*) value)->type->name, S->length, S->characters); \
+    if (NULL == value) { \
+        printf("(null)\n"); \
+    } \
+    else { \
+        LoxString *S = String_fromObject(value); \
+        INCREF(S); \
+        printf("(%s) %.*s\n", ((Object*) value)->type->name, S->length, S->characters); \
+        DECREF(S); \
+    } \
 } while(0)
 
 typedef struct vmeval_context {
