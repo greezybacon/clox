@@ -931,8 +931,9 @@ compile_node(Compiler *self, ASTNode* ast) {
 }
 
 void
-compile_init(Compiler *compiler) {
+compile_init(Compiler *compiler, const char *stream_name) {
     compile_push_context(compiler);
+    compiler->context->block->codesource.filename = stream_name;
 }
 
 unsigned
@@ -957,7 +958,7 @@ _compile_init_stream(Compiler *self, Stream *stream) {
     Parser _parser, *parser = &_parser;
 
     parser_init(parser, stream);
-    compile_init(self);
+    compile_init(self, stream->name);
     compile_compile(self, parser);
 }
 
@@ -971,9 +972,9 @@ compile_string(Compiler *self, const char * text, size_t length) {
 }
 
 CodeContext*
-compile_file(Compiler *self, FILE *restrict input) {
+compile_file(Compiler *self, FILE *restrict input, const char *filename) {
     Stream _stream, *stream = &_stream;
-    stream_init_file(stream, input);
+    stream_init_file(stream, input, filename);
 
     _compile_init_stream(self, stream);
     return self->context;
@@ -984,7 +985,7 @@ compile_ast(Compiler* self, ASTNode* node) {
     ASTNode* ast;
     unsigned length = 0;
 
-    compile_init(self);
+    compile_init(self, "(eval)");
     while (node) {
         length += compile_node(self, node);
         node = node->next;

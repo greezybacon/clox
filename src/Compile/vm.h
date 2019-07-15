@@ -223,6 +223,6 @@ typedef struct vmeval_loop_block {
 Object *vmeval_eval(VmEvalContext*);
 Object* vmeval_string(const char*, size_t);
 Object* vmeval_string_inscope(const char*, size_t, VmScope*);
-Object* vmeval_file(FILE *input);
+Object* vmeval_file(FILE *input, const char*);
 Object* LoxEval_EvalAST(ASTNode*);
 #endif

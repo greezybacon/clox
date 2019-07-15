@@ -30,7 +30,7 @@ typedef struct stream {
 void stream_init(Stream*);
 
 int
-stream_init_file(Stream*, FILE* restrict);
+stream_init_file(Stream*, FILE* restrict, const char*);
 
 int
 stream_init_buffer(Stream*, const char*, size_t);

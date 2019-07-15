@@ -157,7 +157,7 @@ stream_init(Stream* stream) {
 }
 
 int
-stream_init_file(Stream* stream, FILE* restrict file) {
+stream_init_file(Stream* stream, FILE* restrict file, const char *filename) {
     stream_init(stream);
 
     stream->context = GC_MALLOC(sizeof(FileStream));
@@ -172,7 +172,7 @@ stream_init_file(Stream* stream, FILE* restrict file) {
     };
 
     stream->ops = &file_stream_ops;
-
+    stream->name = GC_STRNDUP(filename, strlen(filename));
     return file_stream_readahead(stream);
 }
 

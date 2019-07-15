@@ -7,15 +7,35 @@
 #include "Lib/builtin.h"
 #include "Vendor/bdwgc/include/gc.h"
 
+#include "Objects/file.h"
 #include "Objects/hash.h"
 #include "Objects/class.h"
 #include "Objects/exception.h"
 
 #define STACK_SIZE 32
 
+/**
+ * Utility method to print the backtrace of the current execution stack.
+ * Useful for debugging the interpreter.
+ */
 static void
 vmeval_print_backtrace(VmEvalContext *ctx) {
+    // Read through the codesources to identify the offset for the current opcode
+    int offset = *ctx->pc - ctx->code->block->instructions.opcodes,
+        cs_count = ctx->code->block->codesource.count;
+    CodeSource *cs = ctx->code->block->codesource.offsets;
 
+    while (cs_count && offset > cs->opcode_count) {
+        offset -= cs->opcode_count;
+        cs++;
+        cs_count--;
+    }
+
+    printf("File \"%s\", on line %d\n",
+        ctx->code->block->codesource.filename,
+        cs->line_number);
+
+    // TODO: Open target file and read to line x (skipping x-1 newlines)
 
     if (ctx->previous)
         vmeval_print_backtrace(ctx->previous);
@@ -242,6 +262,7 @@ OP_CALL_FUN: {
                 VmEvalContext call_ctx = (VmEvalContext) {
                     .code = ((LoxVmFunction*)fun)->code->context,
                     .scope = ((LoxVmFunction*)fun)->scope,
+                    .previous = ctx,
                     .args = (VmCallArgs) {
                         .values = stack - pc->arg,
                         .count = pc->arg,
@@ -277,6 +298,7 @@ OP_RECURSE: {
             // This will only happen for a LoxVmFunction. In this case, we will
             // execute the same code again, but with different arguments.
             VmEvalContext call_ctx = *ctx;
+            call_ctx.previous = ctx;
             call_ctx.args = (VmCallArgs) {
                 .values = stack - pc->arg,
                 .count = pc->arg,
@@ -705,11 +727,11 @@ vmeval_string(const char * text, size_t length) {
 }
 
 Object*
-vmeval_file(FILE *input) {
+vmeval_file(FILE *input, const char* filename) {
     Compiler compiler = { .flags = 0 };
     CodeContext *context;
 
-    context = compile_file(&compiler, input);
+    context = compile_file(&compiler, input, filename);
 
     return vmeval_inscope(context, NULL);
 }
