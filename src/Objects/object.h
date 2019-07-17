@@ -1,6 +1,7 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
+#include <stdbool.h>
 #include <stdlib.h>
 
 enum base_type {
@@ -98,10 +99,8 @@ typedef struct object_type {
 
 typedef struct object {
     ObjectType* type;
-    struct {
-        unsigned    protect_delete  : 1;
-        unsigned    refcount        : sizeof(unsigned) * 8 - 1;
-    };
+    bool protect_delete;
+    unsigned refcount;
 } Object;
 
 void* object_new(size_t size, ObjectType*);

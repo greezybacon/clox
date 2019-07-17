@@ -17,9 +17,40 @@ eval_raise_error(VmEvalContext *ctx, const char *characters, ...) {
     // TODO: Make the characters a real Exception object
 }
 
+static void
+assert_safe_code(CodeContext *code) {
+    const int locals_count = code->locals.count;
+
+    Instruction *pc = code->block->instructions;
+    int count = code->block->nInstructions;
+    while (count--) {
+        switch (pc->op) {
+        case OP_STORE_LOCAL:
+        case OP_LOOKUP_LOCAL:
+            assert(pc->arg < code->locals.count);
+            break;
+        case OP_BINARY_MATH:
+            assert(pc->arg < __MATH_BINARY_MAX);
+            break;
+        default:
+            break;
+        }
+        pc++;
+    }
+}
+
+Object*
+vmeval_eval_safe(VmEvalContext *ctx) {
+    assert_safe_code(ctx->code);
+    return vmeval_eval(ctx);
+}
+
 Object*
 vmeval_eval(VmEvalContext *ctx) {
-    Object *lhs, *rhs, **local, *rv, *item;
+    assert(ctx);
+    assert(ctx->scope);
+
+    Object *lhs, *rhs, **local, *rv = LoxUndefined, *item;
     Constant *C;
 
     Object *_locals[ctx->code->locals.count], **locals = &_locals[0];
@@ -99,8 +130,9 @@ vmeval_eval(VmEvalContext *ctx) {
 
 #define DISPATCH() goto *_labels[(++pc)->op]
 
-    pc--;
-    DISPATCH();
+    // DISPATCH()
+    goto *_labels[pc->op];
+
     for (;;) {
 OP_JUMP:
             pc += pc->arg;
@@ -159,6 +191,7 @@ OP_POP_TOP:
 
 OP_CLOSE_FUN: {
             LoxVmCode *code = (LoxVmCode*) POP(stack);
+            assert_safe_code(code->context);
             // Move the locals into a malloc'd object so that future local
             // changes will be represented in this closure
             if (locals_in_stack) {
@@ -298,7 +331,6 @@ OP_SUPER: {
 
 OP_LOOKUP_GLOBAL:
             C = ctx->code->constants + pc->arg;
-            assert(ctx->scope);
             PUSH(stack, VmScope_lookup_global(ctx->scope, C->value, C->hash));
             DISPATCH();
 
@@ -313,32 +345,19 @@ OP_LOOKUP_CLOSED:
 
 OP_STORE_GLOBAL:
             C = ctx->code->constants + pc->arg;
-            assert(ctx->scope);
             lhs = POP(stack);
             VmScope_assign(ctx->scope, C->value, lhs, C->hash);
             DECREF(lhs);
             DISPATCH();
 
 OP_STORE_LOCAL:
-            assert(pc->arg < ctx->code->locals.count);
             item = *(locals + pc->arg);
-            if (item)
-                DECREF(item);
+            DECREF(item);
             *(locals + pc->arg) = POP(stack);
             DISPATCH();
 
 OP_LOOKUP_LOCAL:
-            assert(pc->arg < ctx->code->locals.count);
-            lhs = *(locals + pc->arg);
-            if (lhs == NULL) {
-                // RAISE RUNTIME ERROR
-                fprintf(stderr, "WARNING: `%.*s` (%hd) accessed before assignment",
-                    ((LoxString*) (ctx->code->locals.names + pc->arg)->value)->length,
-                    ((LoxString*) (ctx->code->locals.names + pc->arg)->value)->characters,
-                    pc->arg);
-                lhs = LoxUndefined;
-            }
-            PUSH(stack, lhs);
+            PUSH(stack, *(locals + pc->arg));
             DISPATCH();
 
 OP_CONSTANT:
@@ -639,7 +658,7 @@ vmeval_inscope(CodeContext *code, VmScope *scope) {
         .scope = &final,
     };
 
-    return vmeval_eval(&ctx);
+    return vmeval_eval_safe(&ctx);
 }
 
 Object*
@@ -648,9 +667,6 @@ vmeval_string_inscope(const char * text, size_t length, VmScope* scope) {
     CodeContext *context;
 
     context = compile_string(&compiler, text, length);
-
-    print_codeblock(context, context->block);
-    printf("------\n");
 
     return vmeval_inscope(context, scope);
 }
@@ -666,8 +682,6 @@ vmeval_file(FILE *input) {
     CodeContext *context;
 
     context = compile_file(&compiler, input);
-
-    print_codeblock(context, context->block);
 
     return vmeval_inscope(context, NULL);
 }

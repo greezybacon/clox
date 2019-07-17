@@ -110,11 +110,13 @@ integer_op_plus(Object* self, Object* other) {
     assert(self->type == &IntegerType);
 
     // Promote floating point operations
-    if (other->type->code == TYPE_FLOAT) {
-        return other->type->op_plus(other, self);
+    if (other->type != &IntegerType) {
+        if (other->type->code == TYPE_FLOAT) {
+            return other->type->op_plus(other, self);
+        }
+        // Else coerce to integer
+        else other = coerce_integer(other);
     }
-    // Else coerce to integer
-    else other = coerce_integer(other);
 
     return (Object*) Integer_fromLongLong(((LoxInteger*) self)->value + ((LoxInteger*) other)->value);
 }
@@ -124,12 +126,14 @@ integer_op_minus(Object* self, Object* other) {
     assert(self->type == &IntegerType);
 
     // Promote floating point operations
-    if (other->type->code == TYPE_FLOAT) {
-        LoxFloat *F = (LoxFloat*) self->type->as_float(self);
-        return F->base.type->op_minus((Object*) F, other);
+    if (other->type != &IntegerType) {
+        if (other->type->code == TYPE_FLOAT) {
+            Object *F = self->type->as_float(self);
+            return F->type->op_minus(F, other);
+        }
+        // Else coerce to integer
+        else other = coerce_integer(other);
     }
-    // Else coerce to integer
-    else other = coerce_integer(other);
 
     return (Object*) Integer_fromLongLong(((LoxInteger*) self)->value - ((LoxInteger*) other)->value);
 }
@@ -186,11 +190,13 @@ integer_op_multiply(Object* self, Object* other) {
     assert(self->type == &IntegerType);
 
     // Promote floating point operations
-    if (other->type->code == TYPE_FLOAT) {
-        return other->type->op_star(other, self);
+    if (other->type != &IntegerType) {
+        if (other->type->code == TYPE_FLOAT) {
+            return other->type->op_star(other, self);
+        }
+        // Else coerce to integer
+        else other = coerce_integer(other);
     }
-    // Else coerce to integer
-    else other = coerce_integer(other);
     return (Object*) Integer_fromLongLong(((LoxInteger*) self)->value * ((LoxInteger*) other)->value);
 }
 
@@ -199,12 +205,14 @@ integer_op_divide(Object* self, Object* other) {
     assert(self->type == &IntegerType);
 
     // Promote floating point operations
-    if (other->type->code == TYPE_FLOAT) {
-        LoxFloat *F = (LoxFloat*) self->type->as_float(self);
-        return F->base.type->op_slash((Object*) F, other);
+    if (other->type != &IntegerType) {
+        if (other->type->code == TYPE_FLOAT) {
+            LoxFloat *F = (LoxFloat*) self->type->as_float(self);
+            return F->base.type->op_slash((Object*) F, other);
+        }
+        // Else coerce to integer
+        else other = coerce_integer(other);
     }
-    // Else coerce to integer
-    else other = coerce_integer(other);
     return (Object*) Integer_fromLongLong(((LoxInteger*) self)->value / ((LoxInteger*) other)->value);
 }
 

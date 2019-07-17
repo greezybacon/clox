@@ -30,12 +30,7 @@ compile_pop_context(Compiler* self) {
     // Set the context of the compiler to be the previous, return the current
     CodeContext *rv = self->context;
     self->context = self->context->prev;
-
-#ifdef DEBUG
     print_codeblock(rv, rv->block);
-    printf("--------\n");
-#endif
-
     return rv;
 }
 
