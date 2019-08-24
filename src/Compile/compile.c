@@ -115,24 +115,24 @@ compile_merge_block_into(Compiler *self, CodeBlock *dst, CodeBlock *src) {
     for (; src->instructions.count--; i++)
         *(dst->instructions.opcodes + dst->instructions.count++) = *i;
 
-    compile_source_ensure_size(dst, dst->codesource.count
-        + src->codesource.count);
-    CodeSource *cs = src->codesource.offsets, *ds;
-    int j;
-    bool exists;
-    for (; src->codesource.count--; cs++) {
-        ds = dst->codesource.offsets;
-        exists = false;
-        for (j = dst->codesource.count; j; j--) {
-            if (ds->line_number == cs->line_number) {
-                ds->opcode_count += cs->opcode_count;
-                exists = true;
-                break;
-            }
-            ds++;
-        }
-        if (!exists)
-            *(dst->codesource.offsets + dst->codesource.count++) = *cs;
+    // And, copy the corresponding source location pointers
+    CodeSource *tail = dst->codesource.offsets + dst->codesource.count - 1;
+    CodeSource *head = src->codesource.offsets;
+    int count = src->codesource.count;
+
+    if (head->line_number == tail->line_number) {
+        tail->opcode_count += head->opcode_count;
+        head++;
+        count--;
+    }
+
+    if (count) {
+        compile_source_ensure_size(dst, dst->codesource.count + count);
+    }
+
+    while (count--) {
+        *(dst->codesource.offsets + dst->codesource.count++) = *head;
+        head++;
     }
 
     return rv;
@@ -182,14 +182,12 @@ compile_source_record_location(CodeBlock *block, ASTNode *node) {
     CodeSource *previous = NULL;
     if (block->codesource.count > 0) {
         previous = block->codesource.offsets + block->codesource.count - 1;
-        if (!node || previous->line_number == node->line) {
-            previous->opcode_count++;
-            return;
-        }
     }
 
-    if (!node)
+    if (!node || (previous && previous->line_number == node->line)) {
+        previous->opcode_count++;
         return;
+    }
 
     // Ensure enough capacity for another source pointer
     compile_source_ensure_size(block, block->codesource.count + 1);

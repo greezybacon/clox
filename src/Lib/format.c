@@ -18,7 +18,7 @@ struct format_spec {
     char                type;
 };
 
-#define COALESCE(x, y) x ? x : y
+#define COALESCE(x, y) (x) ? (x) : (y)
 
 int
 LoxObject_ParseFormatSpec(const char *spec, struct format_spec *format) {

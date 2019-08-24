@@ -200,7 +200,7 @@ parse_word2string(ASTNode* node) {
     return rv;
 }
 
-static ASTNode* parse_TERM(Parser*);
+static ASTNode* parse_TERM(Parser*, Token *);
 
 static inline ASTNode*
 parse_expression_attr(Parser *self, ASTNode *lhs) {
@@ -209,7 +209,7 @@ parse_expression_attr(Parser *self, ASTNode *lhs) {
 
     ASTAttribute* attr = GC_MALLOC(sizeof(ASTAttribute));
     parser_node_init((ASTNode*) attr, AST_ATTRIBUTE, next);
-    attr->attribute = parse_word2string(parse_TERM(self));
+    attr->attribute = parse_word2string(parse_TERM(self, next));
     attr->object = lhs;
     return (ASTNode*) attr;
 }
@@ -377,7 +377,7 @@ parse_eval_term(Parser *self, ASTTerm* term) {
 }
 
 static ASTNode*
-parse_TERM(Parser* self) {
+parse_TERM(Parser* self, Token *reference) {
     Tokenizer* T = self->tokens;
     Token* next = self->tokens->current;
     ASTNode* result = NULL;
@@ -400,7 +400,7 @@ parse_TERM(Parser* self) {
     }
     case T_WORD: {
         ASTLookup *lookup = GC_MALLOC(sizeof(ASTLookup));
-        parser_node_init((ASTNode*) lookup, AST_LOOKUP, next);
+        parser_node_init((ASTNode*) lookup, AST_LOOKUP, reference);
         lookup->name = (Object*) String_fromCharArrayAndSize(
             self->tokens->fetch_text(self->tokens, next),
             next->length
@@ -629,7 +629,7 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
         return lhs;
     }
 
-    lhs = parse_TERM(self);
+    lhs = parse_TERM(self, &start);
     if (lhs == NULL)
         return NULL;
 
@@ -682,7 +682,7 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
         rhs = parse_expression_r(self, operator);
 
         if (operator->operator == T_OP_ASSIGN) {
-            lhs = parse_expression_assign(next, lhs, rhs);
+            lhs = parse_expression_assign(&start, lhs, rhs);
         }
         else {
             expr = GC_NEW(ASTExpression);

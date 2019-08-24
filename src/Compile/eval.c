@@ -62,8 +62,8 @@ static void
 assert_safe_code(CodeContext *code) {
     const int locals_count = code->locals.count;
 
-    Instruction *pc = code->block->instructions;
-    int count = code->block->nInstructions;
+    Instruction *pc = code->block->instructions.opcodes;
+    int count = code->block->instructions.count;
     while (count--) {
         switch (pc->op) {
         case OP_STORE_LOCAL:
