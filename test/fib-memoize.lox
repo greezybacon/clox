@@ -1,5 +1,5 @@
 fun memoize1(func) {
-    var cache = hash()
+    var cache = table()
     var decorator = fun(n) {
         // XXX: `in` operator would be better
         if (!(n in cache)) {
@@ -10,13 +10,12 @@ fun memoize1(func) {
     return decorator;
 }
 
-function fib(n)
+fib = memoize1(function(n)
 {
     if (n <= 2)
         return 1;
 
     return fib(n - 2) + fib(n - 1) ;
-}
+});
 
-fib = memoize1(fib);
 print(fib(31));
