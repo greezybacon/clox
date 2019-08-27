@@ -339,7 +339,7 @@ OP_BUILD_CLASS: {
 OP_GET_ATTR:
             C = ctx->code->constants + pc->arg;
             lhs = POP(stack);
-            PUSH(stack, object_getattr(lhs, C->value));
+            PUSH(stack, object_getattr(lhs, C->value, C->hash));
             DECREF(lhs);
             DISPATCH();
 
@@ -351,7 +351,7 @@ OP_SET_ATTR:
                 fprintf(stderr, "WARNING: `setattr` not defined for type: `%s`\n", lhs->type->name);
             }
             else {
-                lhs->type->setattr(lhs, C->value, rhs);
+                lhs->type->setattr(lhs, C->value, rhs, C->hash);
             }
             DECREF(rhs);
             DECREF(lhs);

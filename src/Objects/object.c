@@ -105,11 +105,11 @@ LoxObject_Cleanup(Object* self) {
 }
 
 Object*
-object_getattr(Object* self, Object *name) {
+object_getattr(Object* self, Object *name, hashval_t hash) {
     assert(self);
 
     if (self->type->getattr)
-        return self->type->getattr(self, name);
+        return self->type->getattr(self, name, hash);
 
     // Build a HashTable for faster access to methods
     if (self->type->methods) {
@@ -136,7 +136,7 @@ object_getattr(Object* self, Object *name) {
         assert(String_isString(name));
 
         Object *result;
-        if (NULL != (result = Hash_getItem(methods, name)))
+        if (NULL != (result = Hash_getItemEx(methods, name, hash)))
             result = NativeFunction_bind(result, self);
 
         return result ? result : LoxUndefined;

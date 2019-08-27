@@ -51,24 +51,24 @@ Class_isClass(Object* self) {
 }
 
 static Object*
-class_getattr(Object *self, Object *name) {
+class_getattr(Object *self, Object *name, hashval_t hash) {
     assert(self);
     assert(self->type == &ClassType);
 
     LoxClass *class = (LoxClass*) self;
     Object *method;
-    if (class->attributes && (method = Hash_getItem(class->attributes, name)))
+    if (class->attributes && (method = Hash_getItemEx(class->attributes, name, hash)))
         return method;
 
     if (class->parent) {
-        return class_getattr((Object*) class->parent, name);
+        return class_getattr((Object*) class->parent, name, hash);
     }
 
     return LoxUndefined;
 }
 
 static void
-class_setattr(Object *self, Object *name, Object *value) {
+class_setattr(Object *self, Object *name, Object *value, hashval_t hash) {
     assert(self);
     assert(self->type == &ClassType);
 
@@ -77,7 +77,7 @@ class_setattr(Object *self, Object *name, Object *value) {
     if (!this->attributes)
         this->attributes = Hash_new();
 
-    Hash_setItem(this->attributes, name, value);
+    Hash_setItemEx(this->attributes, name, value, hash);
 }
 
 static Object*
@@ -96,7 +96,7 @@ class_instanciate(Object* self, VmScope *scope, Object* object, Object* args) {
     if (!init)
         init = (Object*) String_fromConstant("init");
 
-    Object *constructor = class_getattr(self, init);
+    Object *constructor = class_getattr(self, init, HASHVAL(init));
     if (constructor != LoxUndefined) {
         assert(Function_isCallable(constructor));
         // XXX: This is terrible, but INCREF() and DECREF() won't work
@@ -144,7 +144,7 @@ static struct object_type ClassType = (ObjectType) {
 };
 
 static Object*
-instance_getattr(Object *self, Object *name) {
+instance_getattr(Object *self, Object *name, hashval_t hash) {
     assert(self);
     assert(self->type == &InstanceType);
 
@@ -153,10 +153,10 @@ instance_getattr(Object *self, Object *name) {
 
     Object *attr;
 
-    if (this->attributes && (attr = Hash_getItem(this->attributes, name)))
+    if (this->attributes && (attr = Hash_getItemEx(this->attributes, name, hash)))
         return attr;
 
-    if ((attr = class_getattr((Object*) this->class, name)) != LoxUndefined)
+    if ((attr = class_getattr((Object*) this->class, name, hash)) != LoxUndefined)
         return BoundMethod_create(attr, self);
 
     // OOPS. Log something!
@@ -164,7 +164,7 @@ instance_getattr(Object *self, Object *name) {
 }
 
 static void
-instance_setattr(Object *self, Object *name, Object *value) {
+instance_setattr(Object *self, Object *name, Object *value, hashval_t hash) {
     assert(self);
     assert(self->type == &InstanceType);
 
@@ -173,7 +173,7 @@ instance_setattr(Object *self, Object *name, Object *value) {
     if (!this->attributes)
         this->attributes = Hash_new();
 
-    Hash_setItem(this->attributes, name, value);
+    Hash_setItemEx(this->attributes, name, value, hash);
 }
 
 static Object*
@@ -184,7 +184,7 @@ instance_asstring(Object *self) {
     if (!toString)
         toString = (Object*) String_fromConstant("toString");
 
-    Object *repr = instance_getattr(self, toString);
+    Object *repr = instance_getattr(self, toString, HASHVAL(toString));
     if (Function_isCallable(repr)) {
         return repr->type->call(repr, NULL, self, (Object*) LoxEmptyTuple);
     }

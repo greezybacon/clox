@@ -90,8 +90,8 @@ typedef struct object_type {
     // TODO: Methods (stuff unique to each type)
     ObjectMethod* methods;
     LoxTable* _methodTable; // XXX: Move this to an opaque type? Something behind-the-scenes-ish
-    Object* (*getattr)(Object*, Object*);
-    void (*setattr)(Object*, Object*, Object*);
+    Object* (*getattr)(Object*, Object*, hashval_t);
+    void (*setattr)(Object*, Object*, Object*, hashval_t);
 
     // TODO: Garbage collection cooperation
     void (*cleanup)(Object*);
@@ -104,7 +104,7 @@ typedef struct object {
 } Object;
 
 void* object_new(size_t size, ObjectType*);
-Object* object_getattr(Object*, Object*);
+Object* object_getattr(Object*, Object*, hashval_t);
 void LoxObject_Cleanup(Object*);
 
 #define INCREF(object) (((Object*) object)->refcount++)
