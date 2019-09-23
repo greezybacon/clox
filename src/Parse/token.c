@@ -8,7 +8,7 @@
 
 #include "Vendor/bdwgc/include/gc.h"
 
-static Token next = { 0 };
+static Token previous, next;
 
 static char
 peek_char(Tokenizer *self) {
@@ -38,6 +38,9 @@ next_token(Tokenizer *self) {
         c = next_char(self);
     }
     while (isspace(c) && c != -1);
+
+    previous = next;
+    self->previous = &previous;
 
     Token *token = &next;
     *token = (struct token) {
@@ -78,7 +81,14 @@ next_token(Tokenizer *self) {
         break;
 
     case '-':
-        if (!isdigit(peek_char(self)))
+        // This one can be tricky. If it's followed by an operator, then it's
+        // always an operator. If it's preceeded by an operator, than it's
+        // always a unary negative.
+        if (!(self->previous->type > T__OP_MIN) || !(self->previous->type < T__OP_MAX))
+            // It's an operator
+            token->type = T_OP_MINUS;
+        else if (!isdigit(peek_char(self)))
+            // It's an operator
             token->type = T_OP_MINUS;
         break;
 

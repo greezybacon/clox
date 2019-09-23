@@ -10,14 +10,19 @@
 static void
 print_expression(FILE* output, ASTExpression* node) {
     fprintf(output, "%s", "Expression(");
-    if (node->unary_op)
-        fprintf(output, " (%s) ", get_operator(node->unary_op));
     print_node(output, node->lhs);
     if (node->binary_op)
         fprintf(output, " (%s) ", get_operator(node->binary_op));
     if (node->rhs)
         print_node(output, (ASTNode*) node->rhs);
     fprintf(output, ")");
+}
+
+static void
+print_unary(FILE *output, ASTUnary *node) {
+    if (node->unary_op)
+        fprintf(output, " (%s) ", get_operator(node->unary_op));
+    print_node(output, (ASTNode*) node->expr);
 }
 
 static void
@@ -63,7 +68,7 @@ print_invoke(FILE* output, ASTInvoke* node) {
 
 static void
 print_var(FILE* output, ASTVar* node) {
-    fprintf(output, "Var(%.*s=", node->name_length, node->name);
+    fprintf(output, "Var(%.*s=", (int) node->name_length, node->name);
     print_node(output, node->expression);
     fprintf(output, ")");
 }
@@ -230,6 +235,9 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
             break;
         case AST_EXPRESSION:
             print_expression(output, (ASTExpression*) current);
+            break;
+        case AST_UNARY:
+            print_unary(output, (ASTUnary*) current);
             break;
         case AST_STATEMENT:
             print_node_list(output, current, "\n");

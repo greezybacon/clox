@@ -451,17 +451,24 @@ compile_expression(Compiler* self, ASTExpression *expr) {
         }
     }
 
+    return length;
+}
+
+static unsigned
+compile_unary(Compiler *self, ASTUnary *node) {
+    unsigned length = compile_node(self, node->expr);
+
     // Perform the unary op. Note that if binary and unary operations are
     // combined, then it is assumed to have been compiled from something like
     // -(a * b)
-    switch (expr->unary_op) {
+    switch (node->unary_op) {
         // Bitwise NOT?
         case T_BANG:
-        length += compile_emit(self, OP_BANG, 0, (ASTNode*) expr);
+        length += compile_emit(self, OP_BANG, 0, (ASTNode*) node);
         break;
 
         case T_OP_MINUS:
-        length += compile_emit(self, OP_UNARY_NEGATIVE, 0, (ASTNode*) expr);
+        length += compile_emit(self, OP_UNARY_NEGATIVE, 0, (ASTNode*) node);
         break;
 
         case T_OP_PLUS:
@@ -868,6 +875,8 @@ compile_node1(Compiler* self, ASTNode* ast) {
         return compile_assignment(self, (ASTAssignment*) ast);
     case AST_EXPRESSION:
         return compile_expression(self, (ASTExpression*) ast);
+    case AST_UNARY:
+        return compile_unary(self, (ASTUnary*) ast);
     case AST_RETURN:
         return compile_return(self, (ASTReturn*) ast);
     case AST_WHILE:

@@ -9,6 +9,7 @@
 enum ast_type {
     AST_STATEMENT = 0,
     AST_EXPRESSION,
+    AST_UNARY,
     AST_ASSIGNMENT,
     AST_FUNCTION,
     AST_RETURN,
@@ -45,12 +46,17 @@ typedef struct ast_node {
 
 typedef struct ast_expression {
     ASTNode             node;
-    enum token_type     unary_op;
     enum token_type     binary_op;
     struct ast_node     *lhs;
     struct ast_node     *rhs;
     bool                isreturn;
 } ASTExpression;
+
+typedef struct ast_unary {
+    ASTNode             node;
+    struct ast_node     *expr;
+    enum token_type     unary_op;
+} ASTUnary;
 
 typedef struct ast_return {
     ASTNode             node;

@@ -482,7 +482,8 @@ parse_TERM(Parser* self, Token *reference) {
     }
 
     default:
-        fprintf(stderr, "Parse error: Unexpected TERM token: %d\n", next->type);
+        fprintf(stderr, "Parse error: Unexpected TERM token: %d (%s)\n", next->type,
+            get_token_type(next->type));
     }
 
     return (ASTNode*) result;
@@ -617,16 +618,8 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
     start = *next;
     if (next->type == T_BANG || next->type == T_OP_PLUS || next->type == T_OP_MINUS) {
         unary_op = next->type;
-        lhs = parse_expression_r(self, 0);
-        if (lhs->type != AST_EXPRESSION || ((ASTExpression*) lhs)->unary_op) {
-            expr = GC_NEW(ASTExpression);
-            parser_node_init((ASTNode*) expr, AST_EXPRESSION, next);
-            expr->lhs = lhs;
-            lhs = (ASTNode*) expr;
-        }
-
-        ((ASTExpression*) lhs)->unary_op = unary_op;
-        return lhs;
+        // Consume the unary token
+        next = T->next(T);
     }
 
     lhs = parse_TERM(self, &start);
@@ -661,6 +654,14 @@ parse_expression_r(Parser* self, const OperatorInfo *previous) {
             break;
         }
         next = T->peek(T);
+    }
+
+    if (unary_op) {
+        ASTUnary *unary = GC_NEW(ASTUnary);
+        parser_node_init((ASTNode*) unary, AST_UNARY, next);
+        unary->expr = lhs;
+        unary->unary_op = unary_op;
+        lhs = (ASTNode*) unary;
     }
 
     // Peek for (binary) operator(s)
