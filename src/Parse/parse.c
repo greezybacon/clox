@@ -885,6 +885,9 @@ parse_statement_or_block(Parser* self) {
 
     if (token->type == T_OPEN_BRACE)
         return parse_block(self);
+    else if (token->type == T_SEMICOLON)
+        // Empty block
+        return NULL;
     else
         return parse_next(self);
 }
