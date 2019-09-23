@@ -24,12 +24,13 @@ builtin_print(VmScope* state, Object* self, Object* args) {
         if (StringTree_isStringTree(arg)) {
             Object *chunk;
             Iterator *chunks = LoxStringTree_iterChunks((LoxStringTree*) arg);
+            INCREF(chunks);
             while (LoxStopIteration != (chunk = chunks->next(chunks))) {
                 assert(String_isString(chunk));
                 LoxString *schunk = (LoxString*) chunk;
                 fprintf(stdout, "%.*s", schunk->length, schunk->characters);
             }
-            LoxObject_Cleanup((Object*) chunks);
+            DECREF(chunks);
         }
         else {
             if (!String_isString(arg)) {

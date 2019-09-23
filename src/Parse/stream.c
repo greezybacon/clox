@@ -251,5 +251,6 @@ stream_init_buffer(Stream* stream, const char* buffer, size_t length) {
     };
 
     stream->ops = &buffer_stream_ops;
+    stream->name = "(eval)";
     return 0;   
 }

@@ -59,13 +59,11 @@ ht_hashval(Object *key) {
 }
 
 static int
-hash_resize(LoxTable* self, size_t newsize) {
-    if (newsize < 1)
-        return 1;
+hash_resize(LoxTable* self) {
+    int newsize = 16;
 
-    if (newsize < self->count / 2)
-        // TODO: Raise error -- it would be resized on new addition
-        return 1;
+    while (newsize < self->size)
+        newsize <<= 1;
 
     HashEntry* table = calloc(newsize, sizeof(HashEntry));
     if (unlikely(table == NULL))
@@ -74,21 +72,23 @@ hash_resize(LoxTable* self, size_t newsize) {
     // Place all the keys in the new table
     int slot, i;
     size_t mask = newsize - 1;
+    hashval_t hash;
     HashEntry *entry, *current;
     for (current = self->table, i=self->size; i; current++, i--) {
         if (current->key != NULL) {
-            slot = current->hash & mask;
-
-            // Find an empty slot
-            entry = table + slot;
-            while (entry->key != NULL) {
-                slot = (slot + 1) & mask;
+            hash = current->hash;
+            do {
+                // Find an empty slot
+                slot = hash & mask;
                 entry = table + slot;
+                hash >>= 1;
             }
-
+            while (hash && entry->key != NULL);
             *entry = *current;
         }
     }
+
+    free(self->table);
     self->table = table;
     self->size = newsize;
     self->size_mask = mask;
@@ -105,10 +105,11 @@ hash_set_fast(LoxTable *self, Object *key, Object *value, hashval_t hash) {
     HashEntry *entry;
 
     // If the table is over half full, double the size
+    // TODO: Use a max_size property, set to about 80%
     if (self->count >= self->size - 2) {
-        if (0 != hash_resize(self, self->size * 2))
+        if (0 != hash_resize(self))
             // TODO: Raise error?
-            ;
+            fprintf(stderr, "WARNING: Table resize failed\n");
     }
     // TODO: In case resize failed, check that there are at least two slots
     // in the table. If there are not, then this insert should fail. There
@@ -119,7 +120,9 @@ hash_set_fast(LoxTable *self, Object *key, Object *value, hashval_t hash) {
 
     entry = self->table + slot;
     while (entry->key != NULL) {
-        if (0 == entry->key->type->compare(entry->key, key)) {
+        if (hash == entry->hash
+            && 0 == entry->key->type->compare(entry->key, key)
+        ) {
             // There's something associated with this key. Let's replace it
             break;
         }
@@ -337,8 +340,12 @@ hash_asstring(Object* self) {
         value = Tuple_getItem((LoxTuple*) next, 1);
         skey = (LoxString*) key->type->as_string(key);
         svalue = (LoxString*) value->type->as_string(value);
+        INCREF(skey);
+        INCREF(svalue);
         bytes = snprintf(position, remaining, "%.*s: %.*s, ",
             skey->length, skey->characters, svalue->length, svalue->characters);
+        DECREF(skey);
+        DECREF(svalue);
         position += bytes, remaining -= bytes;
     }
     position += snprintf(max((char*) buffer + 1, position - 2), remaining, "}");

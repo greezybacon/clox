@@ -724,6 +724,7 @@ parse_try_reduce(ASTNode *node) {
         // XXX: Free the expr->lhs and expr->rhs
         node->type = AST_LITERAL;
         ((ASTLiteral*) node)->literal = result;
+        INCREF(result);
     }
 }
 
