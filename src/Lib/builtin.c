@@ -239,6 +239,42 @@ builtin_import(VmScope *state, Object *self, Object *args) {
     return LoxModule_FindAndImport(filename);
 }
 
+static Object*
+builtin_globals(VmScope *state, Object *self, Object *args) {
+    assert(state);
+
+    if (state->outer)
+        return (Object*) state->outer->globals;
+
+    return (Object*) state->globals;
+}
+
+static Object*
+builtin_sum(VmScope *state, Object *self, Object *args) {
+    Object *iterable, *initial=NULL, *next, *value;
+    Lox_ParseArgs(args, "O|O", &iterable, &initial);
+
+    if (!iterable->type->iterate)
+        return LoxUndefined;
+
+    Iterator *it = iterable->type->iterate(iterable);
+    INCREF(it);
+    if (initial == NULL)
+        initial = (Object*) Integer_fromLongLong(0);
+
+    while (LoxStopIteration != (next = it->next(it))) {
+        INCREF(initial);
+        INCREF(next);
+        value = initial->type->op_plus(initial, next);
+        DECREF(initial);
+        DECREF(next);
+        initial = value;
+    }
+    DECREF(it);
+
+    return initial;
+}
+
 static ModuleDescription
 builtins_module_def = {
     .name = "__builtins__",
@@ -257,6 +293,8 @@ builtins_module_def = {
         { "list",   builtin_list },
         { "range",  builtin_range },
         { "import", builtin_import },
+        { "sum",    builtin_sum },
+        { "globals", builtin_globals },
         { 0 },
     }
 };
