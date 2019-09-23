@@ -224,5 +224,6 @@ Object *vmeval_eval(VmEvalContext*);
 Object* vmeval_string(const char*, size_t);
 Object* vmeval_string_inscope(const char*, size_t, VmScope*);
 Object* vmeval_file(FILE *input, const char*);
+Object* vmeval_file_inscope(FILE *input, const char*, VmScope*);
 Object* LoxEval_EvalAST(ASTNode*);
 #endif

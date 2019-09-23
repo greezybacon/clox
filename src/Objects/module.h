@@ -21,4 +21,7 @@ typedef struct module_description {
 Object*
 Module_init(ModuleDescription* description);
 
+Object*
+LoxModule_FindAndImport(const char *path);
+
 #endif

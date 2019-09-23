@@ -727,13 +727,18 @@ vmeval_string(const char * text, size_t length) {
 }
 
 Object*
-vmeval_file(FILE *input, const char* filename) {
+vmeval_file_inscope(FILE *input, const char* filename, VmScope* scope) {
     Compiler compiler = { .flags = 0 };
     CodeContext *context;
 
     context = compile_file(&compiler, input, filename);
 
-    return vmeval_inscope(context, NULL);
+    return vmeval_inscope(context, scope);
+}
+
+Object*
+vmeval_file(FILE *input, const char* filename) {
+    return vmeval_file_inscope(input, filename, NULL);
 }
 
 Object*

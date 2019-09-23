@@ -230,6 +230,14 @@ builtin_range(VmScope *state, Object *self, Object *args) {
     return LoxRange_create(start, end, step);
 }
 
+static Object*
+builtin_import(VmScope *state, Object *self, Object *args) {
+    char *filename;
+    Lox_ParseArgs(args, "s", &filename);
+
+    return LoxModule_FindAndImport(filename);
+}
+
 static ModuleDescription
 builtins_module_def = {
     .name = "__builtins__",
@@ -247,6 +255,7 @@ builtins_module_def = {
         { "iter",   builtin_iter },
         { "list",   builtin_list },
         { "range",  builtin_range },
+        { "import", builtin_import },
         { 0 },
     }
 };
