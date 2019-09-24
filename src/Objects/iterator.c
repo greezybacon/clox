@@ -38,12 +38,21 @@ iterator_cleanup(Object *self) {
         this->cleanup(self);
 }
 
+static Iterator*
+iterator_iterate(Object *self) {
+    assert(self);
+    assert(self->type == &IteratorType);
+
+    return (Iterator*) self;
+}
+
 static struct object_type IteratorType = (ObjectType) {
     .code = TYPE_ITERATOR,
     .name = "iterator",
     .hash = MYADDRESS,
     .compare = IDENTITY,
     .cleanup = iterator_cleanup,
+    .iterate = iterator_iterate,
     
     .methods = (ObjectMethod[]) {
         { "next", iterator_next },
