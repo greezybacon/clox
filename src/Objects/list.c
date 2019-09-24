@@ -332,6 +332,31 @@ list_asstring(Object* self) {
     return (Object*) String_fromCharArrayAndSize(buffer, position - buffer);
 }
 
+static LoxBool*
+list_contains(Object* self, Object *object) {
+    assert(self->type = &ListType);
+
+    if (!object->type->compare)
+        return LoxUndefined;
+
+    Iterator *iter = LoxList_getIterator((LoxList*) self);
+    Object *item;
+    LoxBool *rv = LoxFALSE;
+
+    while (LoxStopIteration != (item = iter->next(iter))) {
+        INCREF(item);
+        if (0 == object->type->compare(object, item)) {
+            DECREF(item);
+            rv = LoxTRUE;
+            break;
+        }
+        DECREF(item);
+    }
+
+    LoxObject_Cleanup((Object*) iter);
+    return rv;
+}
+
 static int object_type_compare(const void *left, const void *right) {
     Object *lhs = *(Object**) left, *rhs = *(Object**) right;
     return lhs->type->compare(lhs, rhs);
@@ -382,6 +407,7 @@ static struct object_type ListType = (ObjectType) {
     .get_item = list_getitem,
     .set_item = list_setitem,
     .iterate = list_iterate,
+    .contains = list_contains,
 
     .as_string = list_asstring,
     .cleanup = list_cleanup,
