@@ -288,6 +288,40 @@ string_getitem(Object* self, Object* index) {
     return (Object*) String_fromMalloc(s, length);
 }
 
+static Object*
+string_chars__next(Iterator *self) {
+    LoxStringIterator *this = (LoxStringIterator*) self;
+    LoxString* target = (LoxString*) self->target;
+
+    if (this->pos < target->length) {
+        const char *s = target->characters + this->pos;
+        // So, `s` points at the unicode character requested. But we should
+        // include all the bytes in the response.
+        unsigned length = 1;
+        const char *t = s;
+        while (((*++t & 0xc0) == 0x80))
+            length++;
+
+        this->pos += length;
+        // XXX: Handle case where length unexpectedly goes beyond the end of
+        // the string?
+
+        // TODO: Maybe this could be a StringSlice object?
+        // XXX: Possible memory corruption if this string is cleaned up while a
+        // reference to the slice is in use.
+        return (Object*) String_fromMalloc(s, length);
+    }
+
+    return LoxStopIteration;
+}
+
+static Iterator*
+string_iterate(Object *self) {
+    LoxStringIterator* it = (LoxStringIterator*) LoxIterator_create((Object*) self, sizeof(LoxStringIterator));
+    it->iterator.next = string_chars__next;
+    return (Iterator*) it;
+}
+
 // METHODS ----------------------------------
 
 Object*
@@ -315,6 +349,7 @@ static struct object_type StringType = (ObjectType) {
     .as_bool = string_asbool,
 
     .compare = string_compare,
+    .iterate = string_iterate,
 
     .op_plus = string_op_plus,
 

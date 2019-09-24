@@ -19,6 +19,14 @@ typedef struct string_object {
     const char *characters;
 } LoxString;
 
+typedef struct {
+    union {
+        Object      object;
+        Iterator    iterator;
+    };
+    int         pos;
+} LoxStringIterator;
+
 #undef get16bits
 #if (defined(__GNUC__) && defined(__i386__)) || defined(__WATCOMC__) \
   || defined(_MSC_VER) || defined (__BORLANDC__) || defined (__TURBOC__)
