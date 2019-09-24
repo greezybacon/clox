@@ -7,6 +7,7 @@
 #include "integer.h"
 #include "iterator.h"
 #include "string.h"
+#include "tuple.h"
 
 const int BUCKET_SIZE = 16;
 const int HALF_BUCKET_SIZE = BUCKET_SIZE >> 1;
@@ -20,7 +21,7 @@ LoxList_new(void) {
     ListBucket *bucket = malloc(sizeof(ListBucket));
     *bucket = (ListBucket) {
         .size = BUCKET_SIZE,
-        .items = calloc(BUCKET_SIZE, sizeof(Object*)),
+        .items = malloc(BUCKET_SIZE * sizeof(Object*)),
     };
 
     self->buckets = bucket;
@@ -40,7 +41,7 @@ LoxList_append(LoxList *self, Object *item) {
         *bucket = (ListBucket) {
             .size = BUCKET_SIZE,
             .offset = end->offset + end->count,
-            .items = calloc(BUCKET_SIZE, sizeof(Object*)),
+            .items = malloc(BUCKET_SIZE * sizeof(Object*)),
         };
         end->next = bucket;
         end = bucket;
@@ -206,14 +207,20 @@ list_cleanup(Object *self) {
     assert(self->type == &ListType);
     LoxList *this = (LoxList*) self;
 
-    ListBucket *end = this->buckets;
+    fprintf(stderr, "Cleaning list of %d items\n", this->count);
+    ListBucket *end = this->buckets, *T;
+    Object *item;
     while (end) {
-        while (end->count--)
-            DECREF(end->items + end->count);
+        fprintf(stderr, "Cleaning bucket of %d items at offset %d\n", end->count, end->offset);
+        while (end->count--) {
+            item = *(end->items + end->count);
+            DECREF(item);
+        }
         free(end->items);
+        T = end->next;
         free(end);
         // XXX: Use after free?
-        end = end->next;
+        end = T;
     }
 }
 
