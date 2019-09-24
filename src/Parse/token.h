@@ -58,6 +58,8 @@ enum token_type {
     T_SUPER,
     T_COLON,
     T_FOREACH,
+    T_CONTINUE,
+    T_BREAK,
 };
 
 typedef struct token {

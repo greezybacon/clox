@@ -65,8 +65,8 @@ file_read(VmScope *state, Object *self, Object *args) {
     return (Object*) String_fromMalloc(buffer, length);
 }
 
-static Object*
-file_readline(VmScope *state, Object *self, Object *args) {
+Object*
+LoxFile_readLine(Object *self) {
     assert(self);
     assert(self->type == &FileType);
 
@@ -83,10 +83,10 @@ file_readline(VmScope *state, Object *self, Object *args) {
         }
     }
 
-    if (!error && !length) {
+    if (0 == length) {
         free(buffer);
         // XXX: Should NIL or Undefined be used instead of an empty string?
-        return (Object*) LoxEmptyString;
+        return (Object*) LoxNIL;
     }
 
     if (length && !realloc(buffer, length)) {
@@ -96,6 +96,12 @@ file_readline(VmScope *state, Object *self, Object *args) {
 
     return (Object*) String_fromMalloc(buffer, length);
 }
+
+static Object*
+file_readline(VmScope *state, Object *self, Object *args) {
+    return LoxFile_readLine(self);
+}
+
 
 static Object*
 file_write(VmScope *state, Object *self, Object *args) {
@@ -169,6 +175,22 @@ file_asstring(Object *self) {
     return (Object*) String_fromCharArrayAndSize(buffer, length);
 }
 
+static Object*
+file_readlines__next(Iterator *self) {
+    Object *next = LoxFile_readLine(self->target);
+    if (next == LoxNIL)
+        return LoxStopIteration;
+
+    return next;
+}
+
+static Iterator*
+file_readlines(Object *self) {
+    Iterator* it = (Iterator*) LoxIterator_create((Object*) self, sizeof(Iterator));
+    it->next = file_readlines__next;
+    return it;
+}
+
 static void
 file_cleanup(Object *self) {
     assert(self);
@@ -188,6 +210,7 @@ static struct object_type FileType = (ObjectType) {
     .compare = IDENTITY,
     .hash = MYADDRESS,
 
+    .iterate = file_readlines,
     .as_string = file_asstring,
 
     .methods = (ObjectMethod[]) {

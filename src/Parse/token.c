@@ -266,6 +266,8 @@ next_token(Tokenizer *self) {
                 token->type = T_CLASS;
             else if (0 == strncmp(token_text, "super", 5))
                 token->type = T_SUPER;
+            else if (0 == strncmp(token_text, "break", 5))
+                token->type = T_BREAK;
             break;
         case 6:
             if (0 == strncmp(token_text, "return", 6))
@@ -278,6 +280,8 @@ next_token(Tokenizer *self) {
         case 8:
             if (0 == strncmp(token_text, "function", 8))
                 token->type = T_FUNCTION;
+            else if (0 == strncmp(token_text, "continue", 8))
+                token->type = T_CONTINUE;
         }
 
         // Otherwise its a plain old word

@@ -16,6 +16,8 @@
 
 #include "Vendor/bdwgc/include/gc.h"
 
+#define hash_mangle(h) ((h >> 5) + (h << 3))
+
 static struct object_type HashType;
 
 // A quick hashtable implementation based on
@@ -60,9 +62,9 @@ ht_hashval(Object *key) {
 
 static int
 hash_resize(LoxTable* self) {
-    int newsize = 16;
+    unsigned newsize = 16;
 
-    while (newsize < self->size)
+    while (newsize <= self->size)
         newsize <<= 1;
 
     HashEntry* table = calloc(newsize, sizeof(HashEntry));
@@ -81,7 +83,7 @@ hash_resize(LoxTable* self) {
                 // Find an empty slot
                 slot = hash & mask;
                 entry = table + slot;
-                hash >>= 1;
+                hash = hash_mangle(hash);
             }
             while (hash && entry->key != NULL);
             *entry = *current;
@@ -126,7 +128,7 @@ hash_set_fast(LoxTable *self, Object *key, Object *value, hashval_t hash) {
             // There's something associated with this key. Let's replace it
             break;
         }
-        hash >>= 1;
+        hash = hash_mangle(hash);
         slot = hash & self->size_mask;
         entry = self->table + slot;
     }
@@ -163,20 +165,19 @@ hash_lookup_fast(LoxTable* self, Object* key, hashval_t hash) {
     HashEntry *entry = self->table + slot;
 
     /* Step through the table, looking for our value. */
-    while (entry->key != NULL
-        && (entry->hash != hash
-        || 0 != entry->key->type->compare(entry->key, key)
-    )) {
-        hash >>= 1;
+    while (hash && entry->key != NULL) {
+        if (entry->hash == hash
+            && 0 == entry->key->type->compare(entry->key, key)
+        ) {
+            return entry;
+        }
+        hash = hash_mangle(hash);
         slot = hash & self->size_mask;
         entry = self->table + slot;
     }
 
     /* Did we actually find anything? */
-    if (entry->key == NULL) {
-        return NULL;
-    }
-    return entry;
+    return NULL;
 }
 
 static HashEntry*

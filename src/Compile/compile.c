@@ -632,6 +632,16 @@ compile_foreach(Compiler *self, ASTForeach *node) {
 }
 
 static unsigned
+compile_control(Compiler *self, ASTControl *node) {
+    if (node->loop_break) {
+        return compile_emit(self, OP_BREAK, 0, (ASTNode*) node);
+    }
+    if (node->loop_continue) {
+        return compile_emit(self, OP_CONTINUE, 0, (ASTNode*) node);
+    }
+}
+
+static unsigned
 compile_function_inner(Compiler *self, ASTFunction *node) {
     // Create a new compiler context for the function's code (with new constants)
     compile_push_context(self);
@@ -912,6 +922,8 @@ compile_node1(Compiler* self, ASTNode* ast) {
         return compile_table_literal(self, (ASTTableLiteral*) ast);
     case AST_FOREACH:
         return compile_foreach(self, (ASTForeach*) ast);
+    case AST_CONTROL:
+        return compile_control(self, (ASTControl*) ast);
     default:
         compile_error(self, "Unexpected AST node type");
     }

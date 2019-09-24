@@ -866,6 +866,15 @@ parse_statement(Parser* self) {
         result = (ASTNode*) astforeach;
         break;
     }
+    case T_BREAK:
+    case T_CONTINUE: {
+        ASTControl* astcontrol = GC_NEW(ASTControl);
+        parser_node_init((ASTNode*) astcontrol, AST_CONTROL, token);
+        astcontrol->loop_break = token->type == T_BREAK;
+        astcontrol->loop_continue = token->type == T_CONTINUE;
+        result = (ASTNode*) astcontrol;
+        break;
+    }
     default:
         // This shouldn't happen ...
         result = NULL;
@@ -908,6 +917,8 @@ parser_parse_next(Parser* self) {
     case T_RETURN:
     case T_CLASS:
     case T_FOREACH:
+    case T_BREAK:
+    case T_CONTINUE:
         self->tokens->next(self->tokens);
         rv = parse_statement(self);
         break;

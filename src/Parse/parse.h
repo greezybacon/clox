@@ -31,6 +31,7 @@ enum ast_type {
     AST_INTERPOLATED,
     AST_TABLE_LITERAL,
     AST_FOREACH,
+    AST_CONTROL,
 };
 
 enum associativity {
@@ -82,6 +83,14 @@ typedef struct ast_magic {
         unsigned        super:1;
     };
 } ASTMagic;
+
+typedef struct ast_control {
+    ASTNode             node;
+    struct {
+        unsigned        loop_break:1;
+        unsigned        loop_continue:1;
+    };
+} ASTControl;
 
 typedef struct ast_term {
     ASTNode             node;
