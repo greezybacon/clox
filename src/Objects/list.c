@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "Lib/builtin.h"
 #include "list.h"
@@ -207,11 +208,9 @@ list_cleanup(Object *self) {
     assert(self->type == &ListType);
     LoxList *this = (LoxList*) self;
 
-    fprintf(stderr, "Cleaning list of %d items\n", this->count);
     ListBucket *end = this->buckets, *T;
     Object *item;
     while (end) {
-        fprintf(stderr, "Cleaning bucket of %d items at offset %d\n", end->count, end->offset);
         while (end->count--) {
             item = *(end->items + end->count);
             DECREF(item);
@@ -219,7 +218,6 @@ list_cleanup(Object *self) {
         free(end->items);
         T = end->next;
         free(end);
-        // XXX: Use after free?
         end = T;
     }
 }
@@ -305,7 +303,7 @@ list_asstring(Object* self) {
 
     char buffer[1024];  // TODO: Use the + operator of LoxString
     char* position = buffer;
-    int remaining = sizeof(buffer) - 1, bytes;
+    int remaining = sizeof(buffer), bytes;
 
     bytes = snprintf(position, remaining, "[");
     position += bytes, remaining -= bytes;
@@ -316,7 +314,7 @@ list_asstring(Object* self) {
     Iterator *it = LoxList_getIterator(this);
     int k = this->count, i = 0;
 
-    while (LoxStopIteration != (value = it->next(it))) {
+    while (remaining > 0 && LoxStopIteration != (value = it->next(it))) {
         svalue = String_fromObject(value);
         INCREF(svalue);
         bytes = snprintf(position, remaining, "%.*s%s",
@@ -327,7 +325,12 @@ list_asstring(Object* self) {
     }
     LoxObject_Cleanup((Object*) it);
 
-    position += snprintf(position, remaining, "]");
+    if (remaining <= 0) {
+        position = buffer + sizeof(buffer) - 5;
+        position += snprintf(position, 5, "...");
+    }
+
+    position += snprintf(position, 5, "]");
 
     return (Object*) String_fromCharArrayAndSize(buffer, position - buffer);
 }
@@ -379,25 +382,22 @@ list_sort(VmScope *state, Object *self, Object *args) {
         };
 
         // Copy the items and release the buckets
-        Object **olditems, **newitems = newbucket->items;
-        int count;
+        int count = 0;
         while (bucket) {
-            olditems = bucket->items;
-            count = bucket->count;
-            while (count--) {
-                *(newitems++) = *(olditems++);
-            }
+            memcpy(newbucket->items + count, bucket->items, bucket->count * sizeof(Object*));
+            count += bucket->count;
             free(bucket->items);
             pbucket = bucket->next;
             free(bucket);
             bucket = pbucket;
         }
 
-        this->buckets.first = newbucket;
+        newbucket->count = count;
+        this->buckets = newbucket;
     }
 
-    qsort(this->buckets.first->items, this->count, sizeof(Object*), object_type_compare);
-    return LoxNIL;
+    qsort(this->buckets->items, this->count, sizeof(Object*), object_type_compare);
+    return self;
 }
 
 
