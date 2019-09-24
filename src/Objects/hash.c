@@ -315,6 +315,58 @@ hash_iterate(Object *self) {
     return Hash_getIterator((LoxTable*) self);
 }
 
+static Object*
+hash_values__next(Iterator* this) {
+    LoxTableIterator *self = (LoxTableIterator*) this;
+    int p;
+    LoxTable *target = (LoxTable*) self->iterator.target;
+    HashEntry* table = target->table;
+    while (self->pos < target->size) {
+        p = self->pos++;
+        if (table[p].key != NULL) {
+            return table[p].value;
+        }
+    }
+    // Send terminating sentinel
+    return LoxStopIteration;
+}
+
+static Object*
+hash_values(VmScope *state, Object *self, Object *args) {
+    assert(self->type == &HashType);
+    LoxTableIterator* it = (LoxTableIterator*) LoxIterator_create((Object*) self,
+        sizeof(LoxTableIterator));
+
+    it->iterator.next = hash_values__next;
+    return (Object*) it;
+}
+
+static Object*
+hash_keys__next(Iterator* this) {
+    LoxTableIterator *self = (LoxTableIterator*) this;
+    int p;
+    LoxTable *target = (LoxTable*) self->iterator.target;
+    HashEntry* table = target->table;
+    while (self->pos < target->size) {
+        p = self->pos++;
+        if (table[p].key != NULL) {
+            return table[p].key;
+        }
+    }
+    // Send terminating sentinel
+    return LoxStopIteration;
+}
+
+static Object*
+hash_keys(VmScope *state, Object *self, Object *args) {
+    assert(self->type == &HashType);
+    LoxTableIterator* it = (LoxTableIterator*) LoxIterator_create((Object*) self,
+        sizeof(LoxTableIterator));
+
+    it->iterator.next = hash_keys__next;
+    return (Object*) it;
+}
+
 #define max(a,b) \
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
@@ -416,4 +468,10 @@ static struct object_type HashType = (ObjectType) {
     .as_string = hash_asstring,
     .as_bool = hash_asbool,
     .cleanup = hash_cleanup,
+
+    .methods = (ObjectMethod[]) {
+        {"values",  hash_values},
+        {"keys",    hash_keys},
+        {0, 0},
+    },
 };
