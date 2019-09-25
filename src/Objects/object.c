@@ -93,7 +93,7 @@ void
 LoxObject_Cleanup(Object* self) {
     if (unlikely(self->protect_delete))
         return;
-    
+
     if (self->type->cleanup != NULL)
         self->type->cleanup(self);
 

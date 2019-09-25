@@ -59,7 +59,7 @@ file_read(VmScope *state, Object *self, Object *args) {
 
     if (length < size && !(buffer = realloc(buffer, length))) {
         // How could this happen if (length ?< size)
-        ;
+        return (Object*) LoxEmptyString;
     }
 
     return (Object*) String_fromMalloc(buffer, length);
@@ -89,9 +89,9 @@ LoxFile_readLine(Object *self) {
         return (Object*) LoxNIL;
     }
 
-    if (length && !realloc(buffer, length)) {
+    if (length && !(buffer = realloc(buffer, length))) {
         // How could this happen if (length ?< size)
-        ;
+        return (Object*) LoxNIL;
     }
 
     return (Object*) String_fromMalloc(buffer, length);
