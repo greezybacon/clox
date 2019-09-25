@@ -188,19 +188,18 @@ builtin_list(VmScope *state, Object *self, Object *args) {
 
     LoxList* result = LoxList_new();
 
-    if (Tuple_getSize(args) == 0)
-        return (Object*) result;
+    Object *object=NULL, *item;
+    Lox_ParseArgs(args, "|O", &object);
 
-    Object *object, *item;
-    Lox_ParseArgs(args, "O", &object);
-
-    if (object->type->iterate) {
-        Iterator *items = object->type->iterate(object);
-        INCREF(items);
-        while (LoxStopIteration != (item = items->next(items))) {
+    if (object && object->type->iterate) {
+        INCREF(object);
+        Iterator *it = object->type->iterate(object);
+        INCREF(it);
+        while (LoxStopIteration != (item = it->next(it))) {
             LoxList_append(result, item);
         }
-        DECREF(items);
+        DECREF(it);
+        DECREF(object);
     }
 
     return (Object*) result;
