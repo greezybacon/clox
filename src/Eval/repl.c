@@ -57,13 +57,16 @@ repl_onecmd(CmdLoop *self, const char* line) {
     if (strncmp(line, "EOF", 3) == 0)
         return true;
 
-    Object* result = vmeval_string_inscope(line, strlen(line), self->scope);
+    char buffer[strlen(line) + 10];
+    snprintf(buffer, sizeof(buffer), "return (%s)", line);
+    Object* result = LoxVM_evalStringWithScope(buffer, sizeof(buffer), self->scope);
 
     if (result && result != LoxNIL) {
         Hash_setItem(self->scope->globals, _, result);
         LoxString *S = String_fromObject(result);
+        INCREF(S);
         printf("%.*s\n", S->length, S->characters);
-        LoxObject_Cleanup((Object*) S);
+        DECREF(S);
     }
     return false;
 }
