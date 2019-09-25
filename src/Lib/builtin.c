@@ -90,7 +90,7 @@ builtin_eval(VmScope *state, Object *self, Object *args) {
         .globals = state->globals,
     };
 
-    Object *rv = vmeval_string_inscope(text, length, &scope);
+    Object *rv = LoxVM_evalStringWithScope(text, length, &scope);
 
     free(text);
     return rv;

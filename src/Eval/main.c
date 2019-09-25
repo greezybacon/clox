@@ -73,11 +73,11 @@ main(int argc, char** argv) {
     if (arguments->input_file) {
         FILE *file = fopen(arguments->input_file, "r");
         if (file) {
-            result = vmeval_file(file, arguments->input_file);
+            result = LoxVM_evalFile(file, arguments->input_file);
         }
     }
     else if (arguments->cmd) {
-        result = vmeval_string(arguments->cmd, strlen(arguments->cmd));
+        result = LoxVM_evalString(arguments->cmd, strlen(arguments->cmd));
 //        result = eval_string(arguments->cmd, strlen(arguments->cmd));
     }
     else {

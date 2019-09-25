@@ -720,7 +720,7 @@ parse_expr_is_constant(ASTNode *node) {
 static inline void
 parse_try_reduce(ASTNode *node) {
     if (parse_expr_is_constant(node)) {
-        Object *result = LoxEval_EvalAST(node);
+        Object *result = LoxVM_evalAST(node);
         // XXX: This assumes the size of a literal is less than that of an expr
         // XXX: Free the expr->lhs and expr->rhs
         node->type = AST_LITERAL;

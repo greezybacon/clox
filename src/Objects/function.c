@@ -198,7 +198,7 @@ codeobject_call(Object* self, VmScope *scope, Object *object, Object *args) {
             .count = ((LoxTuple*) args)->count,
         },
     };
-    return vmeval_eval(&call_ctx);
+    return LoxVM_eval(&call_ctx);
 }
 
 static struct object_type LoxVmCodeType = (ObjectType) {
@@ -236,7 +236,7 @@ vmfun_call(Object* self, VmScope *ignored, Object *object, Object *args) {
             .count = ((LoxTuple*) args)->count,
         },
     };
-    return vmeval_eval(&call_ctx);
+    return LoxVM_eval(&call_ctx);
 }
 
 static Object*

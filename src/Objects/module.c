@@ -67,7 +67,7 @@ import_file(FILE *text, const char *name) {
     VmScope scope = (VmScope) {
         .globals = globals,
     };
-    vmeval_file_inscope(text, name, &scope);
+    LoxVM_evalFileWithScope(text, name, &scope);
 
     // TODO: Place the module in a global scope as a cache
 

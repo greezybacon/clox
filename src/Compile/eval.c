@@ -81,13 +81,13 @@ assert_safe_code(CodeContext *code) {
 }
 
 Object*
-vmeval_eval_safe(VmEvalContext *ctx) {
+LoxVM_evalSafely(VmEvalContext *ctx) {
     assert_safe_code(ctx->code);
-    return vmeval_eval(ctx);
+    return LoxVM_eval(ctx);
 }
 
 Object*
-vmeval_eval(VmEvalContext *ctx) {
+LoxVM_eval(VmEvalContext *ctx) {
     assert(ctx);
     assert(ctx->scope);
 
@@ -268,7 +268,7 @@ OP_CALL_FUN: {
                         .count = pc->arg,
                     },
                 };
-                rv = vmeval_eval(&call_ctx);
+                rv = LoxVM_eval(&call_ctx);
             }
             else if (Function_isCallable(fun)) {
                 LoxTuple *args = Tuple_fromList(pc->arg, stack - pc->arg);
@@ -305,7 +305,7 @@ OP_RECURSE: {
             };
             // Don't INCREF because the return value of the call should be
             // decref'd in this scope which would cancel an INCREF
-            rv = vmeval_eval(&call_ctx);
+            rv = LoxVM_eval(&call_ctx);
 
             // DECREF all the arguments
             i = pc->arg;
@@ -618,10 +618,6 @@ OP_CONTINUE:
             pc = pblock->top;
             DISPATCH();
 
-OP_BREAK:
-            pc = pblock->bottom;
-            DISPATCH();
-
 OP_LEAVE_BLOCK:
             pblock--;
             i = pc->arg;
@@ -640,6 +636,7 @@ OP_NEXT_OR_BREAK:
                 INCREF(item);
             }
             else {
+OP_BREAK:
                 pc = pblock->bottom;
             }
             DISPATCH();
@@ -681,7 +678,7 @@ OP_RETURN:
 }
 
 static Object*
-vmeval_inscope(CodeContext *code, VmScope *scope) {
+LoxVM_evalWithScope(CodeContext *code, VmScope *scope) {
     static LoxModule* builtins = NULL;
     if (builtins == NULL) {
         builtins = BuiltinModule_init();
@@ -706,46 +703,46 @@ vmeval_inscope(CodeContext *code, VmScope *scope) {
     VmEvalContext ctx = (VmEvalContext) {
         .code = code,
         .scope = &final,
+        .previous = NULL,
     };
-
-    return vmeval_eval_safe(&ctx);
+    return LoxVM_evalSafely(&ctx);
 }
 
 Object*
-vmeval_string_inscope(const char * text, size_t length, VmScope* scope) {
+LoxVM_evalStringWithScope(const char * text, size_t length, VmScope* scope) {
     Compiler compiler = { .flags = 0 };
     CodeContext *context;
 
     context = compile_string(&compiler, text, length);
 
-    return vmeval_inscope(context, scope);
+    return LoxVM_evalWithScope(context, scope);
 }
 
 Object*
-vmeval_string(const char * text, size_t length) {
-    return vmeval_string_inscope(text, length, NULL);
+LoxVM_evalString(const char * text, size_t length) {
+    return LoxVM_evalStringWithScope(text, length, NULL);
 }
 
 Object*
-vmeval_file_inscope(FILE *input, const char* filename, VmScope* scope) {
+LoxVM_evalFileWithScope(FILE *input, const char* filename, VmScope* scope) {
     Compiler compiler = { .flags = 0 };
     CodeContext *context;
 
     context = compile_file(&compiler, input, filename);
 
-    return vmeval_inscope(context, scope);
+    return LoxVM_evalWithScope(context, scope);
 }
 
 Object*
-vmeval_file(FILE *input, const char* filename) {
-    return vmeval_file_inscope(input, filename, NULL);
+LoxVM_evalFile(FILE *input, const char* filename) {
+    return LoxVM_evalFileWithScope(input, filename, NULL);
 }
 
 Object*
-LoxEval_EvalAST(ASTNode *input) {
+LoxVM_evalAST(ASTNode *input) {
     Compiler compiler = { .flags = 0 };
     CodeContext *context;
 
     context = compile_ast(&compiler, input);
-    return vmeval_inscope(context, NULL);
+    return LoxVM_evalWithScope(context, NULL);
 }

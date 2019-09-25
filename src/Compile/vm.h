@@ -178,7 +178,7 @@ Object* VmScope_lookup_global(VmScope*, Object*, hashval_t);
 Object* VmScope_lookup_local(VmScope*, unsigned);
 VmScope* VmScope_leave(VmScope*);
 
-// Run-time args passing between calls to vmeval_eval
+// Run-time args passing between calls to LoxVM_eval
 typedef struct vmeval_call_args {
     Object              **values;
     size_t              count;
@@ -220,10 +220,10 @@ typedef struct vmeval_loop_block {
     Instruction     *bottom;
 } VmEvalLoopBlock;
 
-Object *vmeval_eval(VmEvalContext*);
-Object* vmeval_string(const char*, size_t);
-Object* vmeval_string_inscope(const char*, size_t, VmScope*);
-Object* vmeval_file(FILE *input, const char*);
-Object* vmeval_file_inscope(FILE *input, const char*, VmScope*);
-Object* LoxEval_EvalAST(ASTNode*);
+Object* LoxVM_eval(VmEvalContext*);
+Object* LoxVM_evalString(const char*, size_t);
+Object* LoxVM_evalStringWithScope(const char*, size_t, VmScope*);
+Object* LoxVM_evalFile(FILE *input, const char*);
+Object* LoxVM_evalFileWithScope(FILE *input, const char*, VmScope*);
+Object* LoxVM_evalAST(ASTNode*);
 #endif
