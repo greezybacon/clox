@@ -185,10 +185,18 @@ file_readlines__next(Iterator *self) {
 }
 
 static Iterator*
-file_readlines(Object *self) {
+LoxFile_getIterator(Object *self) {
+    assert(self);
+    assert(self->type == &FileType);
+
     Iterator* it = (Iterator*) LoxIterator_create((Object*) self, sizeof(Iterator));
     it->next = file_readlines__next;
     return it;
+}
+
+static Object*
+file_readlines(VmScope *state, Object *self, Object *args) {
+    return (Object*) LoxFile_getIterator(self);
 }
 
 static void
@@ -210,7 +218,7 @@ static struct object_type FileType = (ObjectType) {
     .compare = IDENTITY,
     .hash = MYADDRESS,
 
-    .iterate = file_readlines,
+    .iterate = LoxFile_getIterator,
     .as_string = file_asstring,
 
     .methods = (ObjectMethod[]) {
@@ -220,6 +228,7 @@ static struct object_type FileType = (ObjectType) {
         { "close", file_close },
         { "flush", file_flush },
         { "tell", file_tell },
+        { "readlines", file_readlines },
         { 0, 0 },
     },
 
