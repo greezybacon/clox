@@ -16,7 +16,7 @@
 
 #include "Vendor/bdwgc/include/gc.h"
 
-#define hash_mangle(h) ((h >> 5) + (h << 3))
+#define hash_mangle(h) (((h >> 7) ^ (h << 9)) + h)
 
 static struct object_type HashType;
 
@@ -119,6 +119,7 @@ hash_set_fast(LoxTable *self, Object *key, Object *value, hashval_t hash) {
     // loop forever.
 
     slot = hash & self->size_mask;
+    hashval_t slothash = hash;
 
     entry = self->table + slot;
     while (entry->key != NULL) {
@@ -128,8 +129,8 @@ hash_set_fast(LoxTable *self, Object *key, Object *value, hashval_t hash) {
             // There's something associated with this key. Let's replace it
             break;
         }
-        hash = hash_mangle(hash);
-        slot = hash & self->size_mask;
+        slothash = hash_mangle(slothash);
+        slot = slothash & self->size_mask;
         entry = self->table + slot;
     }
 
@@ -163,6 +164,7 @@ static HashEntry*
 hash_lookup_fast(LoxTable* self, Object* key, hashval_t hash) {
     int slot = hash & self->size_mask;
     HashEntry *entry = self->table + slot;
+    hashval_t slothash = hash;
 
     /* Step through the table, looking for our value. */
     while (hash && entry->key != NULL) {
@@ -171,8 +173,8 @@ hash_lookup_fast(LoxTable* self, Object* key, hashval_t hash) {
         ) {
             return entry;
         }
-        hash = hash_mangle(hash);
-        slot = hash & self->size_mask;
+        slothash = hash_mangle(slothash);
+        slot = slothash & self->size_mask;
         entry = self->table + slot;
     }
 
