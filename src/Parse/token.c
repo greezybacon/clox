@@ -272,6 +272,8 @@ next_token(Tokenizer *self) {
         case 6:
             if (0 == strncmp(token_text, "return", 6))
                 token->type = T_RETURN;
+            else if (0 == strncmp(token_text, "assert", 6))
+                token->type = T_ASSERT;
             break;
         case 7:
             if (0 == strncmp(token_text, "foreach", 7))

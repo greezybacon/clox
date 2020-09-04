@@ -22,6 +22,7 @@ static struct named_opcode OpcodeNames[] = {
     { OP_JUMP_IF_FALSE_OR_POP, "JUMP_IF_FALSE_OR_POP" },
     { OP_DUP_TOP,       "DUP_TOP" },
     { OP_POP_TOP,       "POP_TOP" },
+    { OP_ASSERT,        "ASSERT" },
 
     // Functions
     { OP_CALL_FUN,      "CALL_FUNCTION" },

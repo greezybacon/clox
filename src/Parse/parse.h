@@ -32,6 +32,7 @@ enum ast_type {
     AST_TABLE_LITERAL,
     AST_FOREACH,
     AST_CONTROL,
+    AST_ASSERT,
 };
 
 enum associativity {
@@ -214,6 +215,12 @@ typedef struct ast_table_literal {
     ASTNode             *keys;
     ASTNode             *values;
 } ASTTableLiteral;
+
+typedef struct ast_assert {
+    ASTNode             node;
+    ASTNode             *expression;
+    ASTNode             *message;
+} ASTAssert;
 
 typedef enum {
     LOX_PARSE_NO_AUTO_TUPLE     = 1<<0,

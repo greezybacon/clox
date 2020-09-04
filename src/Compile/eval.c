@@ -31,31 +31,43 @@ vmeval_print_backtrace(VmEvalContext *ctx) {
         cs_count--;
     }
 
+    if (ctx->previous)
+        vmeval_print_backtrace(ctx->previous);
+
     printf("File \"%s\", on line %d\n",
         ctx->code->block->codesource.filename,
         cs->line_number);
 
     // TODO: Open target file and read to line x (skipping x-1 newlines)
-
-    if (ctx->previous)
-        vmeval_print_backtrace(ctx->previous);
 }
 
 static void
-vmeval_raise_exception(VmEvalContext *ctx, ExceptionObject *exc) {
-    // TODO: Identify the source file and line number (which would require placing
-    // that in the instruction block in the code context).
-    LoxString *S = (LoxString*) exc->base.type->as_string((Object*) exc);
-    vmeval_print_backtrace(ctx);
+vmeval_raise(VmEvalContext *ctx, Object *exc) {
+    assert(Exception_isException(exc));
+
+    LoxString *S = String_fromObject((Object*) exc);
+    INCREF(S);
     fprintf(stderr, "%.*s\n", S->length, S->characters);
+    DECREF(S);
+
+    vmeval_print_backtrace(ctx);
+
     exit(1);
 }
 
 static void
-vmeval_raise_error(VmEvalContext *ctx, const char *format, ...) {
+vmeval_raise_unhandled_error(VmEvalContext *ctx, const char *format, ...) {
+    // TODO: Identify the source file and line number (which would require placing
+    // that in the instruction block in the code context).
     // TODO: Make the characters a real Exception object
-    //Exception_fromBuffer(ctx->scope);
-    //Lox_RaiseError(ctx->scope);
+    va_list args;
+    va_start(args, format);
+    // LoxString *message = LoxObject_FormatWithScopeVa(ctx->scope, format, args);
+    LoxString *message;
+    Object* exc = Exception_fromFormatVa(format, args);
+    va_end(args);
+
+    vmeval_raise(ctx, exc);
 }
 
 static void
@@ -170,6 +182,7 @@ LoxVM_eval(VmEvalContext *ctx) {
         [OP_CONTINUE] = &&OP_CONTINUE,
         [OP_GET_ITERATOR] = &&OP_GET_ITERATOR,
         [OP_NEXT_OR_BREAK] = &&OP_NEXT_OR_BREAK,
+        [OP_ASSERT] = &&OP_ASSERT,
     };
 
 #define DISPATCH() goto *_labels[(++pc)->op]
@@ -231,6 +244,27 @@ OP_DUP_TOP:
 
 OP_POP_TOP:
             POP(stack);
+            DISPATCH();
+
+OP_ASSERT:
+            // This is FATAL if we arrive here
+            item = POP(stack);
+            if (Tuple_isTuple(item)) {
+                lhs = Tuple_GETITEM(item, 0);
+                if (!Bool_isTrue(lhs)) {
+                    if (Tuple_getSize(item) != 2) {
+                        fprintf(stderr, "WARNING: Assert() should only have one or two parameters\n");
+                    }
+                    vmeval_raise(ctx, Exception_fromObject(Tuple_GETITEM(item, 1)));
+                }
+            }
+            else {
+                if (!Bool_isTrue(item)) {
+                    vmeval_raise(ctx, Exception_fromConstant("Assertion failed"));
+                }
+                // XXX: Will never make it here
+                DECREF(item);
+            }
             DISPATCH();
 
 OP_CLOSE_FUN: {

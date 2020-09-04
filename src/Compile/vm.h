@@ -20,6 +20,7 @@ enum opcode {
     OP_JUMP_IF_TRUE_OR_POP,
     OP_DUP_TOP,
     OP_POP_TOP,
+    OP_ASSERT,
 
     // Functions
     OP_CLOSE_FUN,

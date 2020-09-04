@@ -60,6 +60,7 @@ enum token_type {
     T_FOREACH,
     T_CONTINUE,
     T_BREAK,
+    T_ASSERT,
 };
 
 typedef struct token {

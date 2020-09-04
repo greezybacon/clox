@@ -223,6 +223,17 @@ print_foreach(FILE *output, ASTForeach *node) {
     fprintf(output, " }");
 }
 
+static void
+print_assert(FILE *output, ASTAssert *node) {
+    fprintf(output, "Assert(");
+    print_node(output, node->expression);
+    if (node->message) {
+        fprintf(output, ", message := ");
+        print_node(output, node->message);
+    }
+    fprintf(output, ")");
+}
+
 void
 print_node_list(FILE* output, ASTNode* node, const char * separator) {
     ASTNode* current = node;
@@ -299,6 +310,9 @@ print_node_list(FILE* output, ASTNode* node, const char * separator) {
             break;
         case AST_FOREACH:
             print_foreach(output, (ASTForeach*) current);
+            break;
+        case AST_ASSERT:
+            print_assert(output, (ASTAssert*) current);
             break;
         default:
             fprintf(output, "Unexpected AST type: %d", current->type);

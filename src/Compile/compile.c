@@ -878,6 +878,31 @@ compile_table_literal(Compiler *self, ASTTableLiteral *node) {
 }
 
 static unsigned
+compile_assert(Compiler *self, ASTAssert *node) {
+    unsigned length=0, skip=0, has_message=0;
+    CodeBlock *block=NULL;
+
+    // TODO: Skip if ASSERTs should be optimized out
+
+    length += compile_node(self, node->expression);
+
+    if (node->message) {
+        block = compile_block(self, node->message);
+        skip += JUMP_LENGTH(block);
+        has_message = 1;
+    }
+    else {
+        // TODO: Fetch the source code of the expression and use it as the message
+    }
+
+    //length += compile_emit(self, OP_POP_JUMP_IF_TRUE, skip + 1, (ASTNode*) node);
+    //if (block != NULL)
+    //    length += compile_merge_block(self, block);
+
+    return length + compile_emit(self, OP_ASSERT, has_message, (ASTNode*) node);
+}
+
+static unsigned
 compile_node1(Compiler* self, ASTNode* ast) {
     switch (ast->type) {
     case AST_ASSIGNMENT:
@@ -923,6 +948,8 @@ compile_node1(Compiler* self, ASTNode* ast) {
         return compile_foreach(self, (ASTForeach*) ast);
     case AST_CONTROL:
         return compile_control(self, (ASTControl*) ast);
+    case AST_ASSERT:
+        return compile_assert(self, (ASTAssert*) ast);
     default:
         compile_error(self, "Unexpected AST node type");
     }

@@ -875,6 +875,21 @@ parse_statement(Parser* self) {
         result = (ASTNode*) astcontrol;
         break;
     }
+    case T_ASSERT: {
+        ASTAssert *assert = GC_NEW(ASTAssert);
+        Parser nested;
+
+        parser_node_init((ASTNode*) assert, AST_ASSERT, token);
+        parser_with_flags(self, &nested, self->flags | LOX_PARSE_NO_AUTO_TUPLE);
+        assert->expression = parse_expression(&nested);
+
+        if (self->tokens->peek(self->tokens)->type == T_COMMA) {
+            parse_expect(self, T_COMMA);
+            assert->message = parse_expression(self);
+        }
+        result = (ASTNode*) assert;
+        break;
+    }
     default:
         // This shouldn't happen ...
         result = NULL;
@@ -919,6 +934,7 @@ parser_parse_next(Parser* self) {
     case T_FOREACH:
     case T_BREAK:
     case T_CONTINUE:
+    case T_ASSERT:
         self->tokens->next(self->tokens);
         rv = parse_statement(self);
         break;
