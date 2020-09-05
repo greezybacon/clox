@@ -450,6 +450,9 @@ compile_expression(Compiler* self, ASTExpression *expr) {
         }
     }
 
+    if (expr->result_ignored)
+        length += compile_emit(self, OP_POP_TOP, 0, expr);
+
     return length;
 }
 

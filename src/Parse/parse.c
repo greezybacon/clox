@@ -949,6 +949,10 @@ parser_parse_next(Parser* self) {
         return NULL;
 
     default:
+        if (self->previous && self->previous->type == AST_EXPRESSION) {
+            // Two expressions in a row. Ignore the output of the previous
+            ((ASTExpression*) self->previous)->result_ignored = true;
+        }
         rv = parse_expression(self);
         if (rv->type == AST_INVOKE) {
             // Function invoke used as a statement

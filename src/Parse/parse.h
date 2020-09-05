@@ -52,6 +52,7 @@ typedef struct ast_expression {
     struct ast_node     *lhs;
     struct ast_node     *rhs;
     bool                isreturn;
+    bool                result_ignored;
 } ASTExpression;
 
 typedef struct ast_unary {

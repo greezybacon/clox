@@ -54,6 +54,7 @@ TokenDescriptions[] = {
     { T_THIS, "T_THIS" },
     { T_SUPER, "T_SUPER" },
     { T_COLON, "T_COLON" },
+    { T_RETURN, "T_RETURN" },
 };
 static const int cTokenDescriptions = sizeof(TokenDescriptions) / sizeof(TokenDescriptions[0]);
 
