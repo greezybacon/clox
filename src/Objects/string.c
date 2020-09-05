@@ -7,6 +7,7 @@
 #include "object.h"
 #include "boolean.h"
 #include "integer.h"
+#include "list.h"
 #include "string.h"
 
 #include "Lib/builtin.h"
@@ -239,6 +240,49 @@ string_op_plus(Object* self, Object* other) {
     return (Object*) StringTree_fromStrings(self, other);
 }
 
+const char*
+LoxString_getCharAt(LoxString *self, int index, int *length) {
+    assert(self != NULL);
+
+    LoxString *S = (LoxString*) self;
+    int j = 0;
+
+    while (index < 0)
+        index += S->length;
+
+    const char *s = S->characters;
+    if (index > 0) {
+        // Advance to the start of the character following the one we want. Then
+        // back up one byte afterwards.
+        index++;
+        while (index) {
+            if ((*s++ & 0xc0) != 0x80)
+                index--;
+        }
+        s--;
+    }
+    else {
+        // Go backwards, looking for the first char in the sequence. This
+        // would be much better than scanning the entire string to find the
+        // last char.
+        s += S->length - 1;
+        while (index < 0) {
+            if ((*s++ & 0xc0) != 0x80)
+                index++;
+        }
+        s++;
+    }
+
+    // So, `s` points at the unicode character requested. But we should
+    // include all the bytes in the response.
+    *length = 1;
+    const char *t = s;
+    while (((*++t & 0xc0) == 0x80))
+        (*length)++;
+
+    return s;
+}
+
 static Object*
 string_getitem(Object* self, Object* index) {
     assert(self != NULL);
@@ -256,31 +300,12 @@ string_getitem(Object* self, Object* index) {
 
     int i = Integer_toInt(index);
     LoxString *S = (LoxString*) self;
-    int length = S->length, j = 0;
-
-    if (length <= i)
+    if (S->length <= i)
         // TODO: Raise exception
         return LoxNIL;
 
-    while (i < 0)
-        i += S->length;
-
-    // Advance to the start of the character following the one we want. Then
-    // back up one byte afterwards.
-    i++;
-    const char *s = S->characters;
-    while (i) {
-        if ((*s++ & 0xc0) != 0x80)
-            i--;
-	}
-    s--;
-
-    // So, `s` points at the unicode character requested. But we should
-    // include all the bytes in the response.
-    length = 1;
-    const char *t = s;
-    while (((*++t & 0xc0) == 0x80))
-        length++;
+    int length;
+    const char *s = LoxString_getCharAt(S, i, &length);
 
     // TODO: Maybe this could be a StringSlice object?
     // XXX: Possible memory corruption if this string is cleaned up while a
@@ -338,6 +363,57 @@ string_upper(VmScope *state, Object *self, Object *args) {
     return (Object*) String_fromMalloc(upper, S->length);
 }
 
+Object*
+string_rtrim(VmScope *state, Object *self, Object *args) {
+    assert(self);
+    assert(self->type == &StringType);
+
+    Object *chars = NULL;
+    Lox_ParseArgs(args, "|O", &chars);
+
+    if (chars == NULL) {
+        chars = (Object*) String_fromConstant(" \r\n\t");
+    }
+    INCREF(chars);
+
+    // TODO: Coerce `chars` to LoxString
+
+    LoxList *list = LoxList_new();
+    INCREF(list);
+    LoxList_extend(list, chars);
+    int char_count = LoxList_getLength(list);
+
+    LoxString *S = (LoxString*) self;
+    const char *s1;
+    Object *s2;
+    int i, l1, l2, length = S->length, pos = -1;
+    bool stop;
+    do {
+        s1 = LoxString_getCharAt(S, pos, &l1);
+        i = char_count;
+        stop = true;
+        while (i--) {
+            s2 = LoxList_getItem(list, i);
+            assert(s2->type == &StringType);
+            if (String_compare((LoxString*) s2, s1) == 0) {
+                length--;
+                pos--;
+                stop = false;
+                break;
+            }
+        }
+    }
+    while (!stop);
+
+    DECREF(list);
+    DECREF(chars);
+
+    if (S->length == length)
+        return self;
+
+    return (Object*) String_fromCharsAndSize(S->characters, length);
+}
+
 static struct object_type StringType = (ObjectType) {
     .code = TYPE_STRING,
     .name = "string",
@@ -355,8 +431,9 @@ static struct object_type StringType = (ObjectType) {
 
     .get_item = string_getitem,
 
-    .methods = (ObjectMethod[]) {
+    .properties = (ObjectProperty[]) {
         {"upper", string_upper},
+        {"rtrim", string_rtrim},
         {0, 0},
     },
 };
