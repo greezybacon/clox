@@ -82,7 +82,7 @@ integer_asstring(Object* self) {
     int length;
 
     length = snprintf(buffer, sizeof(buffer), "%lld", ((LoxInteger*) self)->value);
-    return (Object*) String_fromCharArrayAndSize(buffer, length);
+    return (Object*) String_fromCharsAndSize(buffer, length);
 }
 
 static LoxBool*

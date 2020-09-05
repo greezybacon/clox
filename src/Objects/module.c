@@ -87,7 +87,7 @@ LoxModule_ImportFile(const char *absolute_path, const char *name) {
 
     // TODO: Create bonafide Module object
     LoxModule* module = object_new(sizeof(LoxModule), &ModuleType);
-    module->name = (Object*) String_fromCharArrayAndSize(name, strlen(name));
+    module->name = (Object*) String_fromCharsAndSize(name, strlen(name));
     INCREF(module->name);
     module->properties = properties;
 

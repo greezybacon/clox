@@ -172,7 +172,7 @@ file_asstring(Object *self) {
         ((LoxFile*) self)->isopen ? "open" : "closed",
         ((LoxFile*) self)->filename);
 
-    return (Object*) String_fromCharArrayAndSize(buffer, length);
+    return (Object*) String_fromCharsAndSize(buffer, length);
 }
 
 static Object*

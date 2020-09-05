@@ -52,13 +52,13 @@ static bool
 repl_onecmd(CmdLoop *self, const char* line) {
     static Object* _ = NULL;
     if (!_)
-        _ = (Object*) String_fromCharArrayAndSize("_", 1);
+        _ = (Object*) String_fromCharsAndSize("_", 1);
 
     if (strncmp(line, "EOF", 3) == 0)
         return true;
 
     char buffer[strlen(line) + 10];
-    snprintf(buffer, sizeof(buffer), "return (%s)", line);
+    snprintf(buffer, sizeof(buffer), "%s", line);
     Object* result = LoxVM_evalStringWithScope(buffer, sizeof(buffer), self->scope);
 
     if (result && result != LoxNIL) {

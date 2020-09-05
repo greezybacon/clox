@@ -144,7 +144,7 @@ tuple_asstring(Object* self) {
     }
     position += snprintf(position, remaining, ")");
 
-    return (Object*) String_fromCharArrayAndSize(buffer, position - buffer);
+    return (Object*) String_fromCharsAndSize(buffer, position - buffer);
 }
 
 static hashval_t

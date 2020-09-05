@@ -405,7 +405,7 @@ hash_asstring(Object* self) {
     }
     position += snprintf(max((char*) buffer + 1, position - 2), remaining, "}");
 
-    return (Object*) String_fromCharArrayAndSize(buffer, position - buffer);
+    return (Object*) String_fromCharsAndSize(buffer, position - buffer);
 }
 
 static void

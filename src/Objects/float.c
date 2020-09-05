@@ -89,7 +89,7 @@ float_asstring(Object* self) {
 
     char buffer[40];
     snprintf(buffer, sizeof(buffer), "%Lg", ((LoxFloat*) self)->value);
-    return (Object*) String_fromCharArrayAndSize(buffer, strlen(buffer));
+    return (Object*) String_fromCharsAndSize(buffer, strlen(buffer));
 }
 
 static struct object*

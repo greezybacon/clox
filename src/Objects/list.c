@@ -332,7 +332,7 @@ list_asstring(Object* self) {
 
     position += snprintf(position, 5, "]");
 
-    return (Object*) String_fromCharArrayAndSize(buffer, position - buffer);
+    return (Object*) String_fromCharsAndSize(buffer, position - buffer);
 }
 
 static LoxBool*

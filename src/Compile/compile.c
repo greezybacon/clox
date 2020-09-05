@@ -614,7 +614,7 @@ compile_foreach(Compiler *self, ASTForeach *node) {
 
     ASTVar *var = (ASTVar*) node->loop_var;
     int index = compile_locals_allocate(self,
-        (Object*) String_fromCharArrayAndSize(var->name, var->name_length));
+        (Object*) String_fromCharsAndSize(var->name, var->name_length));
 
     length += compile_emit(self, OP_NEXT_OR_BREAK, index, (ASTNode*) node);
 
@@ -657,7 +657,7 @@ compile_function_inner(Compiler *self, ASTFunction *node) {
         assert(p->type == AST_PARAM);
         param = (ASTFuncParam*) p;
         compile_locals_allocate(self,
-            (Object*) String_fromCharArrayAndSize(param->name, param->name_length));
+            (Object*) String_fromCharsAndSize(param->name, param->name_length));
     }
 
     // Compile the function's code in the new context
@@ -686,7 +686,7 @@ compile_function(Compiler *self, ASTFunction *node) {
     Object *name = NULL;
 
     if (node->name_length) {
-        name = (Object*) String_fromCharArrayAndSize(node->name, node->name_length);
+        name = (Object*) String_fromCharsAndSize(node->name, node->name_length);
         compile_push_info(self, (CompileInfo) {
             .function_name = name,
         });
@@ -761,7 +761,7 @@ compile_var(Compiler *self, ASTVar *node) {
 
     // Make room in the locals for the name
     index = compile_locals_allocate(self,
-        (Object*) String_fromCharArrayAndSize(node->name, node->name_length));
+        (Object*) String_fromCharsAndSize(node->name, node->name_length));
 
     if (node->expression) {
         length += compile_node(self, node->expression);
@@ -785,7 +785,7 @@ compile_class(Compiler *self, ASTClass *node) {
         assert(body->type == AST_FUNCTION);
         method = (ASTFunction*) body;
         if (method->name_length) {
-            method_name = (Object*) String_fromCharArrayAndSize(method->name,
+            method_name = (Object*) String_fromCharsAndSize(method->name,
                 method->name_length);
             index = compile_emit_constant(self, method_name);
             compile_push_info(self, (CompileInfo) {

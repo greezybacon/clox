@@ -160,7 +160,7 @@ builtin_type(VmScope *state, Object *self, Object *args) {
     Object *object;
     Lox_ParseArgs(args, "O", &object);
 
-    return (Object*) String_fromCharArrayAndSize(object->type->name,
+    return (Object*) String_fromCharsAndSize(object->type->name,
         strlen(object->type->name));
 }
 

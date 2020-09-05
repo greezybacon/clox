@@ -116,7 +116,7 @@ class_asstring(Object *self) {
     size_t bytes;
 
     bytes = snprintf(buffer, sizeof(buffer), "class@%p", self);
-    return (Object*) String_fromCharArrayAndSize(buffer, bytes);
+    return (Object*) String_fromCharsAndSize(buffer, bytes);
 }
 
 static void
@@ -193,7 +193,7 @@ instance_asstring(Object *self) {
         char buffer[64];
         int bytes;
         bytes = snprintf(buffer, sizeof(buffer), "instance@%p", self);
-        return (Object*) String_fromCharArrayAndSize(buffer, bytes);
+        return (Object*) String_fromCharsAndSize(buffer, bytes);
     }
 }
 

@@ -17,7 +17,7 @@ static struct object_type StringType;
 static struct object_type StringTreeType;
 
 LoxString*
-String_fromCharArrayAndSize(const char *characters, size_t size) {
+String_fromCharsAndSize(const char *characters, size_t size) {
     LoxString* O = object_new(sizeof(LoxString), &StringType);
     O->length = size;
     O->characters = strndup(characters, size);
@@ -41,13 +41,13 @@ String_fromObject(Object* value) {
 
     char buffer[32];
     size_t length = snprintf(buffer, sizeof(buffer), "object<%s>@%p", value->type->name, value);
-    return String_fromCharArrayAndSize(buffer, length);
+    return String_fromCharsAndSize(buffer, length);
 }
 
 LoxString*
 String_fromLiteral(const char* value, size_t size) {
     // TODO: Interpret backslash-escaped characters
-    return String_fromCharArrayAndSize(value, size);
+    return String_fromCharsAndSize(value, size);
 }
 
 LoxString*

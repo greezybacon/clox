@@ -401,7 +401,7 @@ parse_TERM(Parser* self, Token *reference) {
     case T_WORD: {
         ASTLookup *lookup = GC_MALLOC(sizeof(ASTLookup));
         parser_node_init((ASTNode*) lookup, AST_LOOKUP, reference);
-        lookup->name = (Object*) String_fromCharArrayAndSize(
+        lookup->name = (Object*) String_fromCharsAndSize(
             self->tokens->fetch_text(self->tokens, next),
             next->length
         );
@@ -815,7 +815,7 @@ parse_statement(Parser* self) {
         parser_node_init((ASTNode*) astclass, AST_CLASS, token);
 
         next = parse_expect(self, T_WORD);
-        astclass->name = (Object*) String_fromCharArrayAndSize(
+        astclass->name = (Object*) String_fromCharsAndSize(
             self->tokens->fetch_text(self->tokens, next),
             next->length);
 

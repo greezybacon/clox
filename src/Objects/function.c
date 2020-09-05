@@ -49,7 +49,7 @@ Function_fromAST(ASTFunction* fun) {
         for (p = fun->arglist; p != NULL; p = p->next) {
             assert(p->type == AST_PARAM);
             param = (ASTFuncParam*) p;
-            *pname++ = String_fromCharArrayAndSize(param->name,
+            *pname++ = String_fromCharsAndSize(param->name,
                 param->name_length);
         }
         O->parameters = (Object**) names;
@@ -57,7 +57,7 @@ Function_fromAST(ASTFunction* fun) {
     }
 
     if (fun->name_length)
-        O->name = (Object*) String_fromCharArrayAndSize(fun->name, fun->name_length);
+        O->name = (Object*) String_fromCharsAndSize(fun->name, fun->name_length);
 
     return (Object*) O;
 }
@@ -77,7 +77,7 @@ function_asstring(Object* self) {
     }
     else
         bytes = snprintf(buffer, sizeof(buffer), "function@%p", self);
-    return (Object*) String_fromCharArrayAndSize(buffer, bytes);
+    return (Object*) String_fromCharsAndSize(buffer, bytes);
 }
 
 static struct object_type FunctionType = (ObjectType) {
@@ -153,7 +153,7 @@ VmCode_fromContext(ASTFunction *fun, CodeContext *context) {
     O->context = context;
 
     if (fun->name_length)
-        O->name = (Object*) String_fromCharArrayAndSize(fun->name, fun->name_length);
+        O->name = (Object*) String_fromCharsAndSize(fun->name, fun->name_length);
 
     return (Object*) O;
 }
@@ -181,7 +181,7 @@ code_asstring(Object* self) {
     else {
         bytes = snprintf(buffer, sizeof(buffer), "code@%p", self);
     }
-    return (Object*) String_fromCharArrayAndSize(buffer, bytes);
+    return (Object*) String_fromCharsAndSize(buffer, bytes);
 }
 
 static Object*
