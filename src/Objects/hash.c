@@ -471,7 +471,7 @@ static struct object_type HashType = (ObjectType) {
     .as_bool = hash_asbool,
     .cleanup = hash_cleanup,
 
-    .methods = (ObjectMethod[]) {
+    .properties = (ObjectProperty[]) {
         {"values",  hash_values},
         {"keys",    hash_keys},
         {0, 0},

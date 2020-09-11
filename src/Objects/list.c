@@ -222,6 +222,11 @@ list_cleanup(Object *self) {
     }
 }
 
+int
+LoxList_getLength(LoxList *self) {
+    return ((LoxList*) self)->count;
+}
+
 static Object*
 list_len(Object *self) {
     assert(self->type == &ListType);
@@ -416,7 +421,7 @@ static struct object_type ListType = (ObjectType) {
     .as_string = list_asstring,
     .cleanup = list_cleanup,
 
-    .methods = (ObjectMethod[]) {
+    .properties = (ObjectProperty[]) {
         { "append", list_append },
         { "extend", list_extend },
         { "sort",   list_sort },

@@ -415,7 +415,10 @@ OP_SUPER: {
 
 OP_LOOKUP_GLOBAL:
             C = ctx->code->constants + pc->arg;
-            PUSH(stack, VmScope_lookup_global(ctx->scope, C->value, C->hash));
+            item = VmScope_lookup_global(ctx->scope, C->value, C->hash);
+            if (LoxNativeProperty_isProperty(item))
+                item = LoxNativeProperty_callGetter(item, ctx->scope, ctx->this);
+            PUSH(stack, item);
             DISPATCH();
 
 OP_LOOKUP_CLOSED:

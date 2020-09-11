@@ -35,10 +35,25 @@ typedef struct lox_iterator Iterator;
 
 typedef Object* (*NativeFunctionCall)(VmScope*, Object*, Object*);
 
-typedef struct object_method {
-    char*       name;
-    NativeFunctionCall method;
-} ObjectMethod;
+enum object_property_type {
+    OBJECT_PROP_TYPE_METHOD=0,
+    OBJECT_PROP_TYPE_CONSTANT,
+    OBJECT_PROP_TYPE_PROPERTY,
+};
+
+typedef struct object_property {
+    const char*            name;
+    union {
+        NativeFunctionCall method;
+        Object             *value;
+        struct {
+            NativeFunctionCall getter;
+            NativeFunctionCall setter;
+            NativeFunctionCall delete;
+        }                   property;
+    };
+    enum object_property_type type;
+} ObjectProperty;
 
 typedef struct object_type {
     enum base_type  code;
@@ -88,8 +103,10 @@ typedef struct object_type {
     Iterator* (*iterate)(Object*);
 
     // TODO: Methods (stuff unique to each type)
-    ObjectMethod* methods;
-    LoxTable* _methodTable; // XXX: Move this to an opaque type? Something behind-the-scenes-ish
+    ObjectProperty* properties;
+    // XXX: Move this to an opaque type? Something behind-the-scenes-ish
+    // XXX: Change to `properties` and include getter methods?
+    LoxTable* _methodTable;
     Object* (*getattr)(Object*, Object*, hashval_t);
     void (*setattr)(Object*, Object*, Object*, hashval_t);
 
@@ -110,7 +127,9 @@ void LoxObject_Cleanup(Object*);
 #define INCREF(object) (((Object*) object)->refcount++)
 #define DECREF(object) do { if ((--((Object*) object)->refcount) == 0) LoxObject_Cleanup((Object*) object); } while(0)
 
-#define HASHVAL(object) (hashval_t) ((object)->type->hash ? (object)->type->hash(object) : (hashval_t) (object))
+#define HASHVAL(object) (hashval_t) ((object)->type->hash \
+    ? (object)->type->hash(object) \
+    : (hashval_t) (object))
 
 static hashval_t MYADDRESS(Object *self) {
     Object **pself = &self;

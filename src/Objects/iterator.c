@@ -54,7 +54,7 @@ static struct object_type IteratorType = (ObjectType) {
     .cleanup = iterator_cleanup,
     .iterate = iterator_iterate,
     
-    .methods = (ObjectMethod[]) {
+    .properties = (ObjectProperty[]) {
         { "next", iterator_next },
         { 0, 0 },
     },

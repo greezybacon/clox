@@ -15,13 +15,14 @@ typedef struct module_object {
 typedef struct module_description {
     char*       name;
     // XXX: This seems short-sighted. What about constants?
-    ObjectMethod methods[];
+    ObjectProperty properties[];
 } ModuleDescription;
 
 Object*
 Module_init(ModuleDescription* description);
 
-Object*
-LoxModule_FindAndImport(const char *path);
+Object* LoxModule_FindAndImport(const char *);
+int LoxModule_buildProperties(ObjectProperty*, LoxTable*);
+bool LoxModule_isModule(Object*);
 
 #endif

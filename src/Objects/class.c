@@ -4,6 +4,7 @@
 
 #include "object.h"
 #include "class.h"
+#include "exception.h"
 #include "function.h"
 #include "hash.h"
 #include "iterator.h"
@@ -39,9 +40,59 @@ Class_build(LoxTable *attributes, LoxClass *parent) {
             ((LoxVmCode*) value)->context->owner = (Object*) O;
         }
     }
-    LoxObject_Cleanup(it);
+    LoxObject_Cleanup((Object*) it);
 
     return O;
+}
+
+/**
+ * Create a static class in the C-API from some static defitions. The
+ * LoxModule type will be reused to encapsulate the name of the class and
+ * its properties. A `parent` class can be optionally specified to provide
+ * for inheritance.
+ */
+LoxClass*
+Class_fromModule(LoxModule *module, LoxClass *parent) {
+    LoxClass* O = object_new(sizeof(LoxClass), &ClassType);
+
+    assert(module);
+    assert(LoxModule_isModule((Object*) module));
+
+    O->attributes = module->properties;
+    INCREF(O->attributes);
+
+    O->parent = parent;
+    if (parent)
+        INCREF((Object*) parent);
+
+    O->name = module->name;
+
+    return O;
+}
+
+/**
+ * Similar to Class_fromModule, but can be used to create a class object
+ * from a module description directly. That way, there's no need to create
+ * the module object unless it is useful for another purpose.
+ */
+LoxClass*
+LoxClass_fromModuleDescriptionAndParent(ModuleDescription *desc, LoxClass *parent) {
+    assert(desc->properties);
+
+    LoxClass* self = object_new(sizeof(LoxClass), &ClassType);
+    self->name = (Object*) String_fromCharsAndSize(desc->name, strlen(desc->name));
+    INCREF(self->name);
+
+    self->attributes = Hash_new();
+    INCREF(self->attributes);
+    LoxModule_buildProperties(desc->properties, self->attributes);
+
+    return self;
+}
+
+LoxClass*
+LoxClass_fromModuleDescription(ModuleDescription *desc) {
+    return LoxClass_fromModuleDescriptionAndParent(desc, NULL);
 }
 
 bool
@@ -126,6 +177,9 @@ class_cleanup(Object *self) {
     LoxClass *this = (LoxClass*) self;
     if (this->parent)
         DECREF((Object*) this->parent);
+
+    if (this->name)
+        DECREF(this->name);
 }
 
 static struct object_type ClassType = (ObjectType) {
@@ -174,6 +228,16 @@ instance_setattr(Object *self, Object *name, Object *value, hashval_t hash) {
         this->attributes = Hash_new();
 
     Hash_setItemEx(this->attributes, name, value, hash);
+}
+
+void
+LoxInstance_setAttribute(Object *self, Object *name, Object *value) {
+    return instance_setattr(self, name, value, HASHVAL(name));
+}
+
+Object*
+LoxInstance_getAttribute(Object *self, Object *name) {
+    return instance_getattr(self, name, HASHVAL(name));
 }
 
 static Object*

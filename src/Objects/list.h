@@ -40,6 +40,7 @@ void LoxList_append(LoxList*, Object*);
 void LoxList_extend(LoxList*, Object*);
 Object* LoxList_pop(LoxList*);
 Object* LoxList_popAt(LoxList*, int);
+int LoxList_getLength(LoxList*);
 
 bool LoxList_isList(Object*);
 size_t LoxList_getSize(Object*);

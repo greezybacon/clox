@@ -667,7 +667,7 @@ static struct object_type StringTreeType = (ObjectType) {
 
     .op_plus = stringtree_op_plus,
 
-    .methods = (ObjectMethod[]) {
+    .properties = (ObjectProperty[]) {
         { "chunks", stringtree_chunks },
         { 0, 0 },
     },

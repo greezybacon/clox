@@ -5,6 +5,7 @@
 #include "Include/Lox.h"
 #include "builtin.h"
 
+#include "Objects/exception.h"
 #include "Objects/file.h"
 #include "Objects/integer.h"
 #include "Objects/list.h"
@@ -274,10 +275,25 @@ builtin_sum(VmScope *state, Object *self, Object *args) {
     return initial;
 }
 
+static Object*
+builtin_undef(VmScope *state, Object *self, Object *args) {
+    return LoxUndefined;
+}
+
+static Object*
+builtin_stopiter(VmScope *state, Object *self, Object *args) {
+    return LoxStopIteration;
+}
+
+static Object*
+builtin_exception(VmScope *state, Object *self, Object *args) {
+    return (Object*) LoxBaseException;
+}
+
 static ModuleDescription
 builtins_module_def = {
     .name = "__builtins__",
-    .methods = {
+    .properties = {
         { "print",  builtin_print },
         { "int",    builtin_int },
         { "len",    builtin_len },
@@ -294,6 +310,14 @@ builtins_module_def = {
         { "import", builtin_import },
         { "sum",    builtin_sum },
         { "globals", builtin_globals },
+
+        // CONSTANTS
+        // XXX: Make a PROPERTY type which will be called by the interpreter
+        //      when requested at runtime
+        { "StopIteration", .property = { .getter = builtin_stopiter }, OBJECT_PROP_TYPE_PROPERTY },
+        { "undefined",     .property = { .getter = builtin_undef }, OBJECT_PROP_TYPE_PROPERTY },
+        { "Exception",     .property = { .getter = builtin_exception }, OBJECT_PROP_TYPE_PROPERTY },
+
         { 0 },
     }
 };

@@ -270,3 +270,73 @@ static struct object_type VmFunctionObjectType = (ObjectType) {
     .cleanup = vmfun_cleanup,
     .as_string = vmfun_asstring,
 };
+
+static struct object_type LoxNativePropertyType;
+
+Object*
+LoxNativeProperty_create(NativeFunctionCall getter, NativeFunctionCall setter, NativeFunctionCall delete) {
+    LoxNativeProperty* self = object_new(sizeof(LoxNativeProperty), &LoxNativePropertyType);
+    if (getter != NULL) {
+        self->getter = NativeFunction_new(getter);
+        INCREF(self->getter);
+    }
+    if (setter != NULL) {
+        self->setter = NativeFunction_new(setter);
+        INCREF(self->setter);
+    }
+    if (delete != NULL) {
+        self->delete = NativeFunction_new(delete);
+        INCREF(self->delete);
+    }
+    return (Object*) self;
+}
+
+static void
+nativeprop_cleanup(Object *self) {
+    LoxNativeProperty* this = (LoxNativeProperty*) self;
+    if (this->getter)
+        DECREF(this->getter);
+    if (this->setter)
+        DECREF(this->setter);
+    if (this->delete)
+        DECREF(this->delete);
+}
+
+bool
+LoxNativeProperty_isProperty(Object *self) {
+    return self->type == &LoxNativePropertyType;
+}
+
+static Object*
+nativeprop_getattr(Object *self, Object *key, hashval_t hash) {
+    assert(self);
+    assert(self->type == &LoxNativePropertyType);
+
+    return (Object*) ((LoxNativeProperty*) self)->getter;
+}
+
+Object*
+LoxNativeProperty_callGetter(Object *self, VmScope *scope, Object *object) {
+    assert(self);
+    assert(self->type == &LoxNativePropertyType);
+    
+    LoxNativeProperty *this = (LoxNativeProperty*) self;
+    assert(Function_isNativeFunction(this->getter));
+
+    return nfunction_call(this->getter, scope, object, NULL);
+}
+
+static Object*
+nativeprop_asstring(Object *self) {
+    return (Object*) String_fromConstant("property<>");
+}
+
+static struct object_type LoxNativePropertyType = (ObjectType) {
+    .name = "property",
+    .hash = MYADDRESS,
+    .compare = IDENTITY,
+    .cleanup = nativeprop_cleanup,
+    .getattr = nativeprop_getattr,
+    //.setattr = nativeprop_setattr,
+    .as_string = nativeprop_asstring,
+};

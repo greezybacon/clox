@@ -18,22 +18,35 @@ static struct object_type ModuleType;
 Object*
 Module_init(ModuleDescription* desc) {
     LoxModule* self = object_new(sizeof(LoxModule), &ModuleType);
-    self->name = (Object*) String_fromCharArrayAndSize(desc->name, strlen(desc->name));
+    self->name = (Object*) String_fromCharsAndSize(desc->name, strlen(desc->name));
     INCREF(self->name);
     self->properties = Hash_new();
     INCREF(self->properties);
 
-    ObjectMethod* M = desc->methods;
+    LoxModule_buildProperties(desc->properties, self->properties);
+
+    return (Object*) self;
+}
+
+int
+LoxModule_buildProperties(ObjectProperty *properties, LoxTable *table) {
     LoxString* name;
-    Object* method;
+    Object* value;
+    ObjectProperty* M = properties;
+
     while (M->name) {
-        name = String_fromCharArrayAndSize(M->name, strlen(M->name));
-        method = (Object*) NativeFunction_new(M->method);
-        Hash_setItem(self->properties, (Object*) name, method);
+        name = String_fromCharsAndSize(M->name, strlen(M->name));
+        if (M->type == OBJECT_PROP_TYPE_METHOD) {
+            value = (Object*) NativeFunction_new(M->method);
+        }
+        else if (M->type == OBJECT_PROP_TYPE_PROPERTY) {
+            value = (Object*) LoxNativeProperty_create(M->property.getter, M->property.setter, NULL);
+        }
+        Hash_setItem(table, (Object*) name, value);
         M++;
     }
 
-    return (Object*) self;
+    return 0;
 }
 
 static Object*
@@ -41,7 +54,13 @@ module_getitem(Object* self, Object* name) {
     assert(self->type == &ModuleType);
 
     LoxModule* module = (LoxModule*) self;
-    return Hash_getItem(module->properties, name);
+    Object *value = Hash_getItem(module->properties, name);
+
+    if (LoxNativeProperty_isProperty(value)) {
+        value = ((LoxNativeProperty*) value)->getter;
+    }
+
+    return value;
 }
 
 static LoxBool*
@@ -72,6 +91,11 @@ import_file(FILE *text, const char *name) {
     // TODO: Place the module in a global scope as a cache
 
     return globals;
+}
+
+bool
+LoxModule_isModule(Object *object) {
+   return object->type == &ModuleType;
 }
 
 Object*

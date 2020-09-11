@@ -2,6 +2,7 @@
 #include <sys/stat.h>
 #include <stdio.h>
 
+#include "exception.h"
 #include "file.h"
 #include "integer.h"
 #include "boolean.h"
