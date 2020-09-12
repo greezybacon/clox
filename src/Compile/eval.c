@@ -247,24 +247,21 @@ OP_POP_TOP:
             DISPATCH();
 
 OP_ASSERT:
+            if ((pc->arg & ASSERT_FLAG_FAILED) == 0)
+                // Need to test the top-of-stack for truthy
+                if (Bool_isTrue(POP(stack)))
+                    DISPATCH();
+
             // This is FATAL if we arrive here
-            item = POP(stack);
-            if (Tuple_isTuple(item)) {
-                lhs = Tuple_GETITEM(item, 0);
-                if (!Bool_isTrue(lhs)) {
-                    if (Tuple_getSize(item) != 2) {
-                        fprintf(stderr, "WARNING: Assert() should only have one or two parameters\n");
-                    }
-                    vmeval_raise(ctx, Exception_fromObject(Tuple_GETITEM(item, 1)));
-                }
-            }
-            else {
-                if (!Bool_isTrue(item)) {
-                    vmeval_raise(ctx, Exception_fromConstant("Assertion failed"));
-                }
-                // XXX: Will never make it here
+            if ((pc->arg & ASSERT_FLAG_HAS_MESSAGE) != 0) {
+                item = POP(stack);
+                vmeval_raise(ctx, Exception_fromObject(item));
                 DECREF(item);
             }
+            else {
+                    vmeval_raise(ctx, Exception_fromConstant("Assertion failed"));
+            }
+            // XXX: Will never make it here
             DISPATCH();
 
 OP_CLOSE_FUN: {

@@ -892,17 +892,22 @@ compile_assert(Compiler *self, ASTAssert *node) {
     if (node->message) {
         block = compile_block(self, node->message);
         skip += JUMP_LENGTH(block);
-        has_message = 1;
+        has_message = ASSERT_FLAG_HAS_MESSAGE;
     }
     else {
         // TODO: Fetch the source code of the expression and use it as the message
     }
 
-    //length += compile_emit(self, OP_POP_JUMP_IF_TRUE, skip + 1, (ASTNode*) node);
-    //if (block != NULL)
-    //    length += compile_merge_block(self, block);
+    if (block != NULL) {
+        // Lazily evaluate the "message"
+        length += compile_emit(self, OP_POP_JUMP_IF_TRUE, skip + 1, (ASTNode*) node);
+        length += compile_merge_block(self, block);
+        return length + compile_emit(self, OP_ASSERT, has_message | ASSERT_FLAG_FAILED, (ASTNode*) node);
+    }
+    else {
+        return length + compile_emit(self, OP_ASSERT, has_message, (ASTNode*) node);
+    }
 
-    return length + compile_emit(self, OP_ASSERT, has_message, (ASTNode*) node);
 }
 
 static unsigned

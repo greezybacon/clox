@@ -86,7 +86,6 @@ LoxFile_readLine(Object *self) {
 
     if (0 == length) {
         free(buffer);
-        // XXX: Should NIL or Undefined be used instead of an empty string?
         return (Object*) LoxNIL;
     }
 
@@ -222,7 +221,7 @@ static struct object_type FileType = (ObjectType) {
     .iterate = LoxFile_getIterator,
     .as_string = file_asstring,
 
-    .methods = (ObjectMethod[]) {
+    .properties = (ObjectProperty[]) {
         { "read", file_read },
         { "readline", file_readline },
         { "write", file_write },

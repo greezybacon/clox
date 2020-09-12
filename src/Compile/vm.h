@@ -112,6 +112,12 @@ enum lox_vm_compare {
 }
 __attribute__((packed));
 
+enum lox_vm_assert_flag {
+    ASSERT_FLAG_HAS_MESSAGE = 1,
+    ASSERT_FLAG_FAILED = 2,
+}
+__attribute__((packed));
+
 typedef struct code_source {
     unsigned    opcode_count;           // Offset in instruction list to this line
     unsigned    line_number;            // Line number of code
