@@ -381,9 +381,9 @@ static Object*
 hash_asstring(Object* self) {
     assert(self->type == &HashType);
 
-    char buffer[1024];  // TODO: Use the + operator of LoxString
+    char buffer[2048];  // TODO: Use the + operator of LoxString
     char* position = buffer;
-    int remaining = sizeof(buffer) - 1, bytes;
+    int remaining = sizeof(buffer), bytes;
 
     bytes = snprintf(position, remaining, "{");
     position += bytes, remaining -= bytes;
@@ -392,7 +392,7 @@ hash_asstring(Object* self) {
     LoxString *skey, *svalue;
 
     Iterator* it = Hash_getIterator((LoxTable*) self);
-    while (LoxStopIteration != (next = it->next(it))) {
+    while (LoxStopIteration != (next = it->next(it)) && remaining > 0) {
         assert(Tuple_isTuple(next));
         key = Tuple_getItem((LoxTuple*) next, 0);
         value = Tuple_getItem((LoxTuple*) next, 1);
@@ -406,7 +406,8 @@ hash_asstring(Object* self) {
         DECREF(svalue);
         position += bytes, remaining -= bytes;
     }
-    position += snprintf(max((char*) buffer + 1, position - 2), remaining, "}");
+    if (remaining > 0)
+        position += snprintf(max((char*) buffer + 1, position - 2), remaining, "}");
 
     return (Object*) String_fromCharsAndSize(buffer, position - buffer);
 }
