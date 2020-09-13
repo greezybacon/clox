@@ -127,7 +127,10 @@ hash_set_fast(LoxTable *self, Object *key, Object *value, hashval_t hash) {
             && 0 == entry->key->type->compare(entry->key, key)
         ) {
             // There's something associated with this key. Let's replace it
-            break;
+            DECREF(entry->value);
+            INCREF(value);
+            entry->value = value;
+            return;
         }
         slothash = hash_mangle(slothash);
         slot = slothash & self->size_mask;
