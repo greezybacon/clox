@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 #include <strings.h>
 
 #include "vm.h"
@@ -455,7 +456,7 @@ compile_expression(Compiler* self, ASTExpression *expr) {
     }
 
     if (expr->result_ignored)
-        length += compile_emit(self, OP_POP_TOP, 0, expr);
+        length += compile_emit(self, OP_POP_TOP, 0, (ASTNode*) expr);
 
     return length;
 }

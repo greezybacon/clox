@@ -451,10 +451,8 @@ static struct object_type StringType = (ObjectType) {
 };
 
 static LoxString _LoxEmptyString = (LoxString) {
-    .base = (Object) {
-        .type = &StringType,
-        .refcount = 1,
-    },
+    .base.type = &StringType,
+    .base.refcount = 1,
     .length = 0,
     .characters = "",
 };

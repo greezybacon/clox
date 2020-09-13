@@ -235,10 +235,8 @@ static struct object_type TupleType = (ObjectType) {
 };
 
 static LoxTuple _LoxEmptyTuple = (LoxTuple) {
-    .base = (Object) {
-        .type = &TupleType,
-        .refcount = 1,
-    },
+    .base.type = &TupleType,
+    .base.refcount = 1,
     .count = 0,
     .items = NULL,
 };

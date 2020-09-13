@@ -307,7 +307,7 @@ OP_CALL_FUN: {
                 INCREF(rv);
                 if (Exception_isException(rv)) {
                     // exceptions from VM code will happen in the block above
-                    vmeval_raise_exception(ctx, rv);
+                    vmeval_raise(ctx, rv);
                 }
                 LoxObject_Cleanup((Object*) args);
             }
