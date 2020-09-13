@@ -47,10 +47,11 @@ loxrange_next(Iterator *self) {
 Iterator*
 range_iterate(Object *self) {
     assert(self->type == &LoxRangeType);
+    LoxRange *this = (LoxRange*) self;
 
     LoxRangeIterator* iter = (LoxRangeIterator*) LoxIterator_create(self, sizeof(LoxRangeIterator));
     iter->iterator.next = loxrange_next;
-    iter->current = ((LoxRange*) self) ->start;
+    iter->current = this->start->type->op_minus(this->start, this->step);
     return (Iterator*) iter;
 }
 
@@ -83,7 +84,7 @@ range_iterate_int(Object *self) {
 
     LoxIntRangeIterator* iter = (LoxIntRangeIterator*) LoxIterator_create(self, sizeof(LoxRangeIterator));
     iter->iterator.next = loxrange_next_int;
-    iter->current = ((LoxIntRange*) self) ->start;
+    iter->current = ((LoxIntRange*) self) ->start - ((LoxIntRange*) self) ->step;
     return (Iterator*) iter;
 }
 
