@@ -237,6 +237,18 @@ string_op_plus(Object* self, Object* other) {
     if (!String_isString(other))
         other = other->type->as_string(other);
 
+    // If adding something like single chars, build it as a string. Plus,
+    // keeping the length as multiples of 4 characters, where possible, would
+    // mean for more consistent hashing between string trees and normal
+    // strings for the same sequence of characters.
+    if (((LoxString*)self)->length < 64) {
+        char *buffer;
+        asprintf(&buffer, "%.*s%.*s", ((LoxString*)self)->length, ((LoxString*)self)->characters,
+            ((LoxString*)other)->length, ((LoxString*)other)->characters);
+        return (Object*) String_fromMalloc(buffer, ((LoxString*)self)->length + ((LoxString*)other)->length);
+    }
+
+    // Otherwise, try not to duplicate memory
     return (Object*) StringTree_fromStrings(self, other);
 }
 
@@ -642,22 +654,19 @@ stringtree_compare(Object *self, Object *other) {
 
 static Object*
 stringtree_op_plus(Object *self, Object *other) {
-    LoxStringTree* O = object_new(sizeof(LoxStringTree), &StringTreeType);
+    LoxStringTree *this = (LoxStringTree*) self;
+    Object *old = this->right;
 
-    if (other->type != &StringTreeType && !String_isString(other))
-        other = other->type->as_string(other);
+    this->right = this->right->type->op_plus(this->right, other);
+    INCREF(this->right);
+    DECREF(old);
 
-    O->left = self;
-    O->right = other;
-    INCREF(self);
-    INCREF(other);
-
-    return (Object*) O;
+    return self;
 }
 
 static struct object_type StringTreeType = (ObjectType) {
     .code = TYPE_STRINGTREE,
-    .name = "string",
+    .name = "string(tree)",
     .cleanup = stringtree_cleanup,
     .hash = stringtree_hash,
     .len = stringtree_len,
