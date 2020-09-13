@@ -104,6 +104,40 @@ LoxObject_Cleanup(Object* self) {
     free(self);
 }
 
+static LoxTable*
+object_setup_props(Object *self) {
+    LoxTable *methods;
+    unsigned count;
+    ObjectProperty* method = self->type->properties;
+    Object *value;
+
+    while (method && method->name) {
+        count++;
+        method++;
+    }
+
+    self->type->_methodTable = methods = Hash_newWithSize(count);
+    INCREF((Object*) methods);
+    method = self->type->properties;
+    while (method && method->name) {
+        if (method->type == OBJECT_PROP_TYPE_METHOD) {
+            value = NativeFunction_new(method->method);
+        }
+        else if (method->type == OBJECT_PROP_TYPE_PROPERTY) {
+            value = LoxNativeProperty_create(method->property.getter,
+                method->property.setter, NULL);
+        }
+        else {
+            value = method->value;
+        }
+        Hash_setItem(methods, (Object*) String_fromConstant(method->name),
+            value);
+        method++;
+    }
+
+    return methods;
+}
+
 Object*
 object_getattr(Object* self, Object *name, hashval_t hash) {
     assert(self);
@@ -112,32 +146,20 @@ object_getattr(Object* self, Object *name, hashval_t hash) {
         return self->type->getattr(self, name, hash);
 
     // Build a HashTable for faster access to methods
-    if (self->type->methods) {
+    if (self->type->properties) {
         LoxTable *methods = self->type->_methodTable;
-        if (!methods) {
-            unsigned count;
-            ObjectMethod* method = self->type->methods;
-            while (method && method->name) {
-                count++;
-                method++;
-            }
-
-            self->type->_methodTable = methods = Hash_newWithSize(count);
-            INCREF((Object*) methods);
-            method = self->type->methods;
-            while (method && method->name) {
-                Hash_setItem(methods,
-                    (Object*) String_fromConstant(method->name),
-                    NativeFunction_new(method->method));
-                method++;
-            }
-        }
+        if (!methods)
+            methods = object_setup_props(self);
 
         assert(String_isString(name));
 
         Object *result;
-        if (NULL != (result = Hash_getItemEx(methods, name, hash)))
-            result = NativeFunction_bind(result, self);
+        if (NULL != (result = Hash_getItemEx(methods, name, hash))) {
+            if (LoxNativeProperty_isProperty(result))
+                result = ((LoxNativeProperty*) result)->getter;
+            if (Function_isNativeFunction(result))
+                result = NativeFunction_bind(result, self);
+        }
 
         return result ? result : LoxUndefined;
     }
