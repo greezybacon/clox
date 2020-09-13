@@ -440,6 +440,10 @@ compile_expression(Compiler* self, ASTExpression *expr) {
             length += compile_emit(self, OP_COMPARE, COMPARE_IN, (ASTNode*) expr);
             break;
 
+        case T_OP_IS:
+            length += compile_emit(self, OP_COMPARE, COMPARE_IS, (ASTNode*) expr);
+            break;
+
         case T_AND:
         case T_OR:
             // already handled above

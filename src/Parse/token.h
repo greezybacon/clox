@@ -32,6 +32,7 @@ enum token_type {
     T_OP_NOTEQUAL,
     T_OP_ASSIGN,
     T_OP_IN,
+    T_OP_IS,
     T_BANG,
     T_AND,
     T_OR,

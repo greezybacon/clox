@@ -236,6 +236,8 @@ next_token(Tokenizer *self) {
                 token->type = T_OR;
             else if (0 == strncmp(token_text, "in", 2))
                 token->type = T_OP_IN;
+            else if (0 == strncmp(token_text, "is", 2))
+                token->type = T_OP_IS;
             break;
         case 3:
             if (0 == strncmp(token_text, "for", 3))

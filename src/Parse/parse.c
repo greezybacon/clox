@@ -504,6 +504,8 @@ static struct operator_info {
     { T_OP_PIPE,    ASSOC_LEFT,     25, "|" },
     { T_OP_CARET,   ASSOC_LEFT,     25, "^" },
     { T_OP_EQUAL,   ASSOC_LEFT,     30, "==" },
+    { T_OP_NOTEQUAL, ASSOC_LEFT,    30, "!=" },
+    { T_OP_IS,      ASSOC_LEFT,     30, "is" },
     { T_OP_GT,      ASSOC_LEFT,     40, ">" },
     { T_OP_GTE,     ASSOC_LEFT,     40, ">=" },
     { T_OP_LT,      ASSOC_LEFT,     40, "<" },

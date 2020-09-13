@@ -113,6 +113,7 @@ static struct token_to_compare_op {
     { T_OP_LT,          OP_COMPARE,     COMPARE_LT,     "<"  },
     { T_OP_LTE,         OP_COMPARE,     COMPARE_LTE,    "<=" },
     { T_OP_IN,          OP_COMPARE,     COMPARE_IN,     "in" },
+    { T_OP_IS,          OP_COMPARE,     COMPARE_IS,     "is" },
 };
 
 static int math_cmpfunc (const void * a, const void * b) {
