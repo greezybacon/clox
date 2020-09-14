@@ -626,7 +626,12 @@ compile_foreach(Compiler *self, ASTForeach *node) {
 
     length += compile_emit(self, OP_NEXT_OR_BREAK, index, (ASTNode*) node);
 
-    CodeBlock *block = compile_block(self, node->block);
+    Compiler nested = (Compiler) {
+        .context = self->context,
+        .flags = self->flags | CFLAG_LOCAL_VARS,
+        .info = self->info,
+    };
+    CodeBlock *block = compile_block(&nested, node->block);
     compile_merge_block_into(self, loop, block);
     compile_emit(self, OP_JUMP, -JUMP_LENGTH(loop) - 1, (ASTNode*) node);
 
@@ -646,6 +651,8 @@ compile_control(Compiler *self, ASTControl *node) {
     if (node->loop_continue) {
         return compile_emit(self, OP_CONTINUE, 0, (ASTNode*) node);
     }
+    compile_error(self, "Unhandled control");
+    return 0;
 }
 
 static unsigned
