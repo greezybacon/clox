@@ -6,6 +6,7 @@ typedef struct class_cmdloop {
     char        *prompt;
     char        *prompt2;
     VmScope     *scope;
+    Stream      stream;
 
     void (*preloop)(struct class_cmdloop*);
     bool (*onecmd)(struct class_cmdloop*, const char*);

@@ -9,7 +9,7 @@
 #include "Vendor/bdwgc/include/gc.h"
 
 static bool
-eval_repl_isdangling(CmdLoop* self, char* code, size_t length) {
+eval_repl_isdangling(CmdLoop* self, const char* code, size_t length) {
     Stream _stream, *stream = &_stream;
     Tokenizer* tokens;
     bool rv = false;
@@ -73,40 +73,46 @@ repl_onecmd(CmdLoop *self, const char* line) {
 
 void
 repl_loop(CmdLoop* self) {
-    char *buffer = calloc(2048, sizeof(char)), *pbuffer = buffer;
+    Stream *input = &self->stream;
+    bool stop = false;
+    const char *line, *prompt = self->prompt;
 
     if (self->preloop)
         self->preloop(self);
     if (self->intro)
         printf("%s\n", self->intro);
 
-    bool stop = false;
-    char *line, *prompt = self->prompt;
     while (!stop) {
         if (prompt)
             printf("%s", prompt);
 
-        line = fgets(pbuffer, (2048 - (pbuffer - buffer)) * sizeof(char), stdin);
-        if (!line) {
-            strcpy(buffer, "EOF");
+        int start = input->pos;
+        for (;;) {
+            char n = input->next(input);
+            if (n == '\n' || n == -1)
+                break;
+        }
+        int length = input->pos - start;
+
+        line = input->read(input, start, length);
+
+        if (length == 0 || line[0] == 0) {
+            line = "EOF";
+            length = 3;
         }
         else {
-            pbuffer += strlen(line);
-            if (eval_repl_isdangling(self, buffer, pbuffer - buffer)) {
+            if (eval_repl_isdangling(self, line, length)) {
                 prompt = self->prompt2;
                 continue;
             }
         }
 
-        stop = self->onecmd(self, buffer);
+        stop = self->onecmd(self, line);
         if (self->postcmd)
             stop = self->postcmd(self, stop, line);
 
-        pbuffer = buffer;
-        buffer[0] = '\0';
         prompt = self->prompt;
     }
-    free(buffer);
 }
 
 void
@@ -119,6 +125,9 @@ repl_init(CmdLoop *loop) {
         .onecmd = repl_onecmd,
         .scope = scope,
     };
+
+    FILE *stdin = fdopen(0, "r");
+    stream_init_file(&loop->stream, stdin, "(stdin)");
 }
 
 

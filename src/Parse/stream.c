@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "stream.h"
 #include "Vendor/bdwgc/include/gc.h"
@@ -25,33 +26,42 @@ typedef struct {
 static int
 file_stream_readahead(Stream* stream) {
     FileStream* context = (FileStream*) stream->context;
-    FileBufferChunk* chunk = context->chunks;
-    if (!chunk || context->chunk_pos >= (chunk->start + chunk->length)) {
-        FileBufferChunk* chunk = GC_MALLOC(sizeof(FileBufferChunk));
+    FileBufferChunk *chunk = context->chunks;
+    if (!chunk || context->chunk_pos >= sizeof(chunk->buffer)) {
+        chunk = GC_MALLOC(sizeof(FileBufferChunk));
         if (chunk == NULL)
             // PROBLEM
-            ;
+            fprintf(stderr, "Out of memory?\n");
 
         chunk->start = stream->pos;
 
-       // Link the current and new chunks together
+        // Link the current and new chunks together
         if (context->chunks) {
             chunk->prev = context->chunks;
             context->chunks->next = chunk;
         }
         context->chunks = chunk;
-
-        chunk->length = fread(chunk->buffer, 1, sizeof(chunk->buffer),
-            context->file);
         context->chunk_pos = 0;
     }
+
+    int ret = fread(chunk->buffer + chunk->length, 1,
+        1, // sizeof(chunk->buffer) - chunk->length,
+        context->file);
+
+    if (ret >= 0)
+        chunk->length += ret;
+
+    else if (feof(context->file))
+        return -1;
+
     return 0;
 }
 
 static char
 file_stream_next(Stream* stream) {
     FileStream* context = (FileStream*) stream->context;
-    file_stream_readahead(stream);
+    if (file_stream_readahead(stream) < 0)
+        return -1;
 
     if (context->chunks->length == 0)
         return -1;
@@ -72,7 +82,8 @@ static char
 file_stream_peek(Stream* stream) {
     FileStream* context = (FileStream*) stream->context;
 
-    file_stream_readahead(stream);
+    if (file_stream_readahead(stream) < 0)
+        return -1;
 
     if (context->chunks->length == 0)
         return -1;
