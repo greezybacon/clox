@@ -168,7 +168,7 @@ stream_init(Stream* stream) {
 }
 
 int
-stream_init_file(Stream* stream, FILE* restrict file, const char *filename) {
+stream_init_file_opts(Stream* stream, StreamInitOpts *options) {
     stream_init(stream);
 
     stream->context = GC_MALLOC(sizeof(FileStream));
@@ -178,13 +178,27 @@ stream_init_file(Stream* stream, FILE* restrict file, const char *filename) {
 
     FileStream* fstream = (FileStream*) stream->context;
     *fstream = (FileStream) {
-        .file = file,
+        .file = options->file,
         .chunks = NULL,
     };
 
     stream->ops = &file_stream_ops;
-    stream->name = GC_STRNDUP(filename, strlen(filename));
+    stream->name = GC_STRNDUP(options->filename, strlen(options->filename));
+    if (!options->readahead)
+        return 0;
+
     return file_stream_readahead(stream);
+}
+
+int
+stream_init_file(Stream* stream, FILE* restrict file, const char *filename) {
+    return stream_init_file_opts(stream,
+        &(StreamInitOpts) { 
+            .file = file,
+            .filename = filename,
+            .readahead = true,
+        }
+    );
 }
 
 void

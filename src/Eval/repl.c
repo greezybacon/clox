@@ -127,7 +127,11 @@ repl_init(CmdLoop *loop) {
     };
 
     FILE *stdin = fdopen(0, "r");
-    stream_init_file(&loop->stream, stdin, "(stdin)");
+    stream_init_file_opts(&loop->stream, &(StreamInitOpts) {
+        .file = stdin,
+        .filename = "(stdin)",
+        .readahead = false,
+    });
 }
 
 
