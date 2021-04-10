@@ -639,6 +639,10 @@ compile_foreach(Compiler *self, ASTForeach *node) {
     compile_pop_block(self);
     length += compile_emit(self, OP_ENTER_BLOCK, JUMP_LENGTH(loop), (ASTNode*) node);
     length += compile_merge_block(self, loop);
+
+    // Track the number of loop blocks in the code block
+    self->context->nLoops++;
+
     // And discard the iterator
     return length + compile_emit(self, OP_LEAVE_BLOCK, 1, (ASTNode*) node);
 }

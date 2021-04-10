@@ -160,6 +160,7 @@ typedef struct locals_list {
 typedef struct code_context {
     unsigned            nConstants;
     unsigned            nParameters;
+    unsigned            nLoops;             // Number of loop blocks
     CodeBlock           *block;
     unsigned            sizeConstants;
     Constant            *constants;

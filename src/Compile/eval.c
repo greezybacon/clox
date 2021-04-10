@@ -122,8 +122,8 @@ LoxVM_eval(VmEvalContext *ctx) {
 		INCREF(*(locals + i));
 	}
 
-    // TODO: Get number of nested block depth in compiler
-    VmEvalLoopBlock blocks[8], *pblock = &blocks[0];
+    // Get number of nested block depth in compiler
+    VmEvalLoopBlock blocks[ctx->code->nLoops], *pblock = &blocks[0];
 
     // TODO: Add estimate for MAX_STACK in the compile phase
     // XXX: Program could overflow 32-slot stack
