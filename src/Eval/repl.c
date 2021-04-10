@@ -83,28 +83,30 @@ repl_loop(CmdLoop* self) {
         printf("%s\n", self->intro);
 
     while (!stop) {
-        if (prompt)
-            printf("%s", prompt);
+        int start = input->pos, length;
 
-        int start = input->pos;
         for (;;) {
-            char n = input->next(input);
-            if (n == '\n' || n == -1)
-                break;
-        }
-        int length = input->pos - start;
+            if (prompt)
+                printf("%s", prompt);
 
-        line = input->read(input, start, length);
+            for (;;) {
+                char n = input->next(input);
+                if (n == '\n' || n == -1)
+                    break;
+            }
+
+            length = input->pos - start;
+            line = input->read(input, start, length);
+
+            if (!eval_repl_isdangling(self, line, length))
+                break;
+
+            prompt = self->prompt2;
+        }
 
         if (length == 0 || line[0] == 0) {
             line = "EOF";
             length = 3;
-        }
-        else {
-            if (eval_repl_isdangling(self, line, length)) {
-                prompt = self->prompt2;
-                continue;
-            }
         }
 
         stop = self->onecmd(self, line);

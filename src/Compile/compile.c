@@ -184,10 +184,13 @@ compile_source_record_location(CodeBlock *block, ASTNode *node) {
         previous = block->codesource.offsets + block->codesource.count - 1;
     }
 
-    if (!node || (previous && previous->line_number == node->line)) {
+    if (previous && (!node || previous->line_number == node->line)) {
         previous->opcode_count++;
         return;
     }
+
+    if (!node)
+        return;
 
     // Ensure enough capacity for another source pointer
     compile_source_ensure_size(block, block->codesource.count + 1);
