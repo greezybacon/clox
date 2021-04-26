@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "Include/Lox.h"
 #include "builtin.h"
@@ -276,6 +277,13 @@ builtin_sum(VmScope *state, Object *self, Object *args) {
 }
 
 static Object*
+builtin_clock(VmScope *state, Object *self, Object *args) {
+    clock_t elapsed = clock();
+
+    return (Object*) Float_fromLongDouble(elapsed / 1e6);
+}
+
+static Object*
 builtin_undef(VmScope *state, Object *self, Object *args) {
     return LoxUndefined;
 }
@@ -310,6 +318,7 @@ builtins_module_def = {
         { "import", builtin_import },
         { "sum",    builtin_sum },
         { "globals", builtin_globals },
+        { "clock",  builtin_clock },
 
         // CONSTANTS
         // XXX: Make a PROPERTY type which will be called by the interpreter
