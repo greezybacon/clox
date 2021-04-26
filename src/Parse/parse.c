@@ -428,7 +428,8 @@ parse_TERM(Parser* self, Token *reference) {
 
         if (next->type == T_NUMBER) {
             char* endpos;
-            term->isreal = memchr(term->text, '.', next->length) != NULL;
+            term->isreal = memchr(term->text, '.', next->length) != NULL
+                || memchr(term->text, 'e', next->length) != NULL;
             if (term->isreal) {
                 term->token.real = strtold(term->text, &endpos);
                 if (term->token.real == 0.0 && endpos == term->text) {

@@ -297,7 +297,7 @@ next_token(Tokenizer *self) {
     else if (c == '-' || c == '.' || isdigit(c)) {
         for (;;) {
             c = peek_char(self);
-            if (c == 0 || !(c == '.' || isdigit(c)))
+            if (c == 0 || !(c == '.' || c == 'e' || isdigit(c)))
                 break;
             next_char(self);
         }
