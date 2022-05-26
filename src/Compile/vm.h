@@ -67,7 +67,7 @@ enum opcode {
     OP_BUILD_TUPLE,
     OP_BUILD_STRING,
     OP_FORMAT,
-    OP_BUILD_TABLE,
+    //OP_BUILD_TABLE,
 
     // Register-based opcodes
     ROP_HALT=0,

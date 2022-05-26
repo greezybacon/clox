@@ -108,7 +108,7 @@ static void
 compile_register_setused(Compiler *self, int number) {
     RegisterStatus *r = &self->registers;
 
-    assert(!TestBit(r->used, number));
+    //assert(!TestBit(r->used, number));
     SetBit(r->used, number);
 }
 

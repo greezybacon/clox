@@ -7,6 +7,7 @@
 #include "integer.h"
 #include "iterator.h"
 #include "string.h"
+#include "tuple.h"
 
 const int BUCKET_SIZE = 16;
 const int HALF_BUCKET_SIZE = BUCKET_SIZE >> 1;
