@@ -93,20 +93,45 @@ vmeval_eval(VmEvalContext *ctx) {
     void *start = pc;
     Instruction *end = ((void*)pc) + ctx->code->block->bytes;
 
-    for (;;) {
+    static void *_labels[] = {
+        [ROP_STORE] = &&ROP_STORE,
+        [ROP_MATH] = &&ROP_MATH,
+        [ROP_COMPARE] = &&ROP_COMPARE,
+        [ROP_CONTROL] = &&ROP_CONTROL,
+        [ROP_CALL] = &&ROP_CALL,
+        [ROP_CALL_RECURSE] = &&ROP_CALL_RECURSE,
+        [ROP_BUILD] = &&ROP_BUILD,
+        [ROP_ITEM] = &&ROP_ITEM,
+        [ROP_ATTR] = &&ROP_ATTR,
+        [ROP_HALT] = &&ROP_HALT,
+    };
+
 #if DEBUG
-        print_instructions(ctx->code, pc, 1);
+    #define DISPATCH() \
+        { print_instructions(ctx->code, pc, 1); } \
+        goto *_labels[(pc)->opcode]
+#else
+    #define DISPATCH() \
+        goto *_labels[(pc)->opcode]
 #endif
-        switch (pc->opcode) {
-        case ROP_STORE: {
+
+#if DEBUG
+    print_instructions(ctx->code, pc, 1);
+#endif
+
+    // DISPATCH()
+    goto *_labels[pc->opcode];
+
+    for (;;) {
+ROP_STORE: {
             ShortInstruction *si = (ShortInstruction*) pc;
             store_arg_indirect(ctx, si->p1, si->flags.lro.lhs,
                 fetch_arg_indirect(ctx, si->p2, si->flags.lro.rhs));
             pc = ((void*) pc) + ROP_STORE__LEN;
-            break;
+            DISPATCH();
         }
 
-        case ROP_MATH: {
+ROP_MATH: {
             lhs = fetch_arg_indirect(ctx, pc->p1, pc->flags.lro.lhs);
             rhs = fetch_arg_indirect(ctx, pc->p2, pc->flags.lro.rhs);
 
@@ -129,11 +154,11 @@ vmeval_eval(VmEvalContext *ctx) {
             }
             store_arg_indirect(ctx, pc->p3, pc->flags.lro.out, out);
             pc = ((void*) pc) + ROP_MATH__LEN;
-            break;
+            DISPATCH();
         }
 
         // ROP_COMPARE, flags, op, lhs, rhs, out, flags=..llrroo
-        case ROP_COMPARE: {
+ROP_COMPARE: {
             lhs = fetch_arg_indirect(ctx, pc->p1, pc->flags.lro.lhs);
             rhs = fetch_arg_indirect(ctx, pc->p2, pc->flags.lro.rhs);
 
@@ -195,10 +220,10 @@ vmeval_eval(VmEvalContext *ctx) {
                     break;
             }
             pc = ((void*) pc) + ROP_COMPARE__LEN;
-            break;
+            DISPATCH();
         }
 
-        case ROP_CONTROL: {
+ROP_CONTROL: {
             switch ((enum lox_vm_control_op) pc->subtype) {
             case OP_CONTROL_JUMP_IF_TRUE:
                 if (Bool_isTrue(fetch_arg_indirect(ctx, pc->p1, pc->flags.lro.lhs)))
@@ -239,10 +264,10 @@ vmeval_eval(VmEvalContext *ctx) {
             }
 
             pc = ((void*) pc) + ROP_CONTROL__LEN;
-            break;
+            DISPATCH();
         }
 
-        case ROP_CALL_RECURSE: {
+ROP_CALL_RECURSE: {
             // This will only happen for a LoxVmFunction. In this case, we will
             // execute the same code again, but with different arguments.
             VmEvalContext call_ctx = *ctx;
@@ -267,10 +292,10 @@ vmeval_eval(VmEvalContext *ctx) {
             }
 
             pc = ((void*) pc) + ROP_CALL__LEN_BASE + pc->len;
-            break;
+            DISPATCH();
         }
 
-        case ROP_CALL: {
+ROP_CALL: {
             lhs = fetch_arg_indirect(ctx, pc->subtype, pc->flags.lro.rhs);
 
             if (VmFunction_isVmFunction(lhs)) {
@@ -301,10 +326,9 @@ vmeval_eval(VmEvalContext *ctx) {
                 unsigned count = pc->len, i = 0;
                 const ShortArg *A = pc->args;
 
-                while (count--) {
+                for (; count; count--, A++) {
                     // TODO: Handle long arguments
                     Tuple_SETITEM(args, i++, fetch_arg_indirect(ctx, A->index, A->location));
-                    A++;
                 }
                 out = lhs->type->call(lhs, ctx->scope, ctx->this, (Object*) args);
                 if (pc->flags.lro.opt1 == 0)
@@ -316,10 +340,10 @@ vmeval_eval(VmEvalContext *ctx) {
                 rv = LoxUndefined;
             }
             pc = ((void*) pc) + ROP_CALL__LEN_BASE + pc->len;
-            break;
+            DISPATCH();
         }
 
-        case ROP_BUILD: {
+ROP_BUILD: {
             int length = ROP_BUILD__LEN_BASE;
 
             switch (pc->subtype) {
@@ -361,22 +385,19 @@ vmeval_eval(VmEvalContext *ctx) {
                 store_arg_indirect(ctx, pc->p1, pc->flags.lro.out, out);
             }}
             pc = ((void*) pc) + length;
-            break;
+            DISPATCH();
         }
 
-        case ROP_ITEM:
+ROP_ITEM:
             pc = ((void*) pc) + ROP_ITEM__LEN;
-            break;
+            DISPATCH();
 
-        case ROP_ATTR:
+ROP_ATTR:
             pc = ((void*) pc) + ROP_ATTR__LEN;
-            break;
+            DISPATCH();
 
-        case ROP_HALT:
+ROP_HALT:
             goto all_done;
-
-        default:
-            printf("Unexpected OPCODE (%d)\n", pc->opcode);
 
         // OLD OPCODES --------------------------------------
 /*
@@ -842,8 +863,8 @@ op_return:
 
     return rv;
 */
-        }
     }
+
 all_done:
     if (ctx->code->result_reg != -1)
         rv = ctx->regs[ctx->code->result_reg];
