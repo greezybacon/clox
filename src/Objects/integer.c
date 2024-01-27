@@ -10,8 +10,32 @@
 
 static struct object_type IntegerType;
 
+#define SMALL_INTS 16
+static LoxInteger SmallIntegers[SMALL_INTS] = {
+    [0] = (LoxInteger) { .value = 0, .base.protect_delete = true, .base.type = &IntegerType},
+    [1] = (LoxInteger) { .value = 1, .base.protect_delete = true, .base.type = &IntegerType },
+    [2] = (LoxInteger) { .value = 2, .base.protect_delete = true, .base.type = &IntegerType },
+    [3] = (LoxInteger) { .value = 3, .base.protect_delete = true, .base.type = &IntegerType },
+    [4] = (LoxInteger) { .value = 4, .base.protect_delete = true, .base.type = &IntegerType },
+    [5] = (LoxInteger) { .value = 5, .base.protect_delete = true, .base.type = &IntegerType },
+    [6] = (LoxInteger) { .value = 6, .base.protect_delete = true, .base.type = &IntegerType },
+    [7] = (LoxInteger) { .value = 7, .base.protect_delete = true, .base.type = &IntegerType },
+    [8] = (LoxInteger) { .value = 8, .base.protect_delete = true, .base.type = &IntegerType },
+    [9] = (LoxInteger) { .value = 9, .base.protect_delete = true, .base.type = &IntegerType },
+    [10] = (LoxInteger) { .value = 10, .base.protect_delete = true, .base.type = &IntegerType },
+    [11] = (LoxInteger) { .value = 11, .base.protect_delete = true, .base.type = &IntegerType },
+    [12] = (LoxInteger) { .value = 12, .base.protect_delete = true, .base.type = &IntegerType },
+    [13] = (LoxInteger) { .value = 13, .base.protect_delete = true, .base.type = &IntegerType },
+    [14] = (LoxInteger) { .value = 14, .base.protect_delete = true, .base.type = &IntegerType },
+    [15] = (LoxInteger) { .value = 15, .base.protect_delete = true, .base.type = &IntegerType },
+};
+
 LoxInteger*
 Integer_fromLongLong(long long value) {
+    if (value < SMALL_INTS && value > 0) {
+        return &SmallIntegers[value];
+    }
+
     LoxInteger* O = object_new(sizeof(LoxInteger), &IntegerType);
     O->value = value;
     return O;
